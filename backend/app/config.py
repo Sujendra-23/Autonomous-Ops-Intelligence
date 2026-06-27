@@ -71,9 +71,11 @@ class Settings(BaseSettings):
 
     # ---- Live note-taker (streaming STT) ----
     # Provider for real-time transcription of meeting audio. "none" disables it
-    # (the WebSocket still runs but produces no transcript).
-    stt_provider: Literal["deepgram", "none"] = "none"
+    # (the WebSocket still runs but produces no transcript). "openai" uses the
+    # Realtime transcription API and reuses OPENAI_API_KEY above.
+    stt_provider: Literal["deepgram", "openai", "none"] = "none"
     deepgram_api_key: SecretStr = SecretStr("")
+    openai_realtime_model: str = "gpt-4o-transcribe"
     # Extraction cadence during a live meeting (see services/live_session.py).
     live_min_chars: int = Field(default=180, ge=20)
     live_min_interval_seconds: float = Field(default=8.0, ge=1.0)
@@ -81,9 +83,11 @@ class Settings(BaseSettings):
 
     @property
     def stt_enabled(self) -> bool:
-        return self.stt_provider == "deepgram" and bool(
-            self.deepgram_api_key.get_secret_value()
-        )
+        if self.stt_provider == "deepgram":
+            return bool(self.deepgram_api_key.get_secret_value())
+        if self.stt_provider == "openai":
+            return bool(self.openai_api_key.get_secret_value())
+        return False
 
     # ---- Cross-meeting intelligence ----
     # When true, the extractor is shown the project's existing open tasks /

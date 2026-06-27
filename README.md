@@ -369,8 +369,14 @@ discipline as everywhere else.
   (provider-agnostic streaming STT), `app/services/live_session.py` (extraction
   cadence), `ExtractionPipeline.extract_incremental` (cheap in-loop reconcile).
 - Extension: `extension/` — load unpacked; see `extension/README.md` for setup.
-- Config: `STT_PROVIDER=deepgram` + `DEEPGRAM_API_KEY` enable transcription;
-  `STT_PROVIDER=none` (default) leaves the socket working but silent.
+- Config: `STT_PROVIDER=deepgram` (+`DEEPGRAM_API_KEY`) or `STT_PROVIDER=openai`
+  (reuses `OPENAI_API_KEY`, Realtime transcription) enable transcription;
+  `STT_PROVIDER=none` (default) leaves the socket working but silent. The backend
+  reports the provider's expected capture sample rate to the extension.
+- Resilience: the extension auto-reconnects with backoff if the socket drops, and
+  the backend re-seeds the session from the persisted transcript, so a blip
+  mid-meeting doesn't lose notes. A live indicator shows in the React console
+  while a meeting is being transcribed.
 
 ---
 
@@ -471,7 +477,7 @@ See `.env.example` for the canonical list. Highlights:
 - `STALL_DAYS` — stall threshold
 - `CROSS_MEETING_CONTEXT` — feed prior project state into extraction (default `true`)
 - `DEDUP_TITLE_THRESHOLD` — task de-dup aggressiveness, 0–1 (default `0.82`)
-- `STT_PROVIDER` — `deepgram` or `none`; enables the live note-taker
+- `STT_PROVIDER` — `deepgram`, `openai` (Realtime), or `none`; enables the live note-taker
 - `DEEPGRAM_API_KEY` — streaming STT key for live transcription (server-side only)
 - `INGEST_API_KEY` — set to require `X-API-Key` on transcript ingestion
 

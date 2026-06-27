@@ -76,6 +76,12 @@ chrome.runtime.onMessage.addListener((msg) => {
     case "capturing":
       setStatus("Listening…");
       break;
+    case "reconnecting":
+      setStatus(`Connection dropped — reconnecting (try ${data.attempt})…`);
+      break;
+    case "reconnected":
+      setStatus("Reconnected — listening…");
+      break;
     case "done":
       setStatus("Meeting finalized ✓");
       break;

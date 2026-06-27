@@ -49,6 +49,20 @@ def test_mark_extracted_resets_pending_chars() -> None:
     assert s.should_extract(now=100.0) is False
 
 
+def test_seed_resumes_without_triggering_extraction() -> None:
+    # Simulates a reconnect: prior transcript is reloaded but must not be lost
+    # nor immediately re-trigger extraction.
+    s = LiveSession(min_chars=10)
+    s.seed("Earlier in the meeting we discussed the migration.")
+    assert s.full_text().startswith("Earlier in the meeting")
+    assert s.pending_chars == 0
+    assert s.should_extract(now=100.0) is False
+    # New speech after reconnect appends to (does not replace) the seeded text.
+    s.add_final("Now Priya owns it.")
+    assert "migration" in s.full_text() and "Priya owns it" in s.full_text()
+    assert s.should_extract(now=100.0) is True
+
+
 def test_full_text_joins_finalized_segments_and_interim_is_separate() -> None:
     s = LiveSession()
     s.add_final("Hello team.")

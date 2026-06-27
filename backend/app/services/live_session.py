@@ -26,6 +26,18 @@ class LiveSession:
     _last_extract_at: float | None = None
     interim: str = ""
 
+    def seed(self, text: str) -> None:
+        """Pre-load already-transcribed text (e.g. on WebSocket reconnect).
+
+        Counts as nothing pending, so it doesn't immediately trigger a
+        re-extraction — it just keeps ``full_text()`` continuous so a reconnect
+        doesn't overwrite the transcript with only the post-reconnect tail.
+        """
+        text = text.strip()
+        if text:
+            self._segments = [text]
+            self._chars_since_extract = 0
+
     def add_final(self, text: str) -> None:
         """Record a finalized transcript segment."""
         text = text.strip()

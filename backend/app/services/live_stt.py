@@ -14,6 +14,7 @@ just produces no text). Add OpenAI Realtime / AssemblyAI as further subclasses.
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import json
 from abc import ABC, abstractmethod
@@ -25,8 +26,9 @@ from app.logging import get_logger
 
 logger = get_logger("app.services.live_stt")
 
-# What the extension's AudioWorklet is expected to emit. The Deepgram query
-# string and the worklet must agree on these.
+# Default capture rate. Each provider exposes its own `sample_rate`; the live
+# session endpoint reports the configured one to the extension so the
+# AudioWorklet captures at the rate the provider expects.
 SAMPLE_RATE = 16000
 ENCODING = "linear16"
 CHANNELS = 1
@@ -40,6 +42,9 @@ class TranscriptEvent:
 
 class StreamingTranscriber(ABC):
     """A live STT session: feed audio in, async-iterate transcripts out."""
+
+    # Capture sample rate the provider expects (reported to the extension).
+    sample_rate: int = SAMPLE_RATE
 
     async def __aenter__(self) -> StreamingTranscriber:
         await self.connect()
@@ -138,6 +143,83 @@ class DeepgramTranscriber(StreamingTranscriber):
             self._ws = None
 
 
+class OpenAIRealtimeTranscriber(StreamingTranscriber):
+    """OpenAI Realtime transcription over WebSocket.
+
+    An alternative to Deepgram for teams already standardized on OpenAI. Audio is
+    sent as base64 PCM16 via `input_audio_buffer.append`; transcripts arrive as
+    `input_audio_transcription` delta (interim) / completed (final) events.
+
+    The Realtime API expects 24 kHz PCM16 input, so this provider reports a
+    24 kHz capture rate (the extension honors `sample_rate` from the session).
+    """
+
+    sample_rate = 24000
+    _URL = "wss://api.openai.com/v1/realtime?intent=transcription"
+
+    def __init__(self, api_key: str, model: str) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._ws = None
+
+    async def connect(self) -> None:
+        from websockets.asyncio.client import connect
+
+        self._ws = await connect(
+            self._URL,
+            additional_headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "OpenAI-Beta": "realtime=v1",
+            },
+        )
+        await self._ws.send(
+            json.dumps(
+                {
+                    "type": "transcription_session.update",
+                    "session": {
+                        "input_audio_format": "pcm16",
+                        "input_audio_transcription": {"model": self._model},
+                        "turn_detection": {"type": "server_vad"},
+                    },
+                }
+            )
+        )
+        logger.info("live_stt.connected", provider="openai", model=self._model)
+
+    async def send_audio(self, chunk: bytes) -> None:
+        if self._ws is not None and chunk:
+            payload = base64.b64encode(chunk).decode("ascii")
+            await self._ws.send(json.dumps({"type": "input_audio_buffer.append", "audio": payload}))
+
+    async def events(self) -> AsyncIterator[TranscriptEvent]:
+        if self._ws is None:
+            return
+        async for message in self._ws:
+            if isinstance(message, bytes):
+                continue
+            try:
+                data = json.loads(message)
+            except (ValueError, TypeError):
+                continue
+            kind = data.get("type", "")
+            if kind.endswith("input_audio_transcription.delta"):
+                text = (data.get("delta") or "").strip()
+                if text:
+                    yield TranscriptEvent(text=text, is_final=False)
+            elif kind.endswith("input_audio_transcription.completed"):
+                text = (data.get("transcript") or "").strip()
+                if text:
+                    yield TranscriptEvent(text=text, is_final=True)
+
+    async def close(self) -> None:
+        if self._ws is None:
+            return
+        try:
+            await self._ws.close()
+        finally:
+            self._ws = None
+
+
 def get_transcriber() -> StreamingTranscriber:
     """Construct a per-connection transcriber for the configured provider.
 
@@ -149,4 +231,17 @@ def get_transcriber() -> StreamingTranscriber:
         if key:
             return DeepgramTranscriber(key)
         logger.warning("live_stt.fallback_to_null", reason="DEEPGRAM_API_KEY missing")
+    elif settings.stt_provider == "openai":
+        key = settings.openai_api_key.get_secret_value()
+        if key:
+            return OpenAIRealtimeTranscriber(key, settings.openai_realtime_model)
+        logger.warning("live_stt.fallback_to_null", reason="OPENAI_API_KEY missing")
     return NullTranscriber()
+
+
+def configured_sample_rate() -> int:
+    """Capture sample rate for the configured provider (reported to the client)."""
+    provider = get_settings().stt_provider
+    if provider == "openai":
+        return OpenAIRealtimeTranscriber.sample_rate
+    return DeepgramTranscriber.sample_rate

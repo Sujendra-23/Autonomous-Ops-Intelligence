@@ -70,7 +70,14 @@ async function startCapture(config) {
   const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id });
 
   await ensureOffscreen();
-  chrome.runtime.sendMessage({ type: "START_CAPTURE", streamId, wsUrl }).catch(() => {});
+  chrome.runtime
+    .sendMessage({
+      type: "START_CAPTURE",
+      streamId,
+      wsUrl,
+      sampleRate: data.sample_rate || 16000,
+    })
+    .catch(() => {});
 
   return { ok: true, transcriptId: data.transcript_id, sttEnabled: data.stt_enabled };
 }

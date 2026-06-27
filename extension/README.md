@@ -27,13 +27,22 @@ Audio is relayed **through your backend**, so the STT provider key
 
 ## Backend prerequisites
 
-In the backend `.env`:
+In the backend `.env` — pick one STT provider:
 
 ```ini
+# Option A — Deepgram
 STT_PROVIDER=deepgram
 DEEPGRAM_API_KEY=...           # https://console.deepgram.com/
+
+# Option B — OpenAI Realtime (reuses OPENAI_API_KEY)
+# STT_PROVIDER=openai
+# OPENAI_REALTIME_MODEL=gpt-4o-transcribe
+
 # plus an LLM key (ANTHROPIC_API_KEY or OPENAI_API_KEY) for extraction
 ```
+
+The backend tells the extension which capture sample rate the chosen provider
+expects (16 kHz for Deepgram, 24 kHz for OpenAI), so you don't configure it here.
 
 Then `make up`. With `STT_PROVIDER=none` the WebSocket still connects but no
 transcript is produced (useful to test the plumbing).
@@ -65,4 +74,5 @@ If `INGEST_API_KEY` is set on the backend, put the same value in the panel's
 - One tab at a time. Capturing starts from the active tab.
 - The `api_key` is passed as a WebSocket query parameter; fine for localhost,
   but terminate TLS (wss) if you expose the backend.
-- This is an MVP: no reconnect/backoff if the socket drops mid-meeting.
+- If the socket drops mid-meeting the extension auto-reconnects with backoff and
+  the backend resumes the same session from the persisted transcript.

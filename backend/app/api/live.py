@@ -41,7 +41,7 @@ from app.models.task import Task
 from app.models.transcript import Transcript
 from app.services.extraction import ExtractionPipeline
 from app.services.live_session import LiveSession
-from app.services.live_stt import get_transcriber
+from app.services.live_stt import configured_sample_rate, get_transcriber
 from app.services.project_resolver import get_or_create_project
 
 logger = get_logger("app.api.live")
@@ -58,6 +58,7 @@ class LiveSessionOut(BaseModel):
     transcript_id: uuid.UUID
     ws_path: str
     stt_enabled: bool
+    sample_rate: int
 
 
 @router.post(
@@ -86,6 +87,7 @@ async def create_live_session(
         transcript_id=transcript.id,
         ws_path=f"/api/live/ws/{transcript.id}",
         stt_enabled=get_settings().stt_enabled,
+        sample_rate=configured_sample_rate(),
     )
 
 
@@ -112,6 +114,10 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
             min_interval_s=settings.live_min_interval_seconds,
             max_interval_s=settings.live_max_interval_seconds,
         )
+        # Resume from whatever was already transcribed (handles reconnects:
+        # the extension reopens the same session WebSocket after a drop).
+        if transcript.content:
+            live.seed(transcript.content)
         pipeline = ExtractionPipeline(db)
         loop = asyncio.get_event_loop()
         stop = asyncio.Event()

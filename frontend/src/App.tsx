@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "./api";
 import { Dashboard } from "./components/Dashboard";
 import { TranscriptUpload } from "./components/TranscriptUpload";
 import { Tasks } from "./components/Tasks";
@@ -9,12 +10,19 @@ type View = "dashboard" | "upload" | "tasks" | "decisions" | "intelligence";
 
 export function App() {
   const [view, setView] = useState<View>("dashboard");
+  const liveCount = useLiveMeetings();
 
   return (
     <div className="app">
       <aside className="sidebar">
         <h1>Ops AI Agent</h1>
         <div className="sidebar-tag">AI for Work</div>
+        {liveCount > 0 && (
+          <div className="live-badge" title="A meeting is being transcribed live">
+            <span className="live-dot" />
+            {liveCount} live meeting{liveCount > 1 ? "s" : ""}
+          </div>
+        )}
         <nav>
           <NavBtn id="dashboard" active={view} onClick={setView}>
             Dashboard
@@ -42,6 +50,30 @@ export function App() {
       </main>
     </div>
   );
+}
+
+// Poll for transcripts currently being recorded so the console shows a live
+// indicator while the browser-extension note-taker is running.
+function useLiveMeetings(): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await api.transcripts();
+        if (active) setCount(res.items.filter((t) => t.status === "live").length);
+      } catch {
+        /* transient errors are fine; try again next tick */
+      }
+    };
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
+  return count;
 }
 
 function NavBtn({
