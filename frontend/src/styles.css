@@ -1,0 +1,272 @@
+:root {
+  --bg: #0b0d10;
+  --panel: #131720;
+  --panel-2: #1a1f2b;
+  --border: #232a39;
+  --text: #e7eaf0;
+  --muted: #8a93a6;
+  --accent: #6ea8fe;
+  --accent-2: #a78bfa;
+  --warn: #f5a524;
+  --crit: #ef4444;
+  --ok: #10b981;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+}
+
+.sidebar h1 {
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.sidebar-tag {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 18px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar button {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+.sidebar button:hover {
+  background: var(--panel-2);
+}
+.sidebar button.active {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+.main {
+  padding: 32px 40px;
+  overflow-y: auto;
+}
+
+.main header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.main h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.card .label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.card .value {
+  font-size: 28px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.card.warning .value {
+  color: var(--warn);
+}
+.card.critical .value {
+  color: var(--crit);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.panel h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+button.primary,
+button.ghost {
+  background: var(--accent);
+  color: #0b0d10;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+button.primary:hover {
+  filter: brightness(1.1);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  width: 100%;
+}
+textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  min-height: 220px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.form-row > * {
+  flex: 1;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.pill.priority-high {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.pill.priority-urgent {
+  color: var(--crit);
+  border-color: var(--crit);
+}
+.pill.status-done {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.pill.severity-critical {
+  color: var(--crit);
+  border-color: var(--crit);
+}
+.pill.severity-warning {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.quote {
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 6px;
+  font-size: 13px;
+}

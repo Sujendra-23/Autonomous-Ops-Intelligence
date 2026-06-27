@@ -1,0 +1,9 @@
+{
+  "title": "Migration Sync — 2026-05-23",
+  "source": "manual",
+  "meeting_date": "2026-05-23T17:00:00Z",
+  "participants": ["John", "Priya", "Sam", "Maya"],
+  "project_hint": "API Migration",
+  "sync_extract": true,
+  "content": "Migration Sync — 2026-05-23\n\nParticipants: John (eng), Priya (eng-lead), Sam (PM), Maya (infra)\n\nSam: Thanks everyone. Quick stand-up on the API migration. Where are we?\n\nJohn: I'm wrapping up the schema diff this week. I'll own the migration plan document and have it in the doc by Friday.\n\nPriya: Good. So we're agreeing on the staged approach — three phases, dual writes for two weeks per phase, then cutover. Yes?\n\nSam: Yes. We agreed on staged with dual writes last sprint. Let's lock that in.\n\nJohn: One issue — I still can't run anything against prod. Maya, I need prod DB access by tomorrow or I can't validate phase 1 timing.\n\nMaya: I'll talk to security and try to push it through today. It's been stuck in their queue.\n\nPriya: There's also a real risk we missed in phase 2 — if we don't snapshot right before the cutover we could lose roughly an hour of writes if anything goes wrong. We need an explicit snapshot step.\n\nSam: Agreed. Let's add that as a required pre-cutover task. Priya, can you own that doc update by next Wednesday?\n\nPriya: Yes, I'll get it in by 2026-06-03.\n\nJohn: Last thing — we should think about a rollback plan, but I don't have bandwidth this sprint. Parking that.\n\nSam: Fine, we'll revisit. Anything else?\n\nPriya: That's it."
+}
