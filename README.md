@@ -74,6 +74,7 @@ team's behalf between meetings.
 | 🧠 Cross-meeting memory                 | ✅       | Extractor is fed the project's open tasks/decisions/blockers   |
 | 🧠 Task dedup + status updates          | ✅       | Re-stated tasks merge; "X is done" closes the existing task    |
 | 🧠 Decision supersession                | ✅       | A reversing decision flags the prior one as superseded         |
+| 🎙 Live note-taker (browser extension)  | ✅       | Streams tab audio → STT → notes appear *during* the meeting     |
 | 🖥 Agent console (React + Vite)         | ✅       | Dashboard, task review, drift scans, semantic search           |
 | Tests                                   | ✅ Pytest | Pure unit + integration (auto-skip without Postgres)           |
 
@@ -336,6 +337,43 @@ merge is — higher is more conservative.
 
 ---
 
+## Live note-taker (browser extension)
+
+The batch flow (upload a transcript / video after the fact) is complemented by a
+**Chrome extension that takes notes while the meeting is happening**. It captures
+the active tab's audio, streams it to the backend for real-time transcription,
+and shows tasks/decisions/risks/blockers in a side panel **as they're spoken**.
+
+```
+ Meeting tab audio ─► extension (offscreen AudioWorklet → 16 kHz PCM16)
+                       │ WebSocket  /api/live/ws/{transcript_id}   (audio up)
+                       ▼
+                  backend relay ─► streaming STT (Deepgram) ─► transcript
+                       │ debounced incremental extraction (reconciled)
+                       ▼
+                  JSON notes snapshot  ──────────────► side panel (live)
+```
+
+The clever part is that **live = many tiny meetings reconciled**. Every few
+seconds the backend re-extracts the accumulated transcript and runs it through
+the same [cross-meeting](#cross-meeting-intelligence) dedup/update engine, so a
+task mentioned twice stays one row and "that's done" closes it — no duplicate
+spam as the conversation repeats itself. At *finalize*, one full pass builds
+embeddings and fires the Notion/Linear/Slack integrations exactly once.
+
+Audio is relayed **through the backend**, so the STT key (`DEEPGRAM_API_KEY`)
+stays a server-side `SecretStr` and never reaches the browser — same secret
+discipline as everywhere else.
+
+- Backend: `app/api/live.py` (WebSocket + session), `app/services/live_stt.py`
+  (provider-agnostic streaming STT), `app/services/live_session.py` (extraction
+  cadence), `ExtractionPipeline.extract_incremental` (cheap in-loop reconcile).
+- Extension: `extension/` — load unpacked; see `extension/README.md` for setup.
+- Config: `STT_PROVIDER=deepgram` + `DEEPGRAM_API_KEY` enable transcription;
+  `STT_PROVIDER=none` (default) leaves the socket working but silent.
+
+---
+
 ## How drift detection works
 
 `DriftMonitor.scan()` runs four cheap queries against the database:
@@ -433,6 +471,8 @@ See `.env.example` for the canonical list. Highlights:
 - `STALL_DAYS` — stall threshold
 - `CROSS_MEETING_CONTEXT` — feed prior project state into extraction (default `true`)
 - `DEDUP_TITLE_THRESHOLD` — task de-dup aggressiveness, 0–1 (default `0.82`)
+- `STT_PROVIDER` — `deepgram` or `none`; enables the live note-taker
+- `DEEPGRAM_API_KEY` — streaming STT key for live transcription (server-side only)
 - `INGEST_API_KEY` — set to require `X-API-Key` on transcript ingestion
 
 ---

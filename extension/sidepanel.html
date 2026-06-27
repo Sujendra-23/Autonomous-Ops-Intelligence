@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AOI Live Notes</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #171a21;
+        --line: #262b36;
+        --text: #e6e8ee;
+        --muted: #8b93a7;
+        --accent: #6ea8fe;
+        --good: #3fb950;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 13px/1.45 -apple-system, system-ui, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+      header h1 { font-size: 14px; margin: 0; }
+      header .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+      .section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+      label { display: block; color: var(--muted); font-size: 11px; margin: 8px 0 3px; }
+      input {
+        width: 100%; padding: 7px 8px; border-radius: 6px;
+        border: 1px solid var(--line); background: var(--panel); color: var(--text);
+      }
+      .row { display: flex; gap: 8px; }
+      .row > * { flex: 1; }
+      button {
+        width: 100%; margin-top: 12px; padding: 9px; border: 0; border-radius: 6px;
+        background: var(--accent); color: #07101f; font-weight: 600; cursor: pointer;
+      }
+      button.stop { background: #f0623a; color: #1a0a06; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      .status { margin-top: 10px; font-size: 11px; color: var(--muted); min-height: 14px; }
+      .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-right: 6px; }
+      .dot.live { background: var(--good); }
+      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
+      .card {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+        padding: 8px 10px; margin-bottom: 8px;
+      }
+      .card .title { font-weight: 600; }
+      .card .meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+      .card .quote { color: var(--muted); font-style: italic; font-size: 11px; margin-top: 4px; }
+      .pill { display: inline-block; padding: 1px 6px; border-radius: 999px; background: #222836; font-size: 10px; margin-left: 4px; }
+      #transcript { max-height: 140px; overflow-y: auto; color: var(--muted); white-space: pre-wrap; }
+      #transcript .interim { color: #5a6276; }
+      .empty { color: #5a6276; font-size: 12px; }
+      .count { color: var(--muted); font-weight: 400; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Live Note-Taker</h1>
+      <div class="sub">Streams the active tab's audio → structured notes</div>
+    </header>
+
+    <div class="section" id="setup">
+      <label>Backend URL</label>
+      <input id="backendUrl" placeholder="http://localhost:8000" />
+      <div class="row">
+        <div>
+          <label>Project hint</label>
+          <input id="projectHint" placeholder="e.g. API Migration" />
+        </div>
+        <div>
+          <label>API key (if set)</label>
+          <input id="apiKey" type="password" placeholder="optional" />
+        </div>
+      </div>
+      <label>Meeting title</label>
+      <input id="title" placeholder="(defaults to the tab title)" />
+      <button id="toggle">Start capturing</button>
+      <div class="status"><span class="dot" id="dot"></span><span id="statusText">Idle</span></div>
+    </div>
+
+    <div class="section">
+      <h2>Live transcript</h2>
+      <div id="transcript"><span class="empty">Transcript will appear here…</span></div>
+    </div>
+
+    <div class="section">
+      <h2>Tasks <span class="count" id="taskCount"></span></h2>
+      <div id="tasks"><span class="empty">No tasks yet.</span></div>
+    </div>
+
+    <div class="section">
+      <h2>Decisions <span class="count" id="decisionCount"></span></h2>
+      <div id="decisions"><span class="empty">No decisions yet.</span></div>
+    </div>
+
+    <div class="section">
+      <h2>Risks &amp; Blockers</h2>
+      <div id="risksBlockers"><span class="empty">None yet.</span></div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

@@ -69,6 +69,22 @@ class Settings(BaseSettings):
     overdue_grace_days: int = Field(default=0, ge=0)
     stall_days: int = Field(default=7, ge=1)
 
+    # ---- Live note-taker (streaming STT) ----
+    # Provider for real-time transcription of meeting audio. "none" disables it
+    # (the WebSocket still runs but produces no transcript).
+    stt_provider: Literal["deepgram", "none"] = "none"
+    deepgram_api_key: SecretStr = SecretStr("")
+    # Extraction cadence during a live meeting (see services/live_session.py).
+    live_min_chars: int = Field(default=180, ge=20)
+    live_min_interval_seconds: float = Field(default=8.0, ge=1.0)
+    live_max_interval_seconds: float = Field(default=30.0, ge=5.0)
+
+    @property
+    def stt_enabled(self) -> bool:
+        return self.stt_provider == "deepgram" and bool(
+            self.deepgram_api_key.get_secret_value()
+        )
+
     # ---- Cross-meeting intelligence ----
     # When true, the extractor is shown the project's existing open tasks /
     # decisions / blockers so it can emit status updates instead of duplicates.

@@ -105,6 +105,48 @@ class ExtractionPipeline:
             log.exception("extraction.unexpected_error")
             return None
 
+    async def extract_incremental(
+        self,
+        transcript_id: uuid.UUID,
+        *,
+        dispatch: bool = False,
+    ) -> ExtractionResult | None:
+        """Re-extract a *live* transcript's current text and reconcile in place.
+
+        Used by the live note-taker, which calls this every few seconds as more
+        speech is transcribed. Unlike `process`, it:
+
+        - does NOT chunk/embed (kept cheap for the tight live loop — embeddings
+          are built once at finalize via `process`);
+        - does NOT flip the transcript status (it stays ``live``);
+        - only dispatches to integrations when ``dispatch=True`` (the live loop
+          passes False; the final pass fires the integrations once).
+
+        Idempotency comes for free from the cross-meeting dedup/update engine: a
+        task mentioned at minute 5 and again at minute 20 stays a single row.
+        """
+        transcript = await self._load(transcript_id)
+        if transcript is None or not transcript.content.strip():
+            return None
+        try:
+            prior_context = await self._build_prior_context(transcript)
+            result = await self._extract(transcript, prior_context)
+            project = await self._resolve_project(transcript, result)
+            await self._apply_task_updates(transcript, project, result)
+            await self._persist_artefacts(transcript, project, result)
+            await self._session.commit()
+            if dispatch:
+                await self._dispatch(transcript, project, result)
+            return result
+        except LLMError as exc:
+            await self._session.rollback()
+            logger.warning("extraction.incremental_llm_error", error=str(exc))
+            return None
+        except Exception:
+            await self._session.rollback()
+            logger.exception("extraction.incremental_error")
+            return None
+
     # --------------------------------------------------------------------- #
     # Stages                                                                #
     # --------------------------------------------------------------------- #
@@ -285,6 +327,11 @@ class ExtractionPipeline:
         settings = get_settings()
         project_id = project.id if project else None
         counts = {"tasks_created": 0, "tasks_deduped": 0, "decisions_superseded": 0}
+
+        # Flush pending status changes from _apply_task_updates so the dedup
+        # query below sees them. The production session uses autoflush=False, so
+        # we cannot rely on the SELECT flushing for us.
+        await self._session.flush()
 
         # ---- Tasks (de-duplicated against the project's existing open tasks) ----
         existing_by_id: dict[uuid.UUID, Task] = {}
