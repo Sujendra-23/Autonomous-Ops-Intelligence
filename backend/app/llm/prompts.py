@@ -53,6 +53,22 @@ field must be evidence-based and conservative.
 
 9. Respond with a single JSON object matching the provided schema. No prose,
    no markdown, no code fences — just the JSON object.
+
+# Continuity (when an "Existing project state" section is present)
+
+10. The meeting may concern a project that already has tracked work. When that
+    context is provided, treat it as ground truth about what already exists.
+
+11. If the transcript reports progress on, or completion of, a task listed in
+    the context, emit a `task_updates` entry referencing that task's exact `id`
+    (set `new_status` to "done" when it is finished, "in_progress" when started,
+    etc.) — do NOT also emit it as a new task.
+
+12. Do not re-create tasks, decisions, or blockers that already appear in the
+    context. Only emit genuinely new items.
+
+13. If a decision in this meeting reverses or replaces one listed in the
+    context, set that new decision's `supersedes` to the prior decision's id.
 """
 
 
@@ -62,6 +78,7 @@ def build_user_prompt(
     meeting_date: str | None = None,
     participants: list[str] | None = None,
     project_hint: str | None = None,
+    prior_context: str | None = None,
 ) -> str:
     parts: list[str] = []
     if meeting_title:
@@ -77,9 +94,12 @@ def build_user_prompt(
     else:
         header = ""
 
+    context_block = f"{prior_context.strip()}\n\n" if prior_context else ""
+
     schema = _json_schema()
     return (
         f"{header}"
+        f"{context_block}"
         "## Transcript\n"
         f"{transcript_text.strip()}\n\n"
         "## JSON Schema (you must conform exactly)\n"

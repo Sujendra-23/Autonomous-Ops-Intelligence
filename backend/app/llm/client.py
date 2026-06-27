@@ -42,6 +42,7 @@ class LLMClient(ABC):
         meeting_date: str | None = None,
         participants: list[str] | None = None,
         project_hint: str | None = None,
+        prior_context: str | None = None,
     ) -> ExtractionResult:
         ...
 
@@ -76,6 +77,7 @@ class OpenAIClient(LLMClient):
         meeting_date: str | None = None,
         participants: list[str] | None = None,
         project_hint: str | None = None,
+        prior_context: str | None = None,
     ) -> ExtractionResult:
         user_prompt = build_user_prompt(
             transcript_text,
@@ -83,6 +85,7 @@ class OpenAIClient(LLMClient):
             meeting_date=meeting_date,
             participants=participants,
             project_hint=project_hint,
+            prior_context=prior_context,
         )
         try:
             response = await self._client.chat.completions.create(
@@ -131,6 +134,7 @@ class AnthropicClient(LLMClient):
         meeting_date: str | None = None,
         participants: list[str] | None = None,
         project_hint: str | None = None,
+        prior_context: str | None = None,
     ) -> ExtractionResult:
         user_prompt = build_user_prompt(
             transcript_text,
@@ -138,6 +142,7 @@ class AnthropicClient(LLMClient):
             meeting_date=meeting_date,
             participants=participants,
             project_hint=project_hint,
+            prior_context=prior_context,
         )
         try:
             response = await self._client.messages.create(

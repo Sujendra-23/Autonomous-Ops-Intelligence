@@ -71,6 +71,9 @@ team's behalf between meetings.
 | 🤖 Slack summaries + nudges             | ✅       | Block Kit summary post-meeting; reminders on drift             |
 | 🤖 Drift monitor (always on)            | ✅       | overdue · stalled · missing-owner · aged blockers              |
 | 🤖 Semantic recall                      | ✅       | pgvector search across all past transcripts                    |
+| 🧠 Cross-meeting memory                 | ✅       | Extractor is fed the project's open tasks/decisions/blockers   |
+| 🧠 Task dedup + status updates          | ✅       | Re-stated tasks merge; "X is done" closes the existing task    |
+| 🧠 Decision supersession                | ✅       | A reversing decision flags the prior one as superseded         |
 | 🖥 Agent console (React + Vite)         | ✅       | Dashboard, task review, drift scans, semantic search           |
 | Tests                                   | ✅ Pytest | Pure unit + integration (auto-skip without Postgres)           |
 
@@ -274,6 +277,8 @@ The LLM is called **once per transcript** with:
 - the full system prompt (`backend/app/llm/prompts.py`) — strict rules about
   evidence, source quotes, confidence calibration, and JSON-only output;
 - the transcript metadata (title, date, participants, optional project hint);
+- **the project's existing state** — open tasks, recent decisions, and open
+  blockers (see [Cross-meeting intelligence](#cross-meeting-intelligence));
 - the transcript body;
 - the JSON schema we expect back, derived from our pydantic models so the
   model never sees a schema that differs from what we validate against.
@@ -283,11 +288,51 @@ The response is then:
 1. **Cleaned** — code fences and surrounding prose stripped.
 2. **Parsed** — JSON → `ExtractionResult`.
 3. **Validated** — pydantic enforces types, enum values, and confidence range.
-4. **Persisted** — every artefact carries `source_quote` and `confidence`, so a
+4. **Reconciled** — status updates are applied to existing tasks and re-stated
+   tasks are de-duplicated before anything new is written
+   ([details below](#cross-meeting-intelligence)).
+5. **Persisted** — every artefact carries `source_quote` and `confidence`, so a
    human reviewing the dashboard can audit why the LLM said what it said.
 
 If any step fails, the transcript row is marked `failed` with the reason and
 the pipeline rolls back — partial extractions never land.
+
+---
+
+## Cross-meeting intelligence
+
+A naïve meeting agent is **stateless**: it reads one transcript, knows nothing
+about the project's history, and so re-creates the same task at every standup,
+re-reports a blocker that's still open, and never notices when someone says a
+task is *done*. The result is a tracker that fills up with duplicates and drifts
+out of sync with reality.
+
+This agent has memory. Before extraction, it loads the project's current state
+and feeds it to the model as context (`app/services/context.py`); after
+extraction, it reconciles the model's output against that state
+(`app/services/extraction.py`). Three things fall out of this:
+
+| Behaviour                | What triggers it                                              | Effect                                                                                  |
+| ------------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Status updates**       | The meeting reports progress on an existing task              | A `task_updates` entry closes/advances the task and logs a `status_change` activity — no duplicate row |
+| **De-duplication**       | The model re-emits a task that already exists                 | A deterministic title-similarity guard (`app/services/dedup.py`) merges it into the existing task, gap-filling a missing owner/due date and logging `dedup_merged` |
+| **Decision supersession**| A new decision reverses one already on record                | The prior decision is flagged `superseded` in its metadata                              |
+
+The model is *asked* to emit updates instead of duplicates (it sees each
+existing item tagged with its id), but the de-dup guard is a deterministic
+safety net that runs regardless — it needs no embeddings or API key, so it works
+even in the offline/local-fallback configuration.
+
+**When it activates.** Continuity keys off the transcript's project. Because
+`project_hint` resolves to (or creates) a project *before* extraction runs,
+re-using the same hint across meetings is all it takes — the first meeting of a
+project has no prior state, every subsequent one does. Set
+`CROSS_MEETING_CONTEXT=false` to fall back to the original stateless behaviour.
+
+Tuning knobs (see `.env.example`): `CONTEXT_MAX_TASKS` / `CONTEXT_MAX_DECISIONS`
+/ `CONTEXT_MAX_BLOCKERS` bound how much history is injected (and thus token
+cost); `DEDUP_TITLE_THRESHOLD` (0–1, default `0.82`) sets how aggressive the
+merge is — higher is more conservative.
 
 ---
 
@@ -386,6 +431,8 @@ See `.env.example` for the canonical list. Highlights:
 - `EMBEDDING_PROVIDER` — `openai` or `local` (deterministic offline fallback)
 - `MONITOR_INTERVAL_SECONDS` — drift scan cadence
 - `STALL_DAYS` — stall threshold
+- `CROSS_MEETING_CONTEXT` — feed prior project state into extraction (default `true`)
+- `DEDUP_TITLE_THRESHOLD` — task de-dup aggressiveness, 0–1 (default `0.82`)
 - `INGEST_API_KEY` — set to require `X-API-Key` on transcript ingestion
 
 ---
@@ -399,9 +446,10 @@ make test
 This runs `pytest -v` inside the backend container so the Postgres container
 is reachable. Tests split into:
 
-- **Pure unit** — chunker, prompt parser, slug helper, local embedder.
-  Always run.
-- **Integration** — extraction pipeline, drift monitor. Auto-skip when
+- **Pure unit** — chunker, prompt parser, slug helper, local embedder, and the
+  task de-dup matcher (`tests/test_dedup.py`). Always run.
+- **Integration** — extraction pipeline (incl. cross-meeting status updates,
+  de-duplication, and decision supersession), drift monitor. Auto-skip when
   Postgres+pgvector isn't reachable (handy for CI quick checks).
 
 ---

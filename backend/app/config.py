@@ -69,6 +69,18 @@ class Settings(BaseSettings):
     overdue_grace_days: int = Field(default=0, ge=0)
     stall_days: int = Field(default=7, ge=1)
 
+    # ---- Cross-meeting intelligence ----
+    # When true, the extractor is shown the project's existing open tasks /
+    # decisions / blockers so it can emit status updates instead of duplicates.
+    cross_meeting_context: bool = True
+    # Max items of each kind injected into the prompt (bounds token cost).
+    context_max_tasks: int = Field(default=25, ge=1)
+    context_max_decisions: int = Field(default=10, ge=1)
+    context_max_blockers: int = Field(default=10, ge=1)
+    # Normalised-title similarity (0..1) above which a new task is treated as a
+    # duplicate of an existing open one. Higher = more conservative.
+    dedup_title_threshold: float = Field(default=0.82, ge=0.0, le=1.0)
+
     # ---- Computed flags ----
     # SecretStr is always truthy as an object, so we must check the underlying
     # value explicitly via get_secret_value() rather than `if x:` on the field.

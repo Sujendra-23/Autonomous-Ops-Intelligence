@@ -43,6 +43,14 @@ class DecisionExtraction(BaseModel):
     summary: str = Field(..., max_length=512)
     rationale: str | None = None
     decided_by: list[str] = Field(default_factory=list)
+    supersedes: str | None = Field(
+        None,
+        description=(
+            "If this decision reverses or replaces a prior one listed in the "
+            "'Existing project state' context, set this to that decision's exact "
+            "id. Otherwise null."
+        ),
+    )
     source_quote: str = Field(..., max_length=2000)
     confidence: float = Field(..., ge=0.0, le=1.0)
 
@@ -67,6 +75,30 @@ class BlockerExtraction(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
 
 
+class TaskUpdateExtraction(BaseModel):
+    """A status/progress update to a task that *already exists* in the project.
+
+    Emitted instead of a new task when the meeting reports movement on an item
+    surfaced in the 'Existing project state' context block. ``task_id`` must be
+    one of the exact ids listed there.
+    """
+
+    task_id: str = Field(
+        ...,
+        description="Exact id of an existing task taken from the provided context.",
+    )
+    new_status: Literal["open", "in_progress", "blocked", "done", "cancelled"] | None = Field(
+        None,
+        description="New status if the meeting implies one, e.g. 'done' when completed.",
+    )
+    note: str | None = Field(
+        None,
+        description="Short description of what changed (e.g. 'migration finished').",
+    )
+    source_quote: str = Field(..., max_length=2000)
+    confidence: float = Field(..., ge=0.0, le=1.0)
+
+
 class ExtractionResult(BaseModel):
     """Top-level structured output we ask the LLM to produce."""
 
@@ -76,6 +108,10 @@ class ExtractionResult(BaseModel):
     )
     summary: str = Field(..., description="Two-to-four sentence executive summary.")
     tasks: list[TaskExtraction] = Field(default_factory=list)
+    task_updates: list[TaskUpdateExtraction] = Field(
+        default_factory=list,
+        description="Updates to pre-existing tasks (only when context was provided).",
+    )
     decisions: list[DecisionExtraction] = Field(default_factory=list)
     risks: list[RiskExtraction] = Field(default_factory=list)
     blockers: list[BlockerExtraction] = Field(default_factory=list)
