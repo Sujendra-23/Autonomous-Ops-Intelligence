@@ -226,3 +226,14 @@ def test_websocket_rejects_audio_before_auth(saas, monkeypatch):
             websocket.send_bytes(b"audio")
             websocket.receive_json()
     assert error.value.code == 1008
+
+
+def test_startup_validation_does_not_print_secrets():
+    with pytest.raises(ValidationError) as error:
+        Settings(
+            _env_file=None,
+            environment="production",
+            auth_mode="development",
+            ingest_api_key="private-startup-sentinel",
+        )
+    assert "private-startup-sentinel" not in str(error.value)
