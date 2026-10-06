@@ -9,9 +9,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 
 from app import __version__
-from app.api import decisions, integrations, intelligence, live, projects, tasks, transcripts
+from app.api import (
+    account,
+    decisions,
+    integrations,
+    intelligence,
+    live,
+    projects,
+    tasks,
+    transcripts,
+)
 from app.config import get_settings
 from app.logging import configure_logging, get_logger
+from app.security import SecurityMiddleware
 
 configure_logging()
 logger = get_logger("app.main")
@@ -20,6 +30,32 @@ logger = get_logger("app.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    if settings.auth_mode == "oidc":
+        from sqlalchemy import text
+
+        from app.database import engine
+
+        async with engine.connect() as connection:
+            privileged = await connection.scalar(
+                text("SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname=current_user")
+            )
+            if privileged:
+                raise RuntimeError(
+                    "SaaS requires a database role without superuser or BYPASSRLS privileges"
+                )
+            policies = await connection.scalar(
+                text(
+                    "SELECT count(*) FROM pg_class JOIN pg_namespace n ON n.oid=relnamespace "
+                    "WHERE n.nspname='public' AND relname IN "
+                    "('projects','transcripts','transcript_chunks','tasks','task_activities',"
+                    "'decisions','risks','blockers','webhook_deliveries') "
+                    "AND relrowsecurity AND relforcerowsecurity"
+                )
+            )
+            if policies != 9:
+                raise RuntimeError(
+                    "Workspace isolation migration must be applied before serving traffic"
+                )
     logger.info(
         "app.startup",
         environment=settings.environment,
@@ -36,7 +72,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Autonomous Operational Intelligence Layer",
     version=__version__,
-    summary="An AI Agent for Work — structured tasks and decisions from meetings, with zero manual tagging.",
+    summary="Structured tasks and decisions from meetings, with zero manual tagging.",
     description=(
         "An autonomous AI agent that converts meeting transcripts into "
         "**structured tasks, decisions, risks, and blockers** — each with an "
@@ -53,9 +89,12 @@ app = FastAPI(
     ),
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if get_settings().environment == "development" else None,
+    redoc_url="/redoc" if get_settings().environment == "development" else None,
+    openapi_url="/openapi.json" if get_settings().environment == "development" else None,
 )
+
+app.add_middleware(SecurityMiddleware)
 
 _settings = get_settings()
 app.add_middleware(
@@ -69,10 +108,10 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("unhandled_exception", path=request.url.path)
+    logger.error("unhandled_exception", path=request.url.path, error_type=type(exc).__name__)
     return JSONResponse(
         status_code=500,
-        content={"detail": "internal server error", "type": exc.__class__.__name__},
+        content={"detail": "internal server error"},
     )
 
 
@@ -97,3 +136,22 @@ app.include_router(decisions.router, prefix="/api/decisions", tags=["decisions"]
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["intelligence"])
 app.include_router(live.router, prefix="/api/live", tags=["live"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
+
+app.include_router(account.router, prefix="/api/account", tags=["account"])
+
+
+@app.get("/ready", tags=["meta"])
+async def ready():
+    from redis.asyncio import Redis
+    from sqlalchemy import text
+
+    from app.database import engine
+
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        async with Redis.from_url(get_settings().redis_url) as redis:
+            await redis.ping()
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "unavailable"})
+    return {"status": "ready"}

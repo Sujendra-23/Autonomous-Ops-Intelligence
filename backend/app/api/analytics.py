@@ -20,6 +20,8 @@ async def analytics_permission(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> bool:
     settings = get_settings()
+    if settings.auth_mode == "oidc":
+        raise HTTPException(503, "Natural-language SQL analytics is unavailable in SaaS mode")
     normal = settings.intelligence_api_key.get_secret_value()
     owner = settings.intelligence_owner_api_key.get_secret_value()
     if not normal or (owner and secrets.compare_digest(normal, owner)):

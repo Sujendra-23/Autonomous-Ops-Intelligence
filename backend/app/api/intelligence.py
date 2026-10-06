@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -124,8 +124,8 @@ async def run_drift(
 
 
 class SearchRequest(BaseModel):
-    query: str
-    limit: int = 5
+    query: str = Field(min_length=1, max_length=2000)
+    limit: int = Field(default=5, ge=1, le=25)
 
 
 @router.post("/search", response_model=list[SearchHitOut])

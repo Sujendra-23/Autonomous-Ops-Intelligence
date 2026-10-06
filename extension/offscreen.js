@@ -16,6 +16,8 @@ let worklet = null;
 let stream = null;
 
 let wsUrl = null;
+let authToken = null;
+let authenticated = false;
 let stopping = false;
 let reconnectAttempt = 0;
 let reconnectTimer = null;
@@ -35,18 +37,28 @@ function connectWs() {
   ws.binaryType = "arraybuffer";
 
   ws.onopen = () => {
+    authenticated = !authToken;
+    if (authToken) ws.send(JSON.stringify({ type: "auth", token: authToken }));
     if (reconnectAttempt > 0) toPanel({ type: "reconnected" });
     reconnectAttempt = 0;
   };
   ws.onmessage = (ev) => {
     try {
-      toPanel(JSON.parse(ev.data));
+      const message = JSON.parse(ev.data);
+      if (message.type === "ready") authenticated = true;
+      toPanel(message);
     } catch (_) {
       /* ignore non-JSON */
     }
   };
   ws.onerror = () => toPanel({ type: "error", detail: "WebSocket error" });
-  ws.onclose = () => {
+  ws.onclose = (event) => {
+    authenticated = false;
+    if (event.code === 1008) {
+      toPanel({ type: "error", detail: "Session access denied. Check your workspace token." });
+      stopCapture();
+      return;
+    }
     if (stopping) {
       toPanel({ type: "closed" });
       return;
@@ -64,10 +76,11 @@ function scheduleReconnect() {
   }, delay);
 }
 
-async function startCapture({ streamId, wsUrl: url, sampleRate }) {
+async function startCapture({ streamId, wsUrl: url, sampleRate, authToken: token }) {
   stopping = false;
   reconnectAttempt = 0;
   wsUrl = url;
+  authToken = token;
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -85,7 +98,7 @@ async function startCapture({ streamId, wsUrl: url, sampleRate }) {
   source = audioCtx.createMediaStreamSource(stream);
   worklet = new AudioWorkletNode(audioCtx, "pcm-worklet");
   worklet.port.onmessage = (e) => {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(e.data);
+    if (authenticated && ws && ws.readyState === WebSocket.OPEN) ws.send(e.data);
   };
   source.connect(worklet);
   source.connect(audioCtx.destination); // keep meeting audible
@@ -121,12 +134,13 @@ function stopCapture() {
     /* noop */
   }
   // Give the backend a moment to run the final extraction pass before closing.
+  const closingSocket = ws;
   setTimeout(() => {
     try {
-      ws && ws.close();
+      closingSocket && closingSocket.close();
     } catch (_) {
       /* noop */
     }
-    ws = audioCtx = source = worklet = stream = null;
-  }, 1500);
+    if (ws === closingSocket) ws = audioCtx = source = worklet = stream = null;
+  }, 30000);
 }

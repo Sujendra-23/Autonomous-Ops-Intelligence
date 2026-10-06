@@ -30,3 +30,15 @@ class Timestamps:
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class TenantMixin:
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        index=True,
+        default=lambda: __import__(
+            "app.tenancy", fromlist=["workspace_context"]
+        ).workspace_context.get()
+        or uuid.UUID("00000000-0000-0000-0000-000000000001"),
+    )

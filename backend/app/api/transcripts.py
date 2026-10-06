@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import require_ingest_key
+from app.config import get_settings
 from app.database import get_session
 from app.integrations.calendar import meeting_context, resolve_meeting_project
 from app.models.blocker import Blocker
@@ -45,7 +46,7 @@ router = APIRouter()
 )
 async def upload_video(
     file: UploadFile = File(
-        ..., description="Video or audio file (mp4, mp3, m4a, wav, ogg, webm, flac). Max 1 GB."
+        ..., description="Video or audio file (mp4, mp3, m4a, wav, ogg, webm, flac). Max 100 MB."
     ),
     title: str = Form(""),
     project_hint: str = Form(""),
@@ -66,7 +67,7 @@ async def upload_video(
                     raise HTTPException(
                         status_code=413,
                         detail=(
-                            f"File exceeds the 1 GB limit "
+                            f"File exceeds the 100 MB limit "
                             f"({size / 1024**3:.2f} GB received so far)."
                         ),
                     )
@@ -93,7 +94,8 @@ async def upload_video(
     await session.refresh(transcript)
 
     pipeline = ExtractionPipeline(session)
-    await pipeline.process(transcript.id)
+    if get_settings().auth_mode != "oidc":
+        await pipeline.process(transcript.id)
     await session.refresh(transcript)
     return await _to_detail(session, transcript)
 
@@ -126,7 +128,7 @@ async def ingest_transcript(
     await session.commit()
     await session.refresh(transcript)
 
-    if payload.sync_extract:
+    if payload.sync_extract and get_settings().auth_mode != "oidc":
         pipeline = ExtractionPipeline(session)
         await pipeline.process(transcript.id)
         await session.refresh(transcript)
@@ -150,6 +152,17 @@ async def list_transcripts(
         items=[TranscriptSummary.model_validate(r) for r in rows],
         total=int(total or 0),
     )
+
+
+@router.get("/{transcript_id}/status")
+async def transcript_status(
+    transcript_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    transcript = await session.get(Transcript, transcript_id)
+    if transcript is None:
+        raise HTTPException(404, "Transcript not found")
+    return {"id": str(transcript.id), "status": transcript.status}
 
 
 @router.get("/{transcript_id}", response_model=TranscriptDetail)
@@ -180,6 +193,12 @@ async def reprocess_transcript(
     transcript = await session.get(Transcript, transcript_id)
     if transcript is None:
         raise HTTPException(status_code=404, detail="transcript not found")
+    if get_settings().auth_mode == "oidc":
+        if transcript.status not in ("failed", "completed"):
+            raise HTTPException(409, "Transcript is already queued or processing")
+        raise HTTPException(
+            409, "SaaS reprocessing is disabled to prevent duplicate external tasks"
+        )
     # Wipe extracted artefacts so re-running doesn't duplicate them.
     for model in (Task, Decision, Risk, Blocker):
         rows = (

@@ -10,7 +10,6 @@ Tests are split into two tiers:
 
 from __future__ import annotations
 
-import asyncio
 import os
 
 import pytest
@@ -21,13 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.config import get_settings
 from app.database import Base
 from app import models  # noqa: F401
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 def _database_url() -> str:
@@ -47,7 +39,7 @@ async def _database_available(url: str) -> bool:
         return False
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db_available() -> bool:
     return await _database_available(_database_url())
 
@@ -55,6 +47,8 @@ async def db_available() -> bool:
 @pytest_asyncio.fixture
 async def db_session(db_available) -> AsyncSession:
     if not db_available:
+        if os.environ.get("REQUIRE_DATABASE_TESTS") == "true":
+            pytest.fail("Postgres required for release checks")
         pytest.skip("Postgres + pgvector not reachable; integration test skipped")
 
     url = _database_url()

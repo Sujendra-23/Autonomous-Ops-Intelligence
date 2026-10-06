@@ -5,12 +5,12 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Text
+from sqlalchemy import String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models._mixins import Timestamps, UUIDPrimaryKey
+from app.models._mixins import TenantMixin, Timestamps, UUIDPrimaryKey
 
 if TYPE_CHECKING:
     from app.models.blocker import Blocker
@@ -20,11 +20,16 @@ if TYPE_CHECKING:
     from app.models.transcript import Transcript
 
 
-class Project(UUIDPrimaryKey, Timestamps, Base):
+class Project(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "projects"
 
-    name: Mapped[str] = mapped_column(String(256), nullable=False, unique=True, index=True)
-    slug: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "name"),
+        UniqueConstraint("workspace_id", "slug"),
+    )
+
+    name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
 

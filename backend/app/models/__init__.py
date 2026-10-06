@@ -23,3 +23,5 @@ __all__ = [
     "TranscriptChunk",
     "WebhookDelivery",
 ]
+
+from app.models.account import Account, Workspace, Membership, AccessToken  # noqa: F401

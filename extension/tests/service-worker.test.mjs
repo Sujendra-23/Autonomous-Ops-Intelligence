@@ -73,3 +73,12 @@ test('Start captures the selected tab and forwards its stream and provider sampl
   assert.equal(message.streamId, 'stream');
   assert.equal(message.sampleRate, 24000);
 });
+
+test('workspace tokens stay out of WebSocket URLs and travel in the authentication frame config', async () => {
+  const { context, calls } = harness();
+  await context.startCapture({ apiKey: 'aoi_test-workspace-token', backendUrl: 'https://studio.example' });
+  const message = calls.find(([name]) => name === 'message')[1];
+  assert.equal(message.wsUrl, 'wss://studio.example/api/live/ws/session');
+  assert.equal(message.authToken, 'aoi_test-workspace-token');
+  assert.ok(!message.wsUrl.includes('aoi_'));
+});

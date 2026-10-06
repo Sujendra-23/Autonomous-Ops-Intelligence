@@ -1,13 +1,17 @@
 const API_BASE =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+  (import.meta.env.VITE_API_URL as string | undefined) ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 // Keep the deployment's API key in memory, never in built assets or persistent storage.
 let apiKey = "";
+let bearerToken = "";
+let workspaceId = "";
+export function setBearerToken(value: string) { bearerToken = value; }
+export function setWorkspace(value: string) { workspaceId = value; }
 export function setApiKey(value: string) {
   apiKey = value.trim();
 }
 function authHeaders(): Record<string, string> {
-  return apiKey ? { "X-API-Key": apiKey } : {};
+  return { ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : apiKey ? { "X-API-Key": apiKey } : {}), ...(workspaceId ? { "X-Workspace-ID": workspaceId } : {}) };
 }
 
 export type DashboardCounts = {
@@ -82,7 +86,7 @@ export type DriftItem = {
   detail: string;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -99,6 +103,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  waitForExtraction: async (id: string) => {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      const result = await request<{ status: string }>(`/api/transcripts/${id}/status`);
+      if (result.status === "completed") return;
+      if (result.status === "failed") throw new Error("Extraction failed. Your meeting is saved; contact your workspace administrator.");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+    throw new Error("Your meeting is saved and still processing. Check the dashboard before uploading again.");
+  },
   dashboard: () => request<DashboardCounts>("/api/intelligence/dashboard"),
   projects: () => request<Project[]>("/api/projects"),
   tasks: (params: { status?: string; overdue?: boolean } = {}) => {

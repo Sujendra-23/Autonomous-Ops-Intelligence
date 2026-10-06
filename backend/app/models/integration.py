@@ -7,10 +7,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models._mixins import Timestamps, UUIDPrimaryKey
+from app.models._mixins import TenantMixin, Timestamps, UUIDPrimaryKey
 
 
-class WebhookDelivery(UUIDPrimaryKey, Timestamps, Base):
+class WebhookDelivery(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "webhook_deliveries"
 
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)

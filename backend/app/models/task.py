@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models._mixins import Timestamps, UUIDPrimaryKey
+from app.models._mixins import TenantMixin, Timestamps, UUIDPrimaryKey
 
 if TYPE_CHECKING:
     from app.models.project import Project
@@ -34,7 +34,7 @@ class TaskPriority(str, Enum):
     URGENT = "urgent"
 
 
-class Task(UUIDPrimaryKey, Timestamps, Base):
+class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "tasks"
     __table_args__ = (
         Index("ix_tasks_status_due", "status", "due_date"),
@@ -95,7 +95,7 @@ class Task(UUIDPrimaryKey, Timestamps, Base):
         return f"<Task {self.title!r} status={self.status}>"
 
 
-class TaskActivity(UUIDPrimaryKey, Timestamps, Base):
+class TaskActivity(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     """Append-only audit log for every state change on a task."""
 
     __tablename__ = "task_activities"

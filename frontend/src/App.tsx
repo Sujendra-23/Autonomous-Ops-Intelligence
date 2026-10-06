@@ -6,9 +6,27 @@ import { Tasks } from "./components/Tasks";
 import { Decisions } from "./components/Decisions";
 import { Intelligence } from "./components/Intelligence";
 
-type View = "dashboard" | "upload" | "tasks" | "decisions" | "intelligence";
+import { authConfigured, identity, restoreIdentity } from "./auth";
+import { WorkspaceSettings } from "./components/WorkspaceSettings";
+
+type View = "dashboard" | "upload" | "tasks" | "decisions" | "intelligence" | "settings";
 
 export function App() {
+  const [ready, setReady] = useState(!authConfigured);
+  const [signedIn, setSignedIn] = useState(!authConfigured);
+  const [authError, setAuthError] = useState("");
+  useEffect(() => {
+    const expire = () => setSignedIn(false);
+    window.addEventListener("aoi-session-expired", expire);
+    if (authConfigured) restoreIdentity().then(setSignedIn).catch(() => setAuthError("Sign-in could not be completed. Please try again.")).finally(() => setReady(true));
+    return () => window.removeEventListener("aoi-session-expired", expire);
+  }, []);
+  if (!ready) return <main className="main"><p>Opening your workspace…</p></main>;
+  if (!signedIn) return <main className="main"><h1>Your meeting intelligence studio</h1><p>Sign in to access your private workspace, notes and connectors.</p>{authError && <p role="alert">{authError}</p>}<button onClick={() => identity?.signinRedirect()}>Sign in / Create account</button></main>;
+  return <WorkspaceApp />;
+}
+
+function WorkspaceApp() {
   const [view, setView] = useState<View>("dashboard");
   const liveCount = useLiveMeetings();
 
@@ -39,8 +57,10 @@ export function App() {
           <NavBtn id="intelligence" active={view} onClick={setView}>
             Intelligence
           </NavBtn>
+          <NavBtn id="settings" active={view} onClick={setView}>Workspace & connectors</NavBtn>
         </nav>
-        <div className="api-key-control">
+        {authConfigured && <button onClick={() => identity?.signoutRedirect()}>Sign out</button>}
+        {!authConfigured && <div className="api-key-control">
           <label htmlFor="console-api-key">Backend API key (if set)</label>
           <input
             id="console-api-key"
@@ -51,9 +71,10 @@ export function App() {
             aria-describedby="console-api-key-help"
           />
           <p id="console-api-key-help">Used for edits and uploads. Cleared when you reload.</p>
-        </div>
+        </div>}
       </aside>
       <main className="main">
+        {view === "settings" && <WorkspaceSettings />}
         {view === "dashboard" && <Dashboard />}
         {view === "upload" && <TranscriptUpload onIngested={() => setView("tasks")} />}
         {view === "tasks" && <Tasks />}

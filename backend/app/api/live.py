@@ -51,8 +51,8 @@ router = APIRouter()
 
 class LiveSessionCreate(BaseModel):
     calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
-    title: str = "Live meeting"
-    project_hint: str | None = None
+    title: str = Field(default="Live meeting", max_length=512)
+    project_hint: str | None = Field(None, max_length=256)
     participants: list[str] | None = None
 
 
@@ -102,12 +102,28 @@ async def create_live_session(
 async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
     settings = get_settings()
 
-    expected = settings.ingest_api_key.get_secret_value()
-    if expected and websocket.query_params.get("api_key") != expected:
-        await websocket.close(code=1008)
-        return
-
     await websocket.accept()
+    expected = settings.ingest_api_key.get_secret_value()
+    if settings.auth_mode != "oidc" and expected:
+        import secrets
+
+        provided = websocket.query_params.get("api_key")
+        if not provided:
+            try:
+                frame = await asyncio.wait_for(websocket.receive_json(), timeout=5)
+                provided = frame.get("token", "") if frame.get("type") == "auth" else ""
+            except (TimeoutError, ValueError, WebSocketDisconnect):
+                await websocket.close(code=1008)
+                return
+        if not isinstance(provided, str) or not secrets.compare_digest(provided, expected):
+            await websocket.close(code=1008)
+            return
+
+    async with SessionLocal() as check_db:
+        allowed = await check_db.get(Transcript, transcript_id)
+        if allowed is None or allowed.status != "live":
+            await websocket.close(code=1008)
+            return
 
     async with SessionLocal() as db, get_transcriber() as transcriber:
         transcript = await db.get(Transcript, transcript_id)
@@ -128,6 +144,7 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
         pipeline = ExtractionPipeline(db)
         loop = asyncio.get_event_loop()
         stop = asyncio.Event()
+        finalized = False
 
         await _safe_send(
             websocket,
@@ -154,6 +171,8 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
                 async for ev in transcriber.events():
                     if ev.is_final:
                         live.add_final(ev.text)
+                        transcript.content = live.full_text()
+                        await db.commit()
                     else:
                         live.set_interim(ev.text)
                     await _safe_send(
@@ -176,19 +195,40 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
                 )
 
         async def receive_loop() -> None:
+            nonlocal finalized
+            age = (datetime.now(UTC) - transcript.created_at).total_seconds()
+            deadline = loop.time() + max(0, settings.live_session_max_seconds - age)
+            audio_bytes = 0
             try:
                 while True:
-                    message = await websocket.receive()
+                    remaining = deadline - loop.time()
+                    if remaining <= 0:
+                        finalized = True
+                        break
+                    try:
+                        message = await asyncio.wait_for(websocket.receive(), timeout=remaining)
+                    except TimeoutError:
+                        finalized = True
+                        break
                     if message.get("type") == "websocket.disconnect":
                         break
                     data = message.get("bytes")
                     if data is not None:
+                        audio_bytes += len(data)
+                        if (
+                            len(data) > 65536
+                            or audio_bytes
+                            > settings.live_session_max_seconds * configured_sample_rate() * 2
+                        ):
+                            await websocket.close(code=1008)
+                            break
                         await transcriber.send_audio(data)
                         continue
                     text = message.get("text")
                     if text is not None:
                         with contextlib.suppress(ValueError):
-                            if json.loads(text).get("type") == "finalize":
+                            if len(text) < 1024 and json.loads(text).get("type") == "finalize":
+                                finalized = True
                                 break
             finally:
                 stop.set()
@@ -216,6 +256,12 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
                     },
                 )
             await cons_task
+
+        if not finalized and settings.auth_mode == "oidc":
+            transcript.content = live.full_text()
+            await db.commit()
+            await _safe_close(websocket)
+            return
 
         with contextlib.suppress(Exception):
             if live.full_text():

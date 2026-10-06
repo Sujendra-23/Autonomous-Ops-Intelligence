@@ -22,6 +22,17 @@ class Settings(BaseSettings):
 
     # ---- App ----
     environment: Literal["development", "staging", "production"] = "development"
+    auth_mode: Literal["development", "oidc"] = "development"
+    auth_issuer: str = ""
+    auth_audience: str = ""
+    auth_jwks_url: str = ""
+    connector_allowed_webhook_hosts: str = ""
+    connector_encryption_key: SecretStr = SecretStr("")
+    platform_paid_operations_per_day: int = Field(default=1000, ge=1)
+    paid_operations_per_day: int = Field(default=100, ge=1)
+    live_session_max_seconds: int = Field(default=7200, ge=60, le=14400)
+    request_limit_per_minute: int = Field(default=120, ge=1)
+    max_request_bytes: int = Field(default=104857600, ge=1024)
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     ingest_api_key: SecretStr = SecretStr("")
@@ -144,6 +155,18 @@ class Settings(BaseSettings):
                 raise ValueError("Status maps require valid AOI statuses and nonempty IDs")
             if len(set(mapping.values())) != len(mapping):
                 raise ValueError("Each provider status ID must map to only one AOI status")
+        if self.environment != "development" and self.auth_mode != "oidc":
+            raise ValueError("Staging and production require AUTH_MODE=oidc")
+        if self.auth_mode == "oidc":
+            if not self.auth_issuer.startswith("https://") or not self.auth_audience:
+                raise ValueError("OIDC requires an HTTPS issuer and audience")
+            if not self.auth_jwks_url.startswith("https://"):
+                raise ValueError("OIDC requires an HTTPS JWKS URL")
+            from cryptography.fernet import Fernet
+
+            Fernet(self.connector_encryption_key.get_secret_value().encode())
+            if "*" in self.cors_origin_list:
+                raise ValueError("Explicit CORS origins are required")
         return self
 
     # ---- Monitor ----
@@ -227,5 +250,14 @@ class Settings(BaseSettings):
 
 
 @lru_cache
-def get_settings() -> Settings:
+def base_settings() -> Settings:
     return Settings()
+
+
+def get_settings() -> Settings:
+    from app.tenancy import settings_context
+
+    return settings_context.get() or base_settings()
+
+
+get_settings.cache_clear = base_settings.cache_clear

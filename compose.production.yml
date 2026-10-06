@@ -1,0 +1,52 @@
+# Preparation only. Run behind a TLS reverse proxy; nothing is deployed automatically.
+services:
+  migrate:
+    build: ./backend
+    env_file: .env.production
+    environment:
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:?Set MIGRATION_DATABASE_URL for the schema owner}
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+  backend:
+    build: ./backend
+    env_file: .env.production
+    environment:
+      ENVIRONMENT: production
+      AUTH_MODE: oidc
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose: ["8000"]
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp:size=512m,mode=1777"]
+    stop_grace_period: 45s
+  worker:
+    build: ./backend
+    env_file: .env.production
+    environment:
+      ENVIRONMENT: production
+      AUTH_MODE: oidc
+    command: ["python", "-m", "app.workers.scheduler"]
+    healthcheck:
+      disable: true # The worker has no HTTP server; monitor scheduler ticks instead.
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_AUTH_AUTHORITY: ${VITE_AUTH_AUTHORITY:?Set OIDC authority}
+        VITE_AUTH_CLIENT_ID: ${VITE_AUTH_CLIENT_ID:?Set public PKCE client ID}
+        VITE_AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set OIDC API audience}
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

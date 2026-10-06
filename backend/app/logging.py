@@ -10,6 +10,40 @@ import structlog
 from app.config import get_settings
 
 
+def scrub_private_fields(logger, method, event):
+    for key in list(event):
+        if key not in {
+            "event",
+            "level",
+            "timestamp",
+            "environment",
+            "llm_provider",
+            "operation",
+            "status",
+            "error_type",
+        } and any(
+            part in key.lower()
+            for part in (
+                "secret",
+                "token",
+                "password",
+                "credential",
+                "title",
+                "content",
+                "text",
+                "prompt",
+                "quote",
+                "filename",
+                "error",
+                "detail",
+                "exc_info",
+                "stack",
+            )
+        ):
+            event[key] = "[redacted]"
+    return event
+
+
 def configure_logging() -> None:
     settings = get_settings()
     level = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -26,7 +60,10 @@ def configure_logging() -> None:
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
     ]
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     if settings.environment == "production":
+        processors.append(scrub_private_fields)
         processors.append(structlog.processors.JSONRenderer())
     else:
         processors.append(structlog.dev.ConsoleRenderer(colors=True))

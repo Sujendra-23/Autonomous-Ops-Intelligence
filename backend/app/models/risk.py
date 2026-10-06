@@ -10,14 +10,14 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models._mixins import Timestamps, UUIDPrimaryKey
+from app.models._mixins import TenantMixin, Timestamps, UUIDPrimaryKey
 
 if TYPE_CHECKING:
     from app.models.project import Project
     from app.models.transcript import Transcript
 
 
-class Risk(UUIDPrimaryKey, Timestamps, Base):
+class Risk(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "risks"
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(

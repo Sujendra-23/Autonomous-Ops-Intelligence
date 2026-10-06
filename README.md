@@ -1,3 +1,5 @@
+> **Public SaaS preparation:** Account/workspace isolation and production containers are available. See [production-release.md](docs/production-release.md) for identity configuration, database roles, connector setup and release verification. The development setup below uses development authentication; do not expose it publicly. Nothing is hosted automatically.
+
 # Autonomous Operational Intelligence Layer
 
 > An **AI Agent for Work** that converts meetings into **structured tasks and

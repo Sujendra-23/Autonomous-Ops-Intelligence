@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models._mixins import Timestamps, UUIDPrimaryKey
+from app.models._mixins import TenantMixin, Timestamps, UUIDPrimaryKey
 
 if TYPE_CHECKING:
     from app.models.project import Project
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 EMBEDDING_DIMS = 1536  # OpenAI text-embedding-3-small / local fallback both project to this
 
 
-class Transcript(UUIDPrimaryKey, Timestamps, Base):
+class Transcript(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "transcripts"
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -54,7 +54,7 @@ class Transcript(UUIDPrimaryKey, Timestamps, Base):
         return f"<Transcript {self.title!r} status={self.status}>"
 
 
-class TranscriptChunk(UUIDPrimaryKey, Timestamps, Base):
+class TranscriptChunk(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "transcript_chunks"
 
     transcript_id: Mapped[uuid.UUID] = mapped_column(

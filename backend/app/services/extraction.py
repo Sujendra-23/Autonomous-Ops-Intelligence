@@ -176,7 +176,11 @@ class ExtractionPipeline:
         if transcript is None:
             return
         transcript.status = "failed"
-        transcript.error = reason[:2000]
+        transcript.error = (
+            "Extraction failed. Contact your workspace administrator."
+            if get_settings().auth_mode == "oidc"
+            else reason[:2000]
+        )
         await self._session.commit()
 
     async def _chunk_and_embed(self, transcript: Transcript) -> None:
@@ -441,10 +445,10 @@ class ExtractionPipeline:
             return " ".join(value.casefold().split())
 
         existing = (
-            await self._session.execute(
-                select(model).where(model.transcript_id == transcript_id)
-            )
-        ).scalars().all()
+            (await self._session.execute(select(model).where(model.transcript_id == transcript_id)))
+            .scalars()
+            .all()
+        )
         by_title = {key(getattr(row, identity)): row for row in existing}
         for item in items:
             values = item.model_dump(exclude={"supersedes"})

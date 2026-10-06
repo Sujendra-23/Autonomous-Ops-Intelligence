@@ -23,9 +23,9 @@ from app.logging import get_logger
 logger = get_logger("app.transcriber")
 
 SUPPORTED_EXTENSIONS = {".mp4", ".mp3", ".m4a", ".wav", ".ogg", ".webm", ".flac"}
-MAX_BYTES = 1 * 1024 * 1024 * 1024          # 1 GB — frontend enforces this too
-WHISPER_CHUNK_BYTES = 20 * 1024 * 1024      # stay under Whisper's 25 MB hard limit
-CHUNK_SECONDS = 4800                         # 80 min/chunk @ 32 kbps ≈ 19.2 MB
+MAX_BYTES = 100 * 1024 * 1024  # 100 MiB
+WHISPER_CHUNK_BYTES = 20 * 1024 * 1024  # stay under Whisper's 25 MB hard limit
+CHUNK_SECONDS = 4800  # 80 min/chunk @ 32 kbps ≈ 19.2 MB
 
 
 class TranscriptionError(RuntimeError):
@@ -36,26 +36,37 @@ class TranscriptionError(RuntimeError):
 # ffmpeg helpers (blocking — run in executor)                                 #
 # --------------------------------------------------------------------------- #
 
+
 def _run_ffmpeg(*args: str) -> None:
     try:
-        result = subprocess.run(["ffmpeg", *args], capture_output=True)
+        result = subprocess.run(
+            ["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", *args],
+            capture_output=True,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        raise TranscriptionError("Audio conversion timed out; use a shorter recording") from None
     except FileNotFoundError:
         raise TranscriptionError(
             "ffmpeg is not available. Rebuild the backend image with `make build`."
         )
     if result.returncode != 0:
-        stderr = result.stderr.decode(errors="replace")[-600:]
-        raise TranscriptionError(f"ffmpeg error: {stderr}")
+        raise TranscriptionError("Recording could not be decoded; try a supported audio format")
 
 
 def _compress(src: Path, dst: Path) -> None:
     """Re-encode any video/audio to 32 kbps mono mp3 at 16 kHz."""
     _run_ffmpeg(
-        "-y", "-i", str(src),
-        "-vn",              # drop video stream
-        "-ar", "16000",     # 16 kHz sample rate (Whisper's native rate)
-        "-ac", "1",         # mono
-        "-b:a", "32k",      # 32 kbps — meeting speech is perfectly clear
+        "-y",
+        "-i",
+        str(src),
+        "-vn",  # drop video stream
+        "-ar",
+        "16000",  # 16 kHz sample rate (Whisper's native rate)
+        "-ac",
+        "1",  # mono
+        "-b:a",
+        "32k",  # 32 kbps — meeting speech is perfectly clear
         str(dst),
     )
 
@@ -64,10 +75,15 @@ def _split(src: Path, chunk_dir: Path) -> list[Path]:
     """Split mp3 into CHUNK_SECONDS-long segments. Returns sorted chunk paths."""
     pattern = str(chunk_dir / "chunk_%03d.mp3")
     _run_ffmpeg(
-        "-y", "-i", str(src),
-        "-f", "segment",
-        "-segment_time", str(CHUNK_SECONDS),
-        "-c", "copy",
+        "-y",
+        "-i",
+        str(src),
+        "-f",
+        "segment",
+        "-segment_time",
+        str(CHUNK_SECONDS),
+        "-c",
+        "copy",
         pattern,
     )
     return sorted(chunk_dir.glob("chunk_*.mp3"))
@@ -77,26 +93,24 @@ def _split(src: Path, chunk_dir: Path) -> list[Path]:
 # Public API                                                                  #
 # --------------------------------------------------------------------------- #
 
+
 async def transcribe_path(src: Path, filename: str) -> str:
     """Transcribe an already-saved file. Handles compression and chunking."""
     settings = get_settings()
     key = settings.openai_api_key.get_secret_value()
     if not key:
-        raise TranscriptionError(
-            "OPENAI_API_KEY is required for transcription — add it to .env."
-        )
+        raise TranscriptionError("OPENAI_API_KEY is required for transcription — add it to .env.")
 
     ext = src.suffix.lower() or Path(filename).suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise TranscriptionError(
-            f"Unsupported format '{ext}'. "
-            f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            f"Unsupported format '{ext}'. " f"Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
         )
 
     size_mb = src.stat().st_size / 1024 / 1024
-    logger.info("transcriber.start", filename=filename, mb=round(size_mb, 1))
+    logger.info("transcriber.start", mb=round(size_mb, 1))
 
-    client = openai.AsyncOpenAI(api_key=key)
+    client = openai.AsyncOpenAI(api_key=key, timeout=300, max_retries=1)
     loop = asyncio.get_event_loop()
 
     # Work in a sibling temp directory so we never touch the caller's file
@@ -136,6 +150,7 @@ async def transcribe_path(src: Path, filename: str) -> str:
     finally:
         # Clean up intermediate files; the original src is the caller's to remove
         import shutil
+
         shutil.rmtree(work_dir, ignore_errors=True)
 
     result = "\n".join(parts)

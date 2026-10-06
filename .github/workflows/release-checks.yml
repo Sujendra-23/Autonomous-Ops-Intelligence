@@ -1,0 +1,68 @@
+name: Release checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aoi_tests
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/aoi_tests
+      SAAS_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      ANALYTICS_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/aoi_analytics_tests
+      REQUIRE_DATABASE_TESTS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: 'backend/requirements*.txt'
+      - run: pip install -r backend/requirements-dev.txt
+      - run: |
+          python - <<'PY'
+          import os, psycopg2
+          connection = psycopg2.connect(os.environ["SAAS_TEST_ADMIN_URL"])
+          connection.autocommit = True
+          with connection.cursor() as cursor:
+              cursor.execute("CREATE DATABASE aoi_analytics_tests")
+          connection.close()
+          PY
+      - run: python -m pytest -q
+        working-directory: backend
+      - run: pip-audit -r backend/requirements.txt
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npm audit --omit=dev --audit-level=moderate
+        working-directory: frontend
+      - run: node --test extension/tests/*.test.mjs
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t aoi-backend ./backend
+      - run: docker build -t aoi-frontend ./frontend

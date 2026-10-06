@@ -18,6 +18,8 @@ from app.services.analytics import CATALOG, validate_sql
 def analytics_db():
     url = os.environ.get("ANALYTICS_TEST_ADMIN_URL")
     if not url:
+        if os.environ.get("REQUIRE_DATABASE_TESTS") == "true":
+            pytest.fail("ANALYTICS_TEST_ADMIN_URL is required for release checks")
         pytest.skip("Set ANALYTICS_TEST_ADMIN_URL to an isolated empty PostgreSQL database")
     conn = psycopg2.connect(url)
     try:

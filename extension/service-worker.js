@@ -84,8 +84,7 @@ async function startCapture(config) {
   const data = await resp.json();
 
   const wsBase = base.replace(/^http/, "ws");
-  const qs = config.apiKey ? `?api_key=${encodeURIComponent(config.apiKey)}` : "";
-  const wsUrl = `${wsBase}${data.ws_path}${qs}`;
+  const wsUrl = `${wsBase}${data.ws_path}`;
 
   // Must be obtained in the service worker; consumed in the offscreen document.
   let streamId;
@@ -107,6 +106,7 @@ async function startCapture(config) {
       type: "START_CAPTURE",
       streamId,
       wsUrl,
+      authToken: config.apiKey || null,
       sampleRate: data.sample_rate || 16000,
     })
     .catch(() => {});

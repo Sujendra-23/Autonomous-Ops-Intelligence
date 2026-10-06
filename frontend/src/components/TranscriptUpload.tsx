@@ -5,7 +5,7 @@ type Mode = "text" | "video";
 type UploadStatus = "idle" | "transcribing" | "extracting" | "done" | "error";
 
 const ACCEPTED = ".mp4,.mp3,.m4a,.wav,.ogg,.webm,.flac";
-const MAX_MB = 1024; // 1 GB
+const MAX_MB = 100; // 100 MiB
 
 const STEPS: { key: UploadStatus; label: string; hint?: string }[] = [
   { key: "transcribing", label: "Transcribing",  hint: "may take a minute" },
@@ -37,7 +37,7 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
     setError(null);
 
     if (f.size > MAX_MB * 1024 * 1024) {
-      setError(`File is ${(f.size / 1024 / 1024 / 1024).toFixed(2)} GB — limit is 1 GB.`);
+      setError(`File is ${(f.size / 1024 / 1024 / 1024).toFixed(2)} GB — limit is 100 MB.`);
       setStatus("error");
       return;
     }
@@ -47,15 +47,14 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
     setStatus("transcribing");
 
     try {
-      await api.ingestVideo({
+      const ingested = await api.ingestVideo({
         file: f,
         title: title.trim() || f.name.replace(/\.[^.]+$/, ""),
         project_hint: projectHint.trim() || undefined,
         participants: participants.trim() || undefined,
       });
       setStatus("extracting");
-      // small yield so the UI paints "Extracting" before the next await resolves
-      await new Promise((r) => setTimeout(r, 50));
+      await api.waitForExtraction(ingested.id);
       setStatus("done");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -86,12 +85,13 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
     setError(null);
     setStatus("extracting");
     try {
-      await api.ingest({
+      const ingested = await api.ingest({
         title: title.trim() || "Untitled meeting",
         content,
         project_hint: projectHint.trim() || undefined,
         participants: participants.split(",").map((p) => p.trim()).filter(Boolean) || undefined,
       });
+      await api.waitForExtraction(ingested.id);
       setStatus("done");
       setContent("");
       setTimeout(onIngested, 900);
@@ -188,7 +188,7 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
                     {status === "error" ? "Drop another file to retry" : "Drop your meeting recording here"}
                   </div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    mp4 · mp3 · m4a · wav · ogg · webm · flac · max 1 GB · transcription starts immediately
+                    mp4 · mp3 · m4a · wav · ogg · webm · flac · max 100 MB · transcription starts immediately
                   </div>
                 </>
               )}

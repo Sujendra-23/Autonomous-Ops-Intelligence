@@ -11,12 +11,13 @@ from pydantic import BaseModel, ConfigDict, Field
 class TranscriptCreate(BaseModel):
     calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
     title: str = Field(..., min_length=1, max_length=512)
-    content: str = Field(..., min_length=20)
-    source: str = "upload"
+    content: str = Field(..., min_length=20, max_length=500000)
+    source: str = Field(default="upload", max_length=64)
     meeting_date: datetime | None = None
     participants: list[str] | None = None
     project_hint: str | None = Field(
         None,
+        max_length=256,
         description="Optional project name to bias the extractor.",
     )
     sync_extract: bool = Field(

@@ -24,3 +24,7 @@ backend/alembic/versions/*.pyc
 *.sqlite
 *.db
 .rocketride/
+
+.env.production
+.env.production.*
+!.env.production.example
