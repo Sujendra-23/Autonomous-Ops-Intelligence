@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.analytics import router as analytics_router
 from app.config import get_settings
 from app.database import get_session
 from app.models.blocker import Blocker
@@ -23,6 +24,7 @@ from app.services.search import semantic_search
 from app.workers.monitor import DriftMonitor
 
 router = APIRouter()
+router.include_router(analytics_router)
 
 
 class DashboardCounts(BaseModel):

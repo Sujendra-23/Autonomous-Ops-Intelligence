@@ -24,15 +24,17 @@ import asyncio
 import contextlib
 import json
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_ingest_key
 from app.config import get_settings
 from app.database import SessionLocal, get_session
+from app.integrations.calendar import meeting_context, resolve_meeting_project
 from app.logging import get_logger
 from app.models.blocker import Blocker
 from app.models.decision import Decision
@@ -42,13 +44,13 @@ from app.models.transcript import Transcript
 from app.services.extraction import ExtractionPipeline
 from app.services.live_session import LiveSession
 from app.services.live_stt import configured_sample_rate, get_transcriber
-from app.services.project_resolver import get_or_create_project
 
 logger = get_logger("app.api.live")
 router = APIRouter()
 
 
 class LiveSessionCreate(BaseModel):
+    calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
     title: str = "Live meeting"
     project_hint: str | None = None
     participants: list[str] | None = None
@@ -71,12 +73,17 @@ async def create_live_session(
     payload: LiveSessionCreate,
     session: AsyncSession = Depends(get_session),
 ) -> LiveSessionOut:
-    project = await get_or_create_project(session, payload.project_hint)
+    context = await meeting_context(payload.calendar_event_id)
+    project = await resolve_meeting_project(session, context, payload.project_hint)
     transcript = Transcript(
-        title=payload.title.strip() or "Live meeting",
+        title=context.get("title") or payload.title.strip() or "Live meeting",
         content="",
         source="live",
-        participants=payload.participants,
+        participants=payload.participants
+        if payload.participants is not None
+        else context.get("participants"),
+        meeting_date=context.get("meeting_date", datetime.now(UTC)),
+        calendar_context=context.get("calendar_context"),
         project_id=project.id if project else None,
         status="live",
     )
@@ -145,8 +152,6 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
         async def consume() -> None:
             try:
                 async for ev in transcriber.events():
-                    if stop.is_set():
-                        break
                     if ev.is_final:
                         live.add_final(ev.text)
                     else:
@@ -162,6 +167,13 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
                 stop.set()
             except Exception:
                 logger.exception("live.consume_error", transcript_id=str(transcript_id))
+                await _safe_send(
+                    websocket,
+                    {
+                        "type": "error",
+                        "detail": "Transcription failed. Check the provider settings and retry.",
+                    },
+                )
 
         async def receive_loop() -> None:
             try:
@@ -189,9 +201,20 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
             pass
         finally:
             stop.set()
-            # Closing the transcriber ends the events() async-iteration so the
-            # consumer task can finish before we run the final pass.
-            await transcriber.close()
+            # Keep consuming final provider events after the client stops sending.
+            # Otherwise the last utterance can be lost before final extraction.
+            try:
+                await transcriber.finish()
+            except Exception:
+                logger.warning("live.final_audio_flush_failed", transcript_id=str(transcript_id))
+                await transcriber.close()
+                await _safe_send(
+                    websocket,
+                    {
+                        "type": "error",
+                        "detail": "Final audio could not be fully transcribed.",
+                    },
+                )
             await cons_task
 
         with contextlib.suppress(Exception):
@@ -217,12 +240,16 @@ async def _snapshot(db: AsyncSession, transcript_id: uuid.UUID) -> dict:
 
     async def rows(model):
         return (
-            await db.execute(
-                select(model)
-                .where(model.transcript_id == transcript_id)
-                .order_by(model.created_at)
+            (
+                await db.execute(
+                    select(model)
+                    .where(model.transcript_id == transcript_id)
+                    .order_by(model.created_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     tasks = await rows(Task)
     decisions = await rows(Decision)

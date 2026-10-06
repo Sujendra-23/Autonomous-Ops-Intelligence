@@ -8,7 +8,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,11 +25,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     ingest_api_key: SecretStr = SecretStr("")
+    # Analytics credentials are independent of ingestion and fail closed when unset.
+    intelligence_api_key: SecretStr = SecretStr("")
+    intelligence_owner_api_key: SecretStr = SecretStr("")
+    intelligence_database_url: SecretStr = SecretStr("")
+    intelligence_owner_database_url: SecretStr = SecretStr("")
 
     # ---- Database ----
-    database_url: str = (
-        "postgresql+asyncpg://aoi:aoi@localhost:5432/aoi"
-    )
+    database_url: str = "postgresql+asyncpg://aoi:aoi@localhost:5432/aoi"
     redis_url: str = "redis://localhost:6379/0"
 
     # ---- LLM ----
@@ -63,6 +66,85 @@ class Settings(BaseSettings):
     # ---- Slack ----
     slack_bot_token: SecretStr = SecretStr("")
     slack_default_channel: str = ""
+
+    # Channel webhook URLs contain credentials and remain on the server.
+    discord_webhook_url: SecretStr = SecretStr("")
+    teams_webhook_url: SecretStr = SecretStr("")
+
+    # Optional integrations: credentials remain on the server.
+    google_calendar_client_id: str = ""
+    google_calendar_client_secret: SecretStr = SecretStr("")
+    google_calendar_refresh_token: SecretStr = SecretStr("")
+    google_calendar_id: str = "primary"
+    task_sync_enabled: bool = False
+    # AOI status -> provider workflow status ID. Needed for custom/blocked states.
+    linear_status_map: dict[str, str] = Field(default_factory=dict)
+    jira_status_map: dict[str, str] = Field(default_factory=dict)
+    integration_interval_seconds: int = Field(default=60, ge=10)
+    webhook_url: SecretStr = SecretStr("")
+    webhook_secret: SecretStr = SecretStr("")
+    webhook_events: list[str] = Field(
+        default_factory=lambda: [
+            "meeting.completed",
+            "task.created",
+            "task.updated",
+        ]
+    )
+
+    @property
+    def google_calendar_enabled(self) -> bool:
+        return bool(
+            self.google_calendar_client_id
+            and self.google_calendar_client_secret.get_secret_value()
+            and self.google_calendar_refresh_token.get_secret_value()
+        )
+
+    @model_validator(mode="after")
+    def validate_integrations(self) -> Settings:
+        from urllib.parse import urlsplit
+
+        url = self.webhook_url.get_secret_value()
+        if url:
+            parsed = urlsplit(url)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.fragment
+            ):
+                raise ValueError("WEBHOOK_URL must be HTTPS without userinfo or fragment")
+            if len(self.webhook_secret.get_secret_value()) < 32:
+                raise ValueError("WEBHOOK_SECRET must contain at least 32 characters")
+        for name in ("discord_webhook_url", "teams_webhook_url"):
+            destination = getattr(self, name).get_secret_value()
+            if not destination:
+                continue
+            parsed = urlsplit(destination)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.fragment
+            ):
+                raise ValueError(f"{name.upper()} must be HTTPS without userinfo or fragment")
+            if name == "discord_webhook_url":
+                import re
+
+                if parsed.hostname not in {
+                    "discord.com",
+                    "canary.discord.com",
+                    "ptb.discord.com",
+                } or not re.fullmatch(r"/api(?:/v\d+)?/webhooks/\d+/[A-Za-z0-9_-]+/?", parsed.path):
+                    raise ValueError("DISCORD_WEBHOOK_URL must be a Discord channel webhook URL")
+        statuses = {"open", "in_progress", "blocked", "done", "cancelled"}
+        for mapping in (self.linear_status_map, self.jira_status_map):
+            if set(mapping) - statuses or any(not value for value in mapping.values()):
+                raise ValueError("Status maps require valid AOI statuses and nonempty IDs")
+            if len(set(mapping.values())) != len(mapping):
+                raise ValueError("Each provider status ID must map to only one AOI status")
+        return self
 
     # ---- Monitor ----
     monitor_interval_seconds: int = Field(default=900, ge=30)
@@ -106,9 +188,7 @@ class Settings(BaseSettings):
     # value explicitly via get_secret_value() rather than `if x:` on the field.
     @property
     def notion_enabled(self) -> bool:
-        return bool(
-            self.notion_api_key.get_secret_value() and self.notion_parent_page_id
-        )
+        return bool(self.notion_api_key.get_secret_value() and self.notion_parent_page_id)
 
     @property
     def linear_enabled(self) -> bool:
@@ -117,16 +197,20 @@ class Settings(BaseSettings):
     @property
     def jira_enabled(self) -> bool:
         return bool(
-            self.jira_base_url
-            and self.jira_api_token.get_secret_value()
-            and self.jira_email
+            self.jira_base_url and self.jira_api_token.get_secret_value() and self.jira_email
         )
 
     @property
     def slack_enabled(self) -> bool:
-        return bool(
-            self.slack_bot_token.get_secret_value() and self.slack_default_channel
-        )
+        return bool(self.slack_bot_token.get_secret_value() and self.slack_default_channel)
+
+    @property
+    def discord_enabled(self) -> bool:
+        return bool(self.discord_webhook_url.get_secret_value())
+
+    @property
+    def teams_enabled(self) -> bool:
+        return bool(self.teams_webhook_url.get_secret_value())
 
     @property
     def cors_origin_list(self) -> list[str]:

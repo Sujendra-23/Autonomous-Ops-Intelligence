@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 
 from app import __version__
-from app.api import decisions, intelligence, live, projects, tasks, transcripts
+from app.api import decisions, integrations, intelligence, live, projects, tasks, transcripts
 from app.config import get_settings
 from app.logging import configure_logging, get_logger
 
@@ -96,3 +96,4 @@ app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(decisions.router, prefix="/api/decisions", tags=["decisions"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["intelligence"])
 app.include_router(live.router, prefix="/api/live", tags=["live"])
+app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])

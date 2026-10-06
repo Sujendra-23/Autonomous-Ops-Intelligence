@@ -1,0 +1,367 @@
+{
+  "fixtures": {
+    "tasks": [
+      [
+        "t1",
+        "p1",
+        "open",
+        "high",
+        "Ada",
+        true,
+        "2000-01-01",
+        true
+      ],
+      [
+        "t2",
+        "p1",
+        "in_progress",
+        "urgent",
+        "bo@example.test",
+        true,
+        null,
+        false
+      ],
+      [
+        "t3",
+        "p1",
+        "done",
+        "low",
+        "Ada",
+        true,
+        null,
+        false
+      ],
+      [
+        "t4",
+        "p2",
+        "blocked",
+        "high",
+        null,
+        false,
+        "2000-01-01",
+        true
+      ],
+      [
+        "t5",
+        "p2",
+        "cancelled",
+        "medium",
+        null,
+        false,
+        null,
+        false
+      ],
+      [
+        "t6",
+        "p2",
+        "open",
+        "medium",
+        "Cy",
+        true,
+        null,
+        false
+      ]
+    ],
+    "risks": [
+      [
+        "r1",
+        "p1",
+        "open",
+        "high",
+        "high"
+      ],
+      [
+        "r2",
+        "p1",
+        "closed",
+        "low",
+        "low"
+      ],
+      [
+        "r3",
+        "p2",
+        "open",
+        "critical",
+        "medium"
+      ]
+    ],
+    "blockers": [
+      [
+        "b1",
+        "p1",
+        "t1",
+        "open",
+        "high",
+        null
+      ],
+      [
+        "b2",
+        "p2",
+        "t4",
+        "open",
+        "critical",
+        null
+      ],
+      [
+        "b3",
+        "p1",
+        "t2",
+        "resolved",
+        "low",
+        "2026-01-01"
+      ]
+    ]
+  },
+  "cases": [
+    {
+      "question": "How many tasks are there?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks",
+      "expected": [
+        [
+          6
+        ]
+      ]
+    },
+    {
+      "question": "How many open tasks (including in progress and blocked)?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks WHERE status IN ('open', 'in_progress', 'blocked')",
+      "expected": [
+        [
+          4
+        ]
+      ]
+    },
+    {
+      "question": "How many tasks are done?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks WHERE status = 'done'",
+      "expected": [
+        [
+          1
+        ]
+      ]
+    },
+    {
+      "question": "How many tasks are overdue?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks WHERE is_overdue = TRUE",
+      "expected": [
+        [
+          2
+        ]
+      ]
+    },
+    {
+      "question": "How many tasks have no owner?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks WHERE has_owner = FALSE",
+      "expected": [
+        [
+          2
+        ]
+      ]
+    },
+    {
+      "question": "How many tasks are urgent?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks WHERE priority = 'urgent'",
+      "expected": [
+        [
+          1
+        ]
+      ]
+    },
+    {
+      "question": "Count tasks by status alphabetically.",
+      "sql": "SELECT status, COUNT(*) FROM analytics.tasks GROUP BY status ORDER BY status",
+      "expected": [
+        [
+          "blocked",
+          1
+        ],
+        [
+          "cancelled",
+          1
+        ],
+        [
+          "done",
+          1
+        ],
+        [
+          "in_progress",
+          1
+        ],
+        [
+          "open",
+          2
+        ]
+      ]
+    },
+    {
+      "question": "Count tasks by priority alphabetically.",
+      "sql": "SELECT priority, COUNT(*) FROM analytics.tasks GROUP BY priority ORDER BY priority",
+      "expected": [
+        [
+          "high",
+          2
+        ],
+        [
+          "low",
+          1
+        ],
+        [
+          "medium",
+          2
+        ],
+        [
+          "urgent",
+          1
+        ]
+      ]
+    },
+    {
+      "question": "List distinct task project IDs in order.",
+      "sql": "SELECT DISTINCT project_id FROM analytics.tasks ORDER BY project_id",
+      "expected": [
+        [
+          "p1"
+        ],
+        [
+          "p2"
+        ]
+      ]
+    },
+    {
+      "question": "List overdue task IDs in order.",
+      "sql": "SELECT id FROM analytics.tasks WHERE is_overdue = TRUE ORDER BY id",
+      "expected": [
+        [
+          "t1"
+        ],
+        [
+          "t4"
+        ]
+      ]
+    },
+    {
+      "question": "Show each assigned task's owner, ordered by task ID.",
+      "sql": "SELECT id, owner FROM analytics.tasks WHERE has_owner = TRUE ORDER BY id",
+      "expected": [
+        [
+          "t1",
+          "[MASKED]"
+        ],
+        [
+          "t2",
+          "[MASKED]"
+        ],
+        [
+          "t3",
+          "[MASKED]"
+        ],
+        [
+          "t6",
+          "[MASKED]"
+        ]
+      ]
+    },
+    {
+      "question": "How many tasks have an owner?",
+      "sql": "SELECT COUNT(*) FROM analytics.tasks WHERE has_owner = TRUE",
+      "expected": [
+        [
+          4
+        ]
+      ]
+    },
+    {
+      "question": "How many risks are open?",
+      "sql": "SELECT COUNT(*) FROM analytics.risks WHERE status = 'open'",
+      "expected": [
+        [
+          2
+        ]
+      ]
+    },
+    {
+      "question": "How many risks are critical?",
+      "sql": "SELECT COUNT(*) FROM analytics.risks WHERE severity = 'critical'",
+      "expected": [
+        [
+          1
+        ]
+      ]
+    },
+    {
+      "question": "Count risks by likelihood alphabetically.",
+      "sql": "SELECT likelihood, COUNT(*) FROM analytics.risks GROUP BY likelihood ORDER BY likelihood",
+      "expected": [
+        [
+          "high",
+          1
+        ],
+        [
+          "low",
+          1
+        ],
+        [
+          "medium",
+          1
+        ]
+      ]
+    },
+    {
+      "question": "How many blockers are open?",
+      "sql": "SELECT COUNT(*) FROM analytics.blockers WHERE status = 'open'",
+      "expected": [
+        [
+          2
+        ]
+      ]
+    },
+    {
+      "question": "How many blockers are resolved?",
+      "sql": "SELECT COUNT(*) FROM analytics.blockers WHERE status = 'resolved'",
+      "expected": [
+        [
+          1
+        ]
+      ]
+    },
+    {
+      "question": "Count blockers by severity alphabetically.",
+      "sql": "SELECT severity, COUNT(*) FROM analytics.blockers GROUP BY severity ORDER BY severity",
+      "expected": [
+        [
+          "critical",
+          1
+        ],
+        [
+          "high",
+          1
+        ],
+        [
+          "low",
+          1
+        ]
+      ]
+    },
+    {
+      "question": "List task IDs with open blockers, ordered by task ID.",
+      "sql": "SELECT task_id FROM analytics.blockers WHERE status = 'open' ORDER BY task_id",
+      "expected": [
+        [
+          "t1"
+        ],
+        [
+          "t4"
+        ]
+      ]
+    },
+    {
+      "question": "How many blockers have no resolution timestamp?",
+      "sql": "SELECT COUNT(*) FROM analytics.blockers WHERE resolved_at IS NULL",
+      "expected": [
+        [
+          2
+        ]
+      ]
+    }
+  ]
+}

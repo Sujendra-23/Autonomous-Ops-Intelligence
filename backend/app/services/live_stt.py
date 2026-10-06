@@ -9,15 +9,17 @@ consistent with the rest of the project's secret handling.
 Providers sit behind `StreamingTranscriber` so the live API doesn't care which
 one is wired. Deepgram is implemented (a stable, low-latency WebSocket STT);
 `NullTranscriber` is the no-key fallback so the endpoint still runs in dev (it
-just produces no text). Add OpenAI Realtime / AssemblyAI as further subclasses.
+just produces no text). OpenAI Realtime is also supported at 24 kHz.
 """
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import contextlib
 import json
 from abc import ABC, abstractmethod
+from collections import deque
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
@@ -64,6 +66,10 @@ class StreamingTranscriber(ABC):
 
     @abstractmethod
     async def close(self) -> None: ...
+
+    async def finish(self) -> None:
+        """Flush final audio while the events consumer is still running, then close."""
+        await self.close()
 
 
 class NullTranscriber(StreamingTranscriber):
@@ -161,6 +167,14 @@ class OpenAIRealtimeTranscriber(StreamingTranscriber):
         self._api_key = api_key
         self._model = model
         self._ws = None
+        self._interims: dict[str, str] = {}
+        self._order: deque[str] = deque()
+        self._finals: dict[str, str] = {}
+        self._buffered_bytes = 0
+        self._pending_commits = 0
+        self._finishing = False
+        self._drained = asyncio.Event()
+        self._drained.set()
 
     async def connect(self) -> None:
         from websockets.asyncio.client import connect
@@ -169,25 +183,42 @@ class OpenAIRealtimeTranscriber(StreamingTranscriber):
             self._URL,
             additional_headers={
                 "Authorization": f"Bearer {self._api_key}",
-                "OpenAI-Beta": "realtime=v1",
             },
         )
-        await self._ws.send(
-            json.dumps(
-                {
-                    "type": "transcription_session.update",
-                    "session": {
-                        "input_audio_format": "pcm16",
-                        "input_audio_transcription": {"model": self._model},
-                        "turn_detection": {"type": "server_vad"},
-                    },
-                }
+        try:
+            await self._ws.send(
+                json.dumps(
+                    {
+                        "type": "session.update",
+                        "session": {
+                            "type": "transcription",
+                            "audio": {
+                                "input": {
+                                    "format": {"type": "audio/pcm", "rate": self.sample_rate},
+                                    "transcription": {"model": self._model},
+                                    "turn_detection": {"type": "server_vad"},
+                                }
+                            },
+                        },
+                    }
+                )
             )
-        )
+            # Don't report "connected" before the provider accepts configuration.
+            async with asyncio.timeout(15):
+                while True:
+                    event = json.loads(await self._ws.recv())
+                    if event.get("type") == "error":
+                        raise RuntimeError("OpenAI rejected transcription session configuration")
+                    if event.get("type") == "session.updated":
+                        break
+        except BaseException:
+            await self.close()
+            raise
         logger.info("live_stt.connected", provider="openai", model=self._model)
 
     async def send_audio(self, chunk: bytes) -> None:
         if self._ws is not None and chunk:
+            self._buffered_bytes += len(chunk)
             payload = base64.b64encode(chunk).decode("ascii")
             await self._ws.send(json.dumps({"type": "input_audio_buffer.append", "audio": payload}))
 
@@ -202,14 +233,62 @@ class OpenAIRealtimeTranscriber(StreamingTranscriber):
             except (ValueError, TypeError):
                 continue
             kind = data.get("type", "")
-            if kind.endswith("input_audio_transcription.delta"):
-                text = (data.get("delta") or "").strip()
-                if text:
-                    yield TranscriptEvent(text=text, is_final=False)
+            item_id = data.get("item_id", "")
+            if kind == "input_audio_buffer.committed":
+                self._buffered_bytes = 0
+                self._pending_commits = max(0, self._pending_commits - 1)
+                self._order.append(item_id)
+                self._drained.clear()
+            elif kind.endswith("input_audio_transcription.delta"):
+                # Deltas are fragments, whereas the panel expects the full interim text.
+                self._interims[item_id] = self._interims.get(item_id, "") + (
+                    data.get("delta") or ""
+                )
+                if self._interims[item_id].strip():
+                    yield TranscriptEvent(text=self._interims[item_id].strip(), is_final=False)
             elif kind.endswith("input_audio_transcription.completed"):
-                text = (data.get("transcript") or "").strip()
-                if text:
+                self._interims.pop(item_id, None)
+                self._finals[item_id] = (data.get("transcript") or "").strip()
+                # Completion events may arrive out of order. Emit in audio commit order.
+                ready = []
+                while self._order and self._order[0] in self._finals:
+                    text = self._finals.pop(self._order.popleft())
+                    if text:
+                        ready.append(text)
+                self._mark_drained()
+                for text in ready:
                     yield TranscriptEvent(text=text, is_final=True)
+            elif kind == "error":
+                code = data.get("error", {}).get("code")
+                if self._finishing and code == "input_audio_buffer_commit_empty":
+                    # Server VAD may have committed the last turn just before finish().
+                    self._pending_commits = max(0, self._pending_commits - 1)
+                    self._mark_drained()
+                    continue
+                raise RuntimeError("OpenAI live transcription returned an error")
+            elif kind.endswith("input_audio_transcription.failed"):
+                raise RuntimeError("OpenAI could not transcribe an audio segment")
+
+    def _mark_drained(self) -> None:
+        if not self._order and not self._pending_commits:
+            self._drained.set()
+
+    async def finish(self) -> None:
+        if self._ws is None:
+            return
+        self._finishing = True
+        try:
+            if self._buffered_bytes:
+                # Commits require at least 100 ms of PCM16 audio.
+                minimum = self.sample_rate * 2 // 10
+                if self._buffered_bytes < minimum:
+                    await self.send_audio(bytes(minimum - self._buffered_bytes))
+                self._pending_commits += 1
+                self._drained.clear()
+                await self._ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+            await asyncio.wait_for(self._drained.wait(), timeout=15)
+        finally:
+            await self.close()
 
     async def close(self) -> None:
         if self._ws is None:

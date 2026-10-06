@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -79,10 +79,13 @@ class Task(UUIDPrimaryKey, Timestamps, Base):
     )
     last_reminder_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     extra_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    sync_pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    sync_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sync_error: Mapped[str | None] = mapped_column(String(128))
 
-    project: Mapped["Project | None"] = relationship(back_populates="tasks")
-    transcript: Mapped["Transcript | None"] = relationship()
-    activities: Mapped[list["TaskActivity"]] = relationship(
+    project: Mapped[Project | None] = relationship(back_populates="tasks")
+    transcript: Mapped[Transcript | None] = relationship()
+    activities: Mapped[list[TaskActivity]] = relationship(
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="TaskActivity.created_at",
@@ -108,4 +111,4 @@ class TaskActivity(UUIDPrimaryKey, Timestamps, Base):
     payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     actor: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
 
-    task: Mapped["Task"] = relationship(back_populates="activities")
+    task: Mapped[Task] = relationship(back_populates="activities")

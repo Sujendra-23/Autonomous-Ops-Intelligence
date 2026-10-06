@@ -6,6 +6,7 @@ every model with SQLAlchemy's metadata, which Alembic relies on for autogenerate
 
 from app.models.blocker import Blocker
 from app.models.decision import Decision
+from app.models.integration import WebhookDelivery
 from app.models.project import Project
 from app.models.risk import Risk
 from app.models.task import Task, TaskActivity
@@ -20,4 +21,5 @@ __all__ = [
     "TaskActivity",
     "Transcript",
     "TranscriptChunk",
+    "WebhookDelivery",
 ]

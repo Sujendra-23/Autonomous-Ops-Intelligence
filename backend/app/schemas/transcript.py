@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TranscriptCreate(BaseModel):
+    calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
     title: str = Field(..., min_length=1, max_length=512)
     content: str = Field(..., min_length=20)
     source: str = "upload"
@@ -91,6 +92,7 @@ class ExtractedBlockerOut(BaseModel):
 
 
 class TranscriptDetail(TranscriptSummary):
+    calendar_context: dict | None = None
     content: str
     participants: list[str] | None
     error: str | None

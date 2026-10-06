@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import require_ingest_key
 from app.database import get_session
+from app.integrations.calendar import meeting_context, resolve_meeting_project
 from app.models.blocker import Blocker
 from app.models.decision import Decision
 from app.models.risk import Risk
@@ -43,7 +44,9 @@ router = APIRouter()
     summary="Transcribe a video/audio file and run extraction",
 )
 async def upload_video(
-    file: UploadFile = File(..., description="Video or audio file (mp4, mp3, m4a, wav, ogg, webm, flac). Max 1 GB."),
+    file: UploadFile = File(
+        ..., description="Video or audio file (mp4, mp3, m4a, wav, ogg, webm, flac). Max 1 GB."
+    ),
     title: str = Form(""),
     project_hint: str = Form(""),
     participants: str = Form("", description="Comma-separated participant names"),
@@ -62,14 +65,17 @@ async def upload_video(
                 if size > MAX_BYTES:
                     raise HTTPException(
                         status_code=413,
-                        detail=f"File exceeds the 1 GB limit ({size / 1024**3:.2f} GB received so far).",
+                        detail=(
+                            f"File exceeds the 1 GB limit "
+                            f"({size / 1024**3:.2f} GB received so far)."
+                        ),
                     )
                 fh.write(chunk)
 
         try:
             transcript_text = await transcribe_path(upload_path, filename)
         except TranscriptionError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     participant_list = [p.strip() for p in participants.split(",") if p.strip()] or None
     resolved_title = title.strip() or Path(filename).stem
@@ -103,13 +109,17 @@ async def ingest_transcript(
     session: AsyncSession = Depends(get_session),
 ) -> TranscriptDetail:
     """Ingest a transcript and (optionally) run extraction synchronously."""
-    project = await get_or_create_project(session, payload.project_hint)
+    context = await meeting_context(payload.calendar_event_id)
+    project = await resolve_meeting_project(session, context, payload.project_hint)
     transcript = Transcript(
-        title=payload.title,
+        title=context.get("title") or payload.title,
         content=payload.content,
         source=payload.source,
-        meeting_date=payload.meeting_date,
-        participants=payload.participants,
+        meeting_date=payload.meeting_date or context.get("meeting_date"),
+        participants=payload.participants
+        if payload.participants is not None
+        else context.get("participants"),
+        calendar_context=context.get("calendar_context"),
         project_id=project.id if project else None,
     )
     session.add(transcript)
@@ -134,9 +144,7 @@ async def list_transcripts(
     stmt = select(Transcript).order_by(Transcript.created_at.desc())
     if project_id is not None:
         stmt = stmt.where(Transcript.project_id == project_id)
-    total = await session.scalar(
-        select(func.count()).select_from(stmt.subquery())
-    )
+    total = await session.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = (await session.execute(stmt.offset(offset).limit(limit))).scalars().all()
     return TranscriptList(
         items=[TranscriptSummary.model_validate(r) for r in rows],
@@ -175,10 +183,10 @@ async def reprocess_transcript(
     # Wipe extracted artefacts so re-running doesn't duplicate them.
     for model in (Task, Decision, Risk, Blocker):
         rows = (
-            await session.execute(
-                select(model).where(model.transcript_id == transcript_id)
-            )
-        ).scalars().all()
+            (await session.execute(select(model).where(model.transcript_id == transcript_id)))
+            .scalars()
+            .all()
+        )
         for row in rows:
             await session.delete(row)
     await session.commit()
@@ -191,29 +199,45 @@ async def reprocess_transcript(
 
 async def _to_detail(session: AsyncSession, transcript: Transcript) -> TranscriptDetail:
     tasks = (
-        await session.execute(
-            select(Task).where(Task.transcript_id == transcript.id).order_by(Task.created_at)
+        (
+            await session.execute(
+                select(Task).where(Task.transcript_id == transcript.id).order_by(Task.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     decisions = (
-        await session.execute(
-            select(Decision)
-            .where(Decision.transcript_id == transcript.id)
-            .order_by(Decision.created_at)
+        (
+            await session.execute(
+                select(Decision)
+                .where(Decision.transcript_id == transcript.id)
+                .order_by(Decision.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     risks = (
-        await session.execute(
-            select(Risk).where(Risk.transcript_id == transcript.id).order_by(Risk.created_at)
+        (
+            await session.execute(
+                select(Risk).where(Risk.transcript_id == transcript.id).order_by(Risk.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     blockers = (
-        await session.execute(
-            select(Blocker)
-            .where(Blocker.transcript_id == transcript.id)
-            .order_by(Blocker.created_at)
+        (
+            await session.execute(
+                select(Blocker)
+                .where(Blocker.transcript_id == transcript.id)
+                .order_by(Blocker.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return TranscriptDetail(
         id=transcript.id,
@@ -226,6 +250,7 @@ async def _to_detail(session: AsyncSession, transcript: Transcript) -> Transcrip
         created_at=transcript.created_at,
         content=transcript.content,
         participants=transcript.participants,
+        calendar_context=transcript.calendar_context,
         error=transcript.error,
         tasks=[ExtractedTaskOut.model_validate(t) for t in tasks],
         decisions=[ExtractedDecisionOut.model_validate(d) for d in decisions],

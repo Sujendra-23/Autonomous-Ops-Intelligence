@@ -1,0 +1,48 @@
+{
+  "transcription_model": "gpt-4o-transcribe",
+  "extraction_model": "gpt-4o-mini",
+  "meeting_date": "2026-10-04T09:00:00-07:00",
+  "audio_seconds": 9.38,
+  "interim_events": 29,
+  "first_final_seconds": 10.87,
+  "elapsed_seconds": 17.64,
+  "transcript": "Alex will finish the migration plan by Friday. We decided to use a staged rollout. The launch is blocked until the infrastructure team grants database access.",
+  "result": {
+    "project_hint": null,
+    "summary": "The team is working on a migration plan and has decided to implement a staged rollout. However, the launch is currently blocked due to a lack of database access from the infrastructure team.",
+    "tasks": [
+      {
+        "title": "Finish the migration plan",
+        "description": null,
+        "owner": "Alex",
+        "due_date": "2026-10-09T00:00:00-07:00",
+        "priority": "medium",
+        "source_quote": "Alex will finish the migration plan by Friday.",
+        "confidence": 0.9
+      }
+    ],
+    "task_updates": [],
+    "decisions": [
+      {
+        "summary": "Use a staged rollout",
+        "rationale": null,
+        "decided_by": [],
+        "supersedes": null,
+        "source_quote": "We decided to use a staged rollout.",
+        "confidence": 0.9
+      }
+    ],
+    "risks": [],
+    "blockers": [
+      {
+        "summary": "Launch is blocked until database access is granted",
+        "description": null,
+        "blocked_party": null,
+        "needs_from": "infrastructure team",
+        "severity": "high",
+        "source_quote": "The launch is blocked until the infrastructure team grants database access.",
+        "confidence": 0.9
+      }
+    ]
+  }
+}

@@ -28,7 +28,6 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
 
   const [status, setStatus]   = useState<UploadStatus>("idle");
   const [error, setError]     = useState<string | null>(null);
-  const [resultId, setResultId] = useState<string | null>(null);
 
   const busy = status === "transcribing" || status === "extracting";
 
@@ -36,7 +35,6 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
   // Called immediately when a file is selected / dropped — no extra button click.
   const startUpload = async (f: File) => {
     setError(null);
-    setResultId(null);
 
     if (f.size > MAX_MB * 1024 * 1024) {
       setError(`File is ${(f.size / 1024 / 1024 / 1024).toFixed(2)} GB — limit is 1 GB.`);
@@ -49,7 +47,7 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
     setStatus("transcribing");
 
     try {
-      const out = await api.ingestVideo({
+      await api.ingestVideo({
         file: f,
         title: title.trim() || f.name.replace(/\.[^.]+$/, ""),
         project_hint: projectHint.trim() || undefined,
@@ -58,7 +56,6 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
       setStatus("extracting");
       // small yield so the UI paints "Extracting" before the next await resolves
       await new Promise((r) => setTimeout(r, 50));
-      setResultId(out.id);
       setStatus("done");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -86,16 +83,15 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
 
   // ── Text ingest ─────────────────────────────────────────────────────────────
   const submitText = async () => {
-    setError(null); setResultId(null);
+    setError(null);
     setStatus("extracting");
     try {
-      const out = await api.ingest({
+      await api.ingest({
         title: title.trim() || "Untitled meeting",
         content,
         project_hint: projectHint.trim() || undefined,
         participants: participants.split(",").map((p) => p.trim()).filter(Boolean) || undefined,
       });
-      setResultId(out.id);
       setStatus("done");
       setContent("");
       setTimeout(onIngested, 900);

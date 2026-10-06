@@ -76,3 +76,45 @@ If `INGEST_API_KEY` is set on the backend, put the same value in the panel's
   but terminate TLS (wss) if you expose the backend.
 - If the socket drops mid-meeting the extension auto-reconnects with backoff and
   the backend resumes the same session from the persisted transcript.
+
+## Calendar meeting context
+
+After configuring Google Calendar on the backend, click **Load Google Calendar meetings**
+and select a meeting before starting capture. This supplies its title, attendees, and date.
+Use a project hint for the first recurring meeting; later instances reuse that project when
+no hint is supplied. Manual capture remains available with no calendar connection.
+
+See [integration setup](../docs/integrations.md) for OAuth configuration, two-way Linear/Jira
+status sync, signed webhooks, and retry diagnostics.
+
+### Panel controls and connectors
+
+The panel includes a session timer, listening indicator, transcript copy control,
+and searchable notes with filters for tasks, decisions, and risks/blockers.
+Source quotes expand beneath the relevant note. The transcript follows new text
+unless you scroll up to read earlier content. Reduced-motion preferences are respected.
+
+Choose **Connectors** in the top navigation to see Google Calendar, Linear, Jira,
+Notion, Slack, Discord, Microsoft Teams, and webhook setup. Expand a connector to see its required backend
+`.env` variables. After updating the server configuration, restart the backend
+and choose **Check status**. The status check uses the Backend URL and API key in
+**Backend connection** and reports whether credentials are configured; it does
+not test provider access or provide an OAuth sign-in flow. Enable
+`TASK_SYNC_ENABLED=true` for recurring Linear/Jira status synchronization.
+
+After changing the panel or extension icons, reload the unpacked extension in
+`chrome://extensions` and reopen its side panel. Restart the backend to expose
+Notion and Slack in its integration status response.
+
+The studio layout keeps the recorder above three workspace tabs: **Notes**,
+**Transcript**, and **Connectors**. Use arrow keys, Home, or End within the tab
+bar. The header settings button opens Backend connection directly. Calendar
+selection is under **Choose a calendar meeting**. The animated signal indicates
+a listening session, not measured audio amplitude. Manrope is bundled locally
+with its SIL Open Font License; no font requests leave the extension.
+
+Discord and Microsoft Teams deliver processed meeting summaries through
+server-side channel webhooks. Set `DISCORD_WEBHOOK_URL` or `TEAMS_WEBHOOK_URL`,
+then restart the backend. Teams uses Workflows and Adaptive Card attachments.
+See [channel connector setup](../docs/channel-connectors.md) for the workflow
+authentication requirements and delivery behavior.

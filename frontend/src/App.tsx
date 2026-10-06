@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "./api";
+import { api, setApiKey } from "./api";
 import { Dashboard } from "./components/Dashboard";
 import { TranscriptUpload } from "./components/TranscriptUpload";
 import { Tasks } from "./components/Tasks";
@@ -40,6 +40,18 @@ export function App() {
             Intelligence
           </NavBtn>
         </nav>
+        <div className="api-key-control">
+          <label htmlFor="console-api-key">Backend API key (if set)</label>
+          <input
+            id="console-api-key"
+            type="password"
+            autoComplete="off"
+            placeholder="Optional"
+            onChange={(event) => setApiKey(event.target.value)}
+            aria-describedby="console-api-key-help"
+          />
+          <p id="console-api-key-help">Used for edits and uploads. Cleared when you reload.</p>
+        </div>
       </aside>
       <main className="main">
         {view === "dashboard" && <Dashboard />}

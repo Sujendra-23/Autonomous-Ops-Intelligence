@@ -35,6 +35,7 @@ class Transcript(UUIDPrimaryKey, Timestamps, Base):
     source: Mapped[str] = mapped_column(String(64), nullable=False, default="upload")
     meeting_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     participants: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    calendar_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="received")
@@ -42,8 +43,8 @@ class Transcript(UUIDPrimaryKey, Timestamps, Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    project: Mapped["Project | None"] = relationship(back_populates="transcripts")
-    chunks: Mapped[list["TranscriptChunk"]] = relationship(
+    project: Mapped[Project | None] = relationship(back_populates="transcripts")
+    chunks: Mapped[list[TranscriptChunk]] = relationship(
         back_populates="transcript",
         cascade="all, delete-orphan",
         order_by="TranscriptChunk.index",
@@ -67,7 +68,7 @@ class TranscriptChunk(UUIDPrimaryKey, Timestamps, Base):
     token_estimate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIMS), nullable=True)
 
-    transcript: Mapped["Transcript"] = relationship(back_populates="chunks")
+    transcript: Mapped[Transcript] = relationship(back_populates="chunks")
 
     def __repr__(self) -> str:
         return f"<TranscriptChunk {self.transcript_id}:{self.index}>"

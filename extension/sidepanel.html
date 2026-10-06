@@ -1,106 +1,73 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AOI Live Notes</title>
-    <style>
-      :root {
-        --bg: #0f1115;
-        --panel: #171a21;
-        --line: #262b36;
-        --text: #e6e8ee;
-        --muted: #8b93a7;
-        --accent: #6ea8fe;
-        --good: #3fb950;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font: 13px/1.45 -apple-system, system-ui, Segoe UI, Roboto, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-      }
-      header { padding: 12px 14px; border-bottom: 1px solid var(--line); }
-      header h1 { font-size: 14px; margin: 0; }
-      header .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
-      .section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
-      label { display: block; color: var(--muted); font-size: 11px; margin: 8px 0 3px; }
-      input {
-        width: 100%; padding: 7px 8px; border-radius: 6px;
-        border: 1px solid var(--line); background: var(--panel); color: var(--text);
-      }
-      .row { display: flex; gap: 8px; }
-      .row > * { flex: 1; }
-      button {
-        width: 100%; margin-top: 12px; padding: 9px; border: 0; border-radius: 6px;
-        background: var(--accent); color: #07101f; font-weight: 600; cursor: pointer;
-      }
-      button.stop { background: #f0623a; color: #1a0a06; }
-      button:disabled { opacity: 0.5; cursor: default; }
-      .status { margin-top: 10px; font-size: 11px; color: var(--muted); min-height: 14px; }
-      .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555; margin-right: 6px; }
-      .dot.live { background: var(--good); }
-      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
-      .card {
-        background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
-        padding: 8px 10px; margin-bottom: 8px;
-      }
-      .card .title { font-weight: 600; }
-      .card .meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
-      .card .quote { color: var(--muted); font-style: italic; font-size: 11px; margin-top: 4px; }
-      .pill { display: inline-block; padding: 1px 6px; border-radius: 999px; background: #222836; font-size: 10px; margin-left: 4px; }
-      #transcript { max-height: 140px; overflow-y: auto; color: var(--muted); white-space: pre-wrap; }
-      #transcript .interim { color: #5a6276; }
-      .empty { color: #5a6276; font-size: 12px; }
-      .count { color: var(--muted); font-weight: 400; }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>Live Note-Taker</h1>
-      <div class="sub">Streams the active tab's audio → structured notes</div>
-    </header>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AOI Live Notes</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body data-state="idle">
+  <header>
+    <img class="brand-mark" src="icons/icon-128.png" width="38" height="38" alt="" />
+    <div class="brand-copy"><h1>Live Note-Taker</h1><div class="sub">A little more presence. A lot more clarity.</div></div>
+    <button class="icon-button" id="openSettings" type="button" aria-label="Open connection settings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg></button>
+  </header>
 
-    <div class="section" id="setup">
-      <label>Backend URL</label>
-      <input id="backendUrl" placeholder="http://localhost:8000" />
-      <div class="row">
-        <div>
-          <label>Project hint</label>
-          <input id="projectHint" placeholder="e.g. API Migration" />
-        </div>
-        <div>
-          <label>API key (if set)</label>
-          <input id="apiKey" type="password" placeholder="optional" />
-        </div>
+  <main>
+    <section class="capture-section" id="setup" aria-label="Meeting capture">
+      <div class="meeting-title-field"><label for="title">Meeting title</label><input id="title" placeholder="Untitled meeting" /></div>
+      <div class="recording-stage">
+        <div class="stage-top"><span class="stage-source"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8m-4-3v3"/></svg>Active tab audio</span><span class="stage-mode" id="stageMode">Standby</span></div>
+        <div class="timer" id="timer" aria-label="Session duration">00:00</div>
+        <div class="signal" aria-hidden="true"><div class="signal-line"></div><div class="signal-bars"></div></div>
+        <div class="status" role="status"><span class="dot" id="dot"></span><span id="statusText">Ready when you are</span></div>
+        <button id="toggle" type="button">Start capturing</button>
       </div>
-      <label>Meeting title</label>
-      <input id="title" placeholder="(defaults to the tab title)" />
-      <button id="toggle">Start capturing</button>
-      <div class="status"><span class="dot" id="dot"></span><span id="statusText">Idle</span></div>
-    </div>
+      <details class="meeting-details" id="meetingDetails"><summary><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="6" width="16" height="15" rx="2"/><path d="M8 3v6m8-6v6M4 12h16"/></svg>Choose a calendar meeting<span class="disclosure-arrow"></span></summary>
+        <button id="loadMeetings" class="secondary" type="button">Load Google Calendar meetings</button>
+        <label for="calendarEvent">Calendar meeting (optional)</label><select id="calendarEvent" aria-describedby="calendarHelp" disabled><option value="">Use meeting details above</option></select>
+        <p id="calendarHelp" class="calendar-help" role="status">Load meetings to use their title, attendees, and date.</p>
+      </details>
+    </section>
 
-    <div class="section">
-      <h2>Live transcript</h2>
-      <div id="transcript"><span class="empty">Transcript will appear here…</span></div>
+    <div class="workspace">
+      <div class="panel-nav" role="tablist" aria-label="Panel views">
+        <button id="tab-notes" role="tab" aria-selected="true" aria-controls="notes" tabindex="0" data-view="notes">Notes <span id="navNoteCount">0</span></button>
+        <button id="tab-transcript" role="tab" aria-selected="false" aria-controls="transcriptView" tabindex="-1" data-view="transcriptView">Transcript</button>
+        <button id="tab-connectors" role="tab" aria-selected="false" aria-controls="connectors" tabindex="-1" data-view="connectors">Connectors</button>
+      </div>
+      <section class="view" id="notes" role="tabpanel" tabindex="0" aria-labelledby="tab-notes">
+        <div class="section-heading"><h2>The next steps.</h2><span class="count" id="noteCount">0 notes</span></div>
+        <label class="sr-only" for="search">Find a note</label>
+        <div class="search-field"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="search" type="search" placeholder="Find a note, person, or decision" /></div>
+        <div class="filters" role="group" aria-label="Filter notes"><button type="button" data-filter="all" aria-pressed="true">All</button><button type="button" data-filter="task" aria-pressed="false">Tasks</button><button type="button" data-filter="decision" aria-pressed="false">Decisions</button><button type="button" data-filter="risk" aria-pressed="false">Risks</button></div>
+        <p id="resultSummary" role="status" hidden></p>
+        <div id="notesWelcome" class="welcome"><svg class="welcome-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="15" y="9" width="34" height="46" rx="6"/><path d="M24 23h16M24 31h11M24 39h8"/><circle cx="47" cy="45" r="12"/><path d="m42 45 3 3 6-7"/></svg><h3>Stay in the conversation.</h3><p>Start a capture. Tasks, decisions, and potential blockers will take shape here as your meeting unfolds.</p><div class="welcome-flow"><span>Listen</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m-5-5 5 5-5 5"/></svg><span>Understand</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m-5-5 5 5-5 5"/></svg><span>Act</span></div></div>
+        <div id="noteGroups" hidden>
+          <section class="note-group" data-group="task"><h3><span class="category-dot task-dot"></span>Tasks <span class="count" id="taskCount"></span></h3><div id="tasks"></div></section>
+          <section class="note-group" data-group="decision"><h3><span class="category-dot decision-dot"></span>Decisions <span class="count" id="decisionCount"></span></h3><div id="decisions"></div></section>
+          <section class="note-group" data-group="risk"><h3><span class="category-dot risk-dot"></span>Risks &amp; blockers <span class="count" id="riskCount"></span></h3><div id="risksBlockers"></div></section>
+        </div>
+      </section>
+      <section class="view" id="transcriptView" role="tabpanel" tabindex="0" aria-labelledby="tab-transcript" hidden>
+        <div class="section-heading"><h2>The conversation.</h2><button id="copyTranscript" class="compact" type="button" disabled>Copy transcript</button></div>
+        <div class="transcript-sheet"><div class="transcript-caption"><span class="dot"></span>Live transcript<span class="count" id="wordCount">0 words</span></div><div id="transcript"><span class="empty">Every next step starts with a conversation. Start capturing to see yours here.</span></div></div>
+        <div id="copyStatus" role="status" class="calendar-help"></div>
+      </section>
+      <section class="view" id="connectors" role="tabpanel" tabindex="0" aria-labelledby="tab-connectors" hidden>
+        <div class="section-heading"><h2>Make it connected.</h2><button id="refreshConnectors" class="compact" type="button">Check status</button></div>
+        <p class="view-intro">Your meeting context and next steps, connected to the tools you use.</p>
+        <div id="connectorList"></div>
+        <p id="connectorStatus" class="calendar-help" role="status">Check status to see which tools your backend has configured.</p>
+        <details id="connectionSettings" class="connection-settings"><summary>Backend connection<span class="disclosure-arrow"></span></summary>
+          <label for="backendUrl">Backend URL</label><input id="backendUrl" placeholder="http://localhost:8000" />
+          <div class="row"><div><label for="projectHint">Project hint</label><input id="projectHint" placeholder="e.g. API Migration" /></div><div><label for="apiKey">API key (if set)</label><input id="apiKey" type="password" placeholder="Optional" /></div></div>
+        </details>
+        <p class="calendar-help">Expand a connector for setup. Add its credentials to the backend’s <code>.env</code>, restart the backend, then check status. Credentials stay on your server.</p>
+      </section>
     </div>
-
-    <div class="section">
-      <h2>Tasks <span class="count" id="taskCount"></span></h2>
-      <div id="tasks"><span class="empty">No tasks yet.</span></div>
-    </div>
-
-    <div class="section">
-      <h2>Decisions <span class="count" id="decisionCount"></span></h2>
-      <div id="decisions"><span class="empty">No decisions yet.</span></div>
-    </div>
-
-    <div class="section">
-      <h2>Risks &amp; Blockers</h2>
-      <div id="risksBlockers"><span class="empty">None yet.</span></div>
-    </div>
-
-    <script src="sidepanel.js"></script>
-  </body>
+    <footer><span class="footer-mark">AOI</span><span>More attention. Less admin.</span></footer>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
 </html>

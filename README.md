@@ -531,3 +531,19 @@ is reachable. Tests split into:
 ## License
 
 This is your codebase — use it however you want.
+
+## Calendar context, task status sync, and webhooks
+
+Optional integrations now include Google Calendar meeting selection in the Chrome extension,
+two-way status sync for existing Linear/Jira issues, and a signed webhook outbox for automation
+receivers such as n8n, Zapier, or Make. They are disabled until configured. Run `make up` to
+apply migration `0002_integrations`, and reload the unpacked extension.
+
+See [setup, supported behavior, and limitations](docs/integrations.md).
+
+## Natural-language analytics over curated views
+
+`POST /api/intelligence/ask` translates questions with Claude, validates SELECT-only SQL,
+and executes through dedicated read-only PostgreSQL roles. Owner names/emails are masked
+unless the caller holds the separate analytics owner permission. Includes a deterministic
+20-question eval and an optional live Claude eval. See [setup and security boundaries](docs/analytics.md).

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 DEFAULT_TARGET_CHARS = 2400  # ~600 tokens for English transcripts
 DEFAULT_OVERLAP_CHARS = 200
 
@@ -48,7 +47,7 @@ def chunk_transcript(
         return [Chunk(index=0, content=text)]
 
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    if not paragraphs:
+    if len(paragraphs) <= 1:
         # Single blob with no paragraph breaks — fall back to character windows.
         return _fixed_window(text, target_chars, overlap_chars)
 

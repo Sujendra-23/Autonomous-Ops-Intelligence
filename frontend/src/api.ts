@@ -1,6 +1,15 @@
 const API_BASE =
   (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
 
+// Keep the deployment's API key in memory, never in built assets or persistent storage.
+let apiKey = "";
+export function setApiKey(value: string) {
+  apiKey = value.trim();
+}
+function authHeaders(): Record<string, string> {
+  return apiKey ? { "X-API-Key": apiKey } : {};
+}
+
 export type DashboardCounts = {
   transcripts: number;
   projects: number;
@@ -78,6 +87,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
       ...(init?.headers ?? {}),
     },
   });
@@ -132,6 +142,7 @@ export const api = {
     return fetch(`${API_BASE}/api/transcripts/upload`, {
       method: "POST",
       body: form,
+      headers: authHeaders(),
       // No Content-Type header — browser sets multipart boundary automatically
     }).then(async (res) => {
       if (!res.ok) {

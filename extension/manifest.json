@@ -1,11 +1,39 @@
 {
   "manifest_version": 3,
   "name": "AOI Live Note-Taker",
-  "version": "0.1.0",
-  "description": "Live structured meeting notes — streams the active tab's audio to your Autonomous Operational Intelligence backend and shows tasks/decisions as they're spoken.",
-  "permissions": ["tabCapture", "offscreen", "sidePanel", "storage", "tabs"],
-  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "https://*/*"],
-  "background": { "service_worker": "service-worker.js" },
-  "side_panel": { "default_path": "sidepanel.html" },
-  "action": { "default_title": "AOI Live Note-Taker" }
+  "version": "0.1.1",
+  "minimum_chrome_version": "116",
+  "description": "Live structured meeting notes \u2014 streams the active tab's audio to your Autonomous Operational Intelligence backend and shows tasks/decisions as they're spoken.",
+  "permissions": [
+    "activeTab",
+    "tabCapture",
+    "offscreen",
+    "sidePanel",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "AOI Live Note-Taker",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }

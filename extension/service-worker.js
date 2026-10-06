@@ -6,9 +6,23 @@
 //   3. spins up an offscreen document that does the actual audio work,
 //   4. relays start/stop messages.
 
-chrome.runtime.onInstalled.addListener(() => {
-  // Clicking the toolbar icon opens the side panel.
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+// Handle the action ourselves. Chrome's automatic side-panel toggle can open
+// the panel without granting the activeTab access required by tabCapture.
+// Apply this on worker startup too, replacing the previously persisted setting.
+function configureToolbar() {
+  return chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+}
+configureToolbar().catch((error) => console.warn("Could not configure AOI toolbar:", error.message));
+chrome.runtime.onInstalled.addListener(() => configureToolbar().catch(() => {}));
+chrome.runtime.onStartup.addListener(() => configureToolbar().catch(() => {}));
+
+chrome.action.onClicked.addListener((tab) => {
+  // Call directly in the click handler, before any await, to retain the gesture.
+  // The toolbar click grants activeTab; opening the panel does not start recording.
+  if (tab.windowId == null) return;
+  chrome.sidePanel.open({ windowId: tab.windowId }).catch((error) => {
+    console.warn("Could not open AOI side panel:", error.message);
+  });
 });
 
 async function hasOffscreen() {
@@ -46,6 +60,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 async function startCapture(config) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) throw new Error("No active tab to capture — focus the meeting tab first.");
+  if (!/^https?:\/\//i.test(tab.url || "")) {
+    throw new Error(
+      "Open your video or meeting website first, then click the AOI extension icon on that tab. " +
+      "Chrome settings, new-tab pages, and extension pages cannot be captured."
+    );
+  }
 
   const base = (config.backendUrl || "http://localhost:8000").replace(/\/+$/, "");
   const headers = { "Content-Type": "application/json" };
@@ -57,6 +77,7 @@ async function startCapture(config) {
     body: JSON.stringify({
       title: config.title || tab.title || "Live meeting",
       project_hint: config.projectHint || null,
+      calendar_event_id: config.calendarEventId || null,
     }),
   });
   if (!resp.ok) throw new Error(`Backend session create failed (HTTP ${resp.status}).`);
@@ -67,7 +88,18 @@ async function startCapture(config) {
   const wsUrl = `${wsBase}${data.ws_path}${qs}`;
 
   // Must be obtained in the service worker; consumed in the offscreen document.
-  const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id });
+  let streamId;
+  try {
+    streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id });
+  } catch (error) {
+    if (/not been invoked|activeTab|Chrome pages cannot be captured/i.test(error.message || "")) {
+      throw new Error(
+        "Click the AOI extension icon while your video or meeting tab is selected, " +
+        "then click Start capturing again. Repeat this after switching tabs."
+      );
+    }
+    throw error;
+  }
 
   await ensureOffscreen();
   chrome.runtime

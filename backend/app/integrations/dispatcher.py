@@ -5,7 +5,7 @@ transcript has been processed. The dispatcher:
 
 1. Asks the project mirrors (Notion) to ensure the project page exists.
 2. Asks task mirrors (Linear or Jira) to create issues for new tasks.
-3. Asks notifiers (Slack, Notion) to publish a human-facing summary.
+3. Asks notifiers (Slack, Discord, Teams, Notion) to publish a human-facing summary.
 
 Each adapter is responsible for short-circuiting when disabled, so the
 dispatcher's only job is to orchestrate, swallow per-adapter failures, and
@@ -19,10 +19,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.base import DispatchResult, Notifier, ProjectMirror, TaskMirror
+from app.integrations.channel_webhooks import DiscordAdapter, TeamsAdapter
 from app.integrations.jira import JiraAdapter
 from app.integrations.linear import LinearAdapter
 from app.integrations.notion import NotionAdapter
 from app.integrations.slack import SlackAdapter
+from app.integrations.task_sync import mark_sync_pending
 from app.logging import get_logger
 from app.models.project import Project
 from app.models.task import Task, TaskActivity
@@ -46,7 +48,12 @@ class IntegrationDispatcher:
             LinearAdapter(),
             JiraAdapter(),
         ]
-        self._notifiers: list[Notifier] = notifiers or [SlackAdapter(), NotionAdapter()]
+        self._notifiers: list[Notifier] = notifiers or [
+            SlackAdapter(),
+            DiscordAdapter(),
+            TeamsAdapter(),
+            NotionAdapter(),
+        ]
 
     async def publish(
         self,
@@ -67,18 +74,22 @@ class IntegrationDispatcher:
         # Re-load the tasks emitted for this transcript so we can attach
         # external identifiers as the mirrors return them.
         task_rows = (
-            await session.execute(
-                select(Task).where(Task.transcript_id == transcript.id)
-            )
-        ).scalars().all()
+            (await session.execute(select(Task).where(Task.transcript_id == transcript.id)))
+            .scalars()
+            .all()
+        )
 
         for task in task_rows:
+            # Once mirrored, keep the existing provider even if configuration changes.
+            if task.linear_issue_id or task.jira_issue_key:
+                continue
             for mirror in self._task_mirrors:
                 if not mirror.is_enabled():
                     continue
                 outcome = await self._safe(mirror.create_task, task, project)
                 outcomes.append(outcome)
                 if outcome.success and outcome.external_id:
+                    mark_sync_pending(task)
                     session.add(
                         TaskActivity(
                             task_id=task.id,
@@ -98,9 +109,7 @@ class IntegrationDispatcher:
         for notifier in self._notifiers:
             if not notifier.is_enabled():
                 continue
-            outcomes.append(
-                await self._safe(notifier.post_summary, transcript, project, result)
-            )
+            outcomes.append(await self._safe(notifier.post_summary, transcript, project, result))
 
         return outcomes
 
@@ -111,6 +120,6 @@ class IntegrationDispatcher:
             if not isinstance(result, DispatchResult):
                 return DispatchResult(getattr(fn, "__qualname__", "?"), True)
             return result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("dispatcher.adapter_failed", fn=fn.__qualname__, error=str(exc))
             return DispatchResult(getattr(fn, "__qualname__", "?"), False, detail=str(exc))

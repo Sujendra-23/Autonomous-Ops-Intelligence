@@ -11,7 +11,10 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_ingest_key
 from app.database import get_session
+from app.integrations.task_sync import mark_sync_pending
+from app.integrations.webhooks import enqueue_event, task_data
 from app.models.task import Task, TaskActivity, TaskStatus
 
 router = APIRouter()
@@ -35,6 +38,9 @@ class TaskOut(BaseModel):
     jira_issue_url: str | None
     created_at: datetime
     last_status_change_at: datetime
+    sync_pending: bool
+    sync_checked_at: datetime | None
+    sync_error: str | None
 
 
 class TaskUpdate(BaseModel):
@@ -89,22 +95,20 @@ async def list_tasks(
 
 
 @router.get("/{task_id}", response_model=TaskOut)
-async def get_task(
-    task_id: uuid.UUID, session: AsyncSession = Depends(get_session)
-) -> TaskOut:
+async def get_task(task_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> TaskOut:
     task = await session.get(Task, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="task not found")
     return TaskOut.model_validate(task)
 
 
-@router.patch("/{task_id}", response_model=TaskOut)
+@router.patch("/{task_id}", response_model=TaskOut, dependencies=[Depends(require_ingest_key)])
 async def update_task(
     task_id: uuid.UUID,
     payload: TaskUpdate,
     session: AsyncSession = Depends(get_session),
 ) -> TaskOut:
-    task = await session.get(Task, task_id)
+    task = await session.get(Task, task_id, with_for_update=True)
     if task is None:
         raise HTTPException(status_code=404, detail="task not found")
 
@@ -113,6 +117,7 @@ async def update_task(
         changed["status"] = {"from": task.status, "to": payload.status}
         task.status = payload.status
         task.last_status_change_at = datetime.utcnow()
+        mark_sync_pending(task)
     if payload.owner is not None and payload.owner != task.owner:
         changed["owner"] = {"from": task.owner, "to": payload.owner}
         task.owner = payload.owner or None
@@ -127,6 +132,7 @@ async def update_task(
         task.priority = payload.priority
 
     if changed:
+        enqueue_event(session, "task.updated", {**task_data(task), "changes": changed})
         session.add(
             TaskActivity(
                 task_id=task.id,
@@ -146,12 +152,16 @@ async def task_activity(
     session: AsyncSession = Depends(get_session),
 ) -> list[TaskActivityOut]:
     rows = (
-        await session.execute(
-            select(TaskActivity)
-            .where(TaskActivity.task_id == task_id)
-            .order_by(TaskActivity.created_at.desc())
+        (
+            await session.execute(
+                select(TaskActivity)
+                .where(TaskActivity.task_id == task_id)
+                .order_by(TaskActivity.created_at.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [TaskActivityOut.model_validate(r) for r in rows]
 
 

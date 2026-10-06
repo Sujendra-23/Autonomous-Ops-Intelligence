@@ -8,9 +8,9 @@ can never drift out of sync with what we then validate against.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 
 from app.schemas.extraction import ExtractionResult
-
 
 SYSTEM_PROMPT = """\
 You are the Autonomous Operational Intelligence Layer. You convert raw meeting
@@ -85,6 +85,21 @@ def build_user_prompt(
         parts.append(f"Meeting title: {meeting_title}")
     if meeting_date:
         parts.append(f"Meeting date: {meeting_date}")
+        # Supply calendar arithmetic explicitly; small models can miscalculate
+        # the weekday even when given an ISO date.
+        try:
+            anchor = datetime.fromisoformat(meeting_date.replace("Z", "+00:00")).date()
+        except ValueError:
+            pass
+        else:
+            dates = [anchor + timedelta(days=offset) for offset in range(14)]
+            parts.append(
+                "Calendar reference (not task deadlines): "
+                + "; ".join(f"{day.strftime('%A')}={day.isoformat()}" for day in dates)
+            )
+            parts.append("Resolve relative deadlines using this reference and the source quote.")
+    else:
+        parts.append("Meeting date: unknown. Leave relative deadlines such as 'Friday' null.")
     if participants:
         parts.append(f"Participants: {', '.join(participants)}")
     if project_hint:
