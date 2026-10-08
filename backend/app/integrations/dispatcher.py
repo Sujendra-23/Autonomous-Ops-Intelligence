@@ -5,7 +5,8 @@ transcript has been processed. The dispatcher:
 
 1. Asks the project mirrors (Notion) to ensure the project page exists.
 2. Asks task mirrors (Linear or Jira) to create issues for new tasks.
-3. Asks notifiers (Slack, Discord, Teams, Notion) to publish a human-facing summary.
+3. Asks CRM mirrors (Salesforce) to create a record per task, independently of the tracker.
+4. Asks notifiers (Slack, Discord, Teams, Notion) to publish a human-facing summary.
 
 Each adapter is responsible for short-circuiting when disabled, so the
 dispatcher's only job is to orchestrate, swallow per-adapter failures, and
@@ -23,6 +24,7 @@ from app.integrations.channel_webhooks import DiscordAdapter, TeamsAdapter
 from app.integrations.jira import JiraAdapter
 from app.integrations.linear import LinearAdapter
 from app.integrations.notion import NotionAdapter
+from app.integrations.salesforce import SalesforceAdapter
 from app.integrations.slack import SlackAdapter
 from app.integrations.task_sync import mark_sync_pending
 from app.logging import get_logger
@@ -40,6 +42,7 @@ class IntegrationDispatcher:
         *,
         project_mirrors: list[ProjectMirror] | None = None,
         task_mirrors: list[TaskMirror] | None = None,
+        crm_mirrors: list[TaskMirror] | None = None,
         notifiers: list[Notifier] | None = None,
     ) -> None:
         self._project_mirrors: list[ProjectMirror] = project_mirrors or [NotionAdapter()]
@@ -48,6 +51,8 @@ class IntegrationDispatcher:
             LinearAdapter(),
             JiraAdapter(),
         ]
+        # CRM records are additive: they do not replace the Linear or Jira issue.
+        self._crm_mirrors: list[TaskMirror] = crm_mirrors or [SalesforceAdapter()]
         self._notifiers: list[Notifier] = notifiers or [
             SlackAdapter(),
             DiscordAdapter(),
@@ -104,6 +109,25 @@ class IntegrationDispatcher:
                     # Only mirror to the first enabled task tool — avoid
                     # creating both a Linear and a Jira ticket for one task.
                     break
+
+        for task in task_rows:
+            for mirror in self._crm_mirrors:
+                if task.salesforce_task_id or not mirror.is_enabled():
+                    continue
+                outcome = await self._safe(mirror.create_task, task, project)
+                outcomes.append(outcome)
+                if outcome.success and outcome.external_id:
+                    session.add(
+                        TaskActivity(
+                            task_id=task.id,
+                            kind="external_mirror_created",
+                            payload={
+                                "adapter": outcome.adapter,
+                                "external_id": outcome.external_id,
+                                "external_url": outcome.external_url,
+                            },
+                        )
+                    )
         await session.commit()
 
         for notifier in self._notifiers:
