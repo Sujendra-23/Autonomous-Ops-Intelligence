@@ -1,8 +1,8 @@
 # Calendar, task sync, and webhooks
 
 These integrations are opt-in and configured on the backend. This is a single-workspace,
-single-calendar deployment, not a multi-user OAuth account system. Outlook, CRM connectors,
-and recording imports are not implemented in this change.
+single-calendar deployment, not a multi-user OAuth account system. Outlook, CRM connectors
+other than Salesforce, and recording imports are not implemented in this change.
 
 ## Start or upgrade
 
@@ -164,6 +164,44 @@ retry with backoff, up to eight attempts; other 4xx failures stop immediately.
   the receiver. Delivery records remain in the database; apply your retention policy.
 
 The existing worker processes the durable outbox. Keep it running alongside the API.
+
+## Salesforce tasks
+
+Each extracted action item can also be created as a Salesforce **Task** record, in addition to
+any Linear or Jira issue. Create a Connected App with the `api` and `refresh_token` OAuth scopes,
+obtain a refresh token through your own OAuth setup (there is no built-in consent screen, same as
+Google Calendar), and save the values server-side. Run `make up` to apply migration
+`0005_salesforce_tasks`.
+
+```ini
+SALESFORCE_INSTANCE_URL=https://yourorg.my.salesforce.com
+SALESFORCE_CLIENT_ID=your-connected-app-consumer-key
+SALESFORCE_CLIENT_SECRET=your-consumer-secret
+SALESFORCE_REFRESH_TOKEN=your-offline-refresh-token
+SALESFORCE_SANDBOX=false
+```
+
+The adapter exchanges the refresh token for an access token, caches it in memory, and refreshes
+it once if Salesforce answers 401. Set `SALESFORCE_SANDBOX=true` for sandboxes, which authenticate
+at `test.salesforce.com`. The instance URL must be an `https` host ending in `.salesforce.com` or
+`.force.com`. Check `GET /api/integrations/status` for `salesforce`.
+
+Field mapping: `Subject` is the task title (255 characters maximum), `Description` carries the
+task details, source quote, inferred owner, and project, `ActivityDate` is the due date,
+`Status` is `Not Started`, and `Priority` is `High` for urgent and high, `Normal` for medium, and
+`Low` for low. The record id and Lightning URL are stored on the task and returned as
+`salesforce_task_url`, so a task is never created twice.
+
+Limitations:
+
+- Creation is at least once. Network errors, HTTP 429, and 5xx are retried up to three times with
+  exponential backoff (like the other adapters), so a response lost after Salesforce saved the
+  record can leave a duplicate Task. 4xx errors are not retried and only the HTTP status and
+  Salesforce error code are logged, never message text or credentials.
+- Creation happens once, right after extraction, and is best effort like the other connectors.
+  A failed create is not retried later and does not use the webhook outbox.
+- It is one-way. Status changes in Salesforce are not synced back, and records are not linked to
+  Accounts, Contacts, or Opportunities. The Task is owned by the integration user.
 
 ## Console authentication
 

@@ -75,6 +75,17 @@ class Settings(BaseSettings):
     jira_api_token: SecretStr = SecretStr("")
     jira_project_key: str = ""
 
+    # ---- Salesforce (CRM) ----
+    # Creates a Task record per extracted action item using a server-side OAuth
+    # refresh-token grant from a Connected App. Sandboxes authenticate at
+    # test.salesforce.com, so set SALESFORCE_SANDBOX=true for them.
+    salesforce_instance_url: str = ""
+    salesforce_client_id: str = ""
+    salesforce_client_secret: SecretStr = SecretStr("")
+    salesforce_refresh_token: SecretStr = SecretStr("")
+    salesforce_sandbox: bool = False
+    salesforce_api_version: str = Field(default="v60.0", pattern=r"^v\d{2}\.0$")
+
     # ---- Slack ----
     slack_bot_token: SecretStr = SecretStr("")
     slack_default_channel: str = ""
@@ -128,6 +139,20 @@ class Settings(BaseSettings):
                 raise ValueError("WEBHOOK_URL must be HTTPS without userinfo or fragment")
             if len(self.webhook_secret.get_secret_value()) < 32:
                 raise ValueError("WEBHOOK_SECRET must contain at least 32 characters")
+        if self.salesforce_instance_url:
+            parsed = urlsplit(self.salesforce_instance_url)
+            host = parsed.hostname or ""
+            if (
+                parsed.scheme != "https"
+                or parsed.port not in (None, 443)
+                or parsed.username
+                or parsed.password
+                or parsed.path not in ("", "/")
+                or parsed.query
+                or parsed.fragment
+                or not host.endswith((".salesforce.com", ".force.com"))
+            ):
+                raise ValueError("SALESFORCE_INSTANCE_URL must be your https Salesforce org URL")
         for name in ("discord_webhook_url", "teams_webhook_url"):
             destination = getattr(self, name).get_secret_value()
             if not destination:
@@ -222,6 +247,15 @@ class Settings(BaseSettings):
     def jira_enabled(self) -> bool:
         return bool(
             self.jira_base_url and self.jira_api_token.get_secret_value() and self.jira_email
+        )
+
+    @property
+    def salesforce_enabled(self) -> bool:
+        return bool(
+            self.salesforce_instance_url
+            and self.salesforce_client_id
+            and self.salesforce_client_secret.get_secret_value()
+            and self.salesforce_refresh_token.get_secret_value()
         )
 
     @property
