@@ -1,5 +1,7 @@
+"use client";
+
 import { useRef, useState } from "react";
-import { api } from "../api";
+import { api } from "@/lib/api";
 
 type Mode = "text" | "video";
 type UploadStatus = "idle" | "transcribing" | "extracting" | "done" | "error";

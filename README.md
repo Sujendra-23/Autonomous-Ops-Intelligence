@@ -77,7 +77,7 @@ team's behalf between meetings.
 | 🧠 Task dedup + status updates          | ✅       | Re-stated tasks merge; "X is done" closes the existing task    |
 | 🧠 Decision supersession                | ✅       | A reversing decision flags the prior one as superseded         |
 | 🎙 Live note-taker (browser extension)  | ✅       | Streams tab audio → STT → notes appear *during* the meeting     |
-| 🖥 Agent console (React + Vite)         | ✅       | Dashboard, task review, drift scans, semantic search           |
+| 🖥 Agent console (Next.js App Router)   | ✅       | Dashboard, task review, drift scans, semantic search, streamed Ask panel |
 | Tests                                   | ✅ Pytest | Pure unit + integration (auto-skip without Postgres)           |
 
 Every integration is **off by default** and turns on automatically the moment
@@ -91,7 +91,7 @@ mirror outward.
 
 ```
                      ┌──────────────────┐
-                     │  React + Vite UI │  http://localhost:5173
+                     │  Next.js console │  http://localhost:5173
                      └────────┬─────────┘
                               │ JSON
                      ┌────────▼─────────┐
@@ -256,19 +256,16 @@ autonomous-ops-intelligence/
 │   │       ├── monitor.py     ← drift detection rules
 │   │       └── scheduler.py   ← long-running loop
 │   └── tests/
-└── frontend/
+└── frontend/                     ← Next.js (App Router), TypeScript
     ├── package.json
-    ├── vite.config.ts
-    ├── index.html
-    └── src/
-        ├── App.tsx
-        ├── api.ts
-        └── components/
-            ├── Dashboard.tsx
-            ├── TranscriptUpload.tsx
-            ├── Tasks.tsx
-            ├── Decisions.tsx
-            └── Intelligence.tsx
+    ├── next.config.mjs           ← /api/* rewrite to the backend, security headers
+    ├── proxy.ts                  ← per-request nonce CSP (production)
+    ├── app/                      ← server layout + one page per route
+    │   ├── layout.tsx, page.tsx, tasks/, decisions/, intelligence/, upload/, settings/
+    │   └── api/console/chat/     ← streaming Ask endpoint (Vercel AI SDK)
+    ├── components/               ← client components (Dashboard, Tasks, AskPanel, ...)
+    ├── lib/                      ← api.ts, auth.ts, chat-handler.ts
+    └── tests/chat-handler.test.ts
 ```
 
 ---
@@ -549,3 +546,21 @@ See [setup, supported behavior, and limitations](docs/integrations.md).
 and executes through dedicated read-only PostgreSQL roles. Owner names/emails are masked
 unless the caller holds the separate analytics owner permission. Includes a deterministic
 20-question eval and an optional live Claude eval. See [setup and security boundaries](docs/analytics.md).
+
+## Console and the streamed "Ask" panel
+
+The console in `frontend/` is a Next.js App Router app (server layout and per-route
+pages with metadata; interactive views are client components). `/api/*` is proxied to
+the FastAPI backend by `next.config.mjs`, so uploads and the existing API keep working.
+
+The Intelligence page has an **Ask** panel built on the Vercel AI SDK (`useChat` on the
+client, `streamText` in `app/api/console/chat/route.ts`). The model has two tools:
+`askAnalytics` (the existing guarded NL-to-SQL endpoint, see `docs/analytics.md`) and
+`searchTranscripts` (semantic search). Result rows are shown to the signed-in user as a
+table but are not sent back to the model, and the analytics key never reaches the browser.
+It needs `ANTHROPIC_API_KEY` and `INTELLIGENCE_API_KEY` on the console server and
+API-key auth mode (analytics returns 503 under OIDC).
+
+```sh
+cd frontend && npm install && npm test && npm run build
+```

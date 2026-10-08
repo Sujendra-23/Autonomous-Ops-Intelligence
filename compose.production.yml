@@ -42,9 +42,9 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_AUTH_AUTHORITY: ${VITE_AUTH_AUTHORITY:?Set OIDC authority}
-        VITE_AUTH_CLIENT_ID: ${VITE_AUTH_CLIENT_ID:?Set public PKCE client ID}
-        VITE_AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set OIDC API audience}
+        NEXT_PUBLIC_AUTH_AUTHORITY: ${NEXT_PUBLIC_AUTH_AUTHORITY:?Set OIDC authority}
+        NEXT_PUBLIC_AUTH_CLIENT_ID: ${NEXT_PUBLIC_AUTH_CLIENT_ID:?Set public PKCE client ID}
+        NEXT_PUBLIC_AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set OIDC API audience}
     ports: ["127.0.0.1:8080:8080"]
     depends_on:
       backend:

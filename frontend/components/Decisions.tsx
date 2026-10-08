@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { api, type Decision } from "../api";
+import { api, type Decision } from "@/lib/api";
 
 export function Decisions() {
   const [items, setItems] = useState<Decision[]>([]);

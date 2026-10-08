@@ -77,17 +77,23 @@ services:
     command: python -m app.workers.scheduler
 
   frontend:
-    image: node:20-alpine
+    image: node:22-alpine
     container_name: aoi-frontend
     working_dir: /app
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}
+      # Browser calls go straight to the API in development. The console server (Ask panel) reaches it by service name.
+      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-8000}
+      BACKEND_URL: http://backend:8000
+      # Server-side only: used by the Ask panel route, never sent to the browser.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      INTELLIGENCE_API_KEY: ${INTELLIGENCE_API_KEY:-}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./frontend:/app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0"
 
 volumes:
   aoi_pg_data:

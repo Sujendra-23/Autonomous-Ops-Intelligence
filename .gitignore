@@ -12,6 +12,8 @@ venv/
 
 node_modules/
 dist/
+.next/
+next-env.d.ts
 build/
 .vite/
 *.tsbuildinfo

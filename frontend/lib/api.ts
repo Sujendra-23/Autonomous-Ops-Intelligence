@@ -1,5 +1,7 @@
+// NEXT_PUBLIC_* values are inlined at build time. In production the Next server proxies /api/* to the
+// backend (see next.config.mjs), so same-origin ("") is the default there.
 const API_BASE =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
+  process.env.NEXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
 
 // Keep the deployment's API key in memory, never in built assets or persistent storage.
 let apiKey = "";
@@ -10,7 +12,7 @@ export function setWorkspace(value: string) { workspaceId = value; }
 export function setApiKey(value: string) {
   apiKey = value.trim();
 }
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   return { ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : apiKey ? { "X-API-Key": apiKey } : {}), ...(workspaceId ? { "X-Workspace-ID": workspaceId } : {}) };
 }
 

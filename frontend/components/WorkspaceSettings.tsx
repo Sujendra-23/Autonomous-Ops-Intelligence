@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { request, setWorkspace } from "../api";
+import { request, setWorkspace } from "@/lib/api";
 
 type Account = { account_id: string; workspace_id: string; role: string; workspaces: { id: string; name: string; role: string }[] };
 type Token = { id: string; name: string; expires_at: string; revoked_at: string | null };

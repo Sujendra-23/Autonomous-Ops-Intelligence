@@ -38,7 +38,7 @@ The backend mounts `./backend:/app` and runs uvicorn with `--reload`, so Python 
 | redis | redis:7-alpine | 6379 |
 | backend | ./backend/Dockerfile | 8000 |
 | worker | same image, different entrypoint | — |
-| frontend | node:20-alpine | 5173 |
+| frontend | node:22-alpine, Next.js dev server | 5173 |
 
 API docs: `http://localhost:8000/docs`. `.env` is auto-created at mode `0600` by `make up`; all credentials must be `pydantic.SecretStr` and unwrapped via `.get_secret_value()` only at the point of use.
 

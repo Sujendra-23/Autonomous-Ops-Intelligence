@@ -1,5 +1,8 @@
+"use client";
+
 import { useState } from "react";
-import { api, type DriftItem } from "../api";
+import { api, type DriftItem } from "@/lib/api";
+import { AskPanel } from "./AskPanel";
 
 type SearchHit = {
   chunk_id: string;
@@ -51,6 +54,8 @@ export function Intelligence() {
       <header>
         <h2>Intelligence</h2>
       </header>
+
+      <AskPanel />
 
       <div className="panel">
         <h3>Drift detection</h3>
