@@ -197,7 +197,6 @@ async def update_connectors(payload: ConnectorUpdate, db: AsyncSession = Depends
 
     for field, suffixes in (
         ("jira_base_url", (".atlassian.net",)),
-        ("salesforce_instance_url", (".salesforce.com", ".force.com")),
         (
             "teams_webhook_url",
             (".logic.azure.com", ".webhook.office.com", ".environment.api.powerplatform.com"),

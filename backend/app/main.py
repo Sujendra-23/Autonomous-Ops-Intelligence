@@ -63,7 +63,6 @@ async def lifespan(app: FastAPI):
         notion=settings.notion_enabled,
         linear=settings.linear_enabled,
         jira=settings.jira_enabled,
-        salesforce=settings.salesforce_enabled,
         slack=settings.slack_enabled,
     )
     yield
