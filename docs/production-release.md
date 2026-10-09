@@ -67,4 +67,52 @@ CI runs backend tests against pgvector, the migration/RLS isolation gate with a 
 
 Before inviting customers, verify the real identity provider login/logout/expiry, valid/invalid extension tokens, two customer workspaces, connector delivery to test channels, upload→worker completion, live reconnect/finalize, and a worker restart. Provider accounts and public HTTPS infrastructure are required for those external checks; unit mocks cannot replace them. Load-test your expected meeting concurrency before raising limits. Set provider-side spending caps and alerts before enabling public signup; request quotas bound attempts, not dollar spend.
 
-Enable encrypted PostgreSQL backups with point-in-time recovery and retain the connector encryption key securely. Run a restore drill into a private isolated database; apply the same runtime-role grants and verify tenant isolation before reconnecting traffic. A release rollback restores a verified database backup plus the matching image revision: workspace migration 0004 intentionally cannot be downgraded destructively. Document customer-data retention/deletion and support procedures before launch; database deletion must include tenant artifacts, chunks, outbox deliveries, tokens and memberships and follow your backup retention policy. Review privacy/consent and provider contracts for recorded meeting data using your actual business requirements.
+Enable encrypted PostgreSQL backups with point-in-time recovery and retain the connector encryption key securely. Run a restore drill into a private isolated database; apply the same runtime-role grants and verify tenant isolation before reconnecting traffic. A release rollback restores a verified database backup plus the matching image revision: workspace migration 0004 intentionally cannot be downgraded destructively. Define your retention period and support process before launch; the API-level export and deletion procedure is in [Customer data requests](#customer-data-requests-export-and-deletion) below, together with what it does not cover. Review privacy/consent and provider contracts for recorded meeting data using your actual business requirements.
+
+## Customer data requests (export and deletion)
+
+Customer data is stored per **workspace**, not per account: tasks, transcripts, chunks, decisions, risks, blockers and outbox deliveries carry a `workspace_id` and no author. Both endpoints are therefore built around workspace ownership. They require a signed-in OIDC session; extension tokens are refused on `/api/account/*`.
+
+### Export — `GET /api/account/data-export`
+
+Returns one JSON bundle (download attachment) for the calling account: the account row, its memberships, its extension-token records, and for every workspace it **owns** the complete contents of all nine workspace tables (`projects`, `transcripts`, `transcript_chunks`, `tasks`, `task_activities`, `decisions`, `risks`, `blockers`, `webhook_deliveries`). Add `?include_embeddings=true` to include embedding vectors, which are derived from chunk text and omitted by default because of their size.
+
+Secrets are listed by name only and never exported: `access_tokens.token_hash`, `workspaces.connector_ciphertext` (the response instead lists which connector fields are configured, without values) and `webhook_deliveries.destination` (a copy of the webhook URL, which may embed a credential). For workspaces shared with other people where the caller is not an owner, the bundle contains only the membership; that content cannot be attributed to one member, and other members' identifiers are not included.
+
+### Deletion — `POST /api/account/data-deletion`
+
+```json
+{"account_id": "<the caller's own account id>", "confirmation": "DELETE MY ACCOUNT AND DATA"}
+```
+
+Only the authenticated account can erase itself: `account_id` must match the credential and the confirmation text must match exactly, otherwise nothing happens (403 / 422). A read-only `viewer` role in the selected workspace does not block this endpoint, and does not unlock any other write. Everything runs in **one database transaction** (with the account and affected workspace rows locked), including the audit record; any failure rolls all of it back.
+
+| Situation | Result |
+|---|---|
+| Workspace where the account is the **only member** | Workspace and all its rows are deleted: the nine workspace tables, memberships, every extension token still pointing at it (including tokens of members removed earlier) and the encrypted connector credentials. |
+| Workspace **shared with others**, caller is a member, admin, viewer or a co-owner | Only this account's membership and tokens are removed. The workspace and everyone else's data stay. The caller's contributions cannot be told apart from other members', so nothing there is deleted or anonymized. |
+| Caller is the **only owner** of a workspace that has other members | Refused with `409` listing the workspaces; nothing is deleted. The owner can remove the other members (`DELETE /api/account/members/{id}`), after which the workspace is private and is deleted. There is no ownership transfer, and this procedure does not promote anyone. |
+| Quarantined legacy workspace | Never deleted by this endpoint; only the account's membership in it is removed. |
+
+The account row (which holds the OIDC `sub`) is deleted. The audit record in `data_subject_audit` holds only a timestamp, a keyed digest of the account id, and per-table row counts: no ids, names, subjects or content. The digest is an HMAC under a key derived from `CONNECTOR_ENCRYPTION_KEY`, so an operator can confirm that a given account was erased, and rotating that key breaks that lookup. To keep the table append-only, revoke write access from the runtime role after migrating: `REVOKE UPDATE, DELETE, TRUNCATE ON data_subject_audit FROM aoi_runtime;` (its default grants otherwise allow them). Migration `0005_data_subject_audit` creates the table.
+
+### Operator procedure
+
+1. Do not run SQL for a request that the user can make themselves. Ask them to sign in and use the endpoints (or the API directly). The API is what proves the requester controls the account.
+2. For an export, send the bundle over a channel the requester controls; it contains their meeting content.
+3. After a deletion, complete the steps this application cannot do (below), and record when each was done.
+4. If the requester is blocked by `409`, they must remove the other members first, or you decide with the workspace's members who should own it. Do not delete other members' data to unblock a request.
+
+### What is NOT covered
+
+- **Backups and point-in-time recovery.** Erased rows remain in backups until they expire. If you restore a backup, replay erasures (the audit digests identify which) before reconnecting traffic.
+- **Provider-side copies.** Tasks, notes and messages already delivered to Slack, Notion, Linear, Jira, Discord, Teams or Google Calendar, and transcripts or audio sent to the LLM, embedding and speech providers, are governed by those providers' retention. Delete them there, and revoke the connector credentials the workspace used.
+- **Webhook receivers.** Payloads already delivered to a generic webhook endpoint are outside our control.
+- **The identity provider.** The OIDC account, its email and profile live at your provider. A valid identity that signs in again is provisioned a **new, empty** account and workspace.
+- **Shared-workspace content** that mentions a person (names in transcripts, `tasks.owner`, `decisions.decided_by`, `participants`). Matching free text to a person is not attempted.
+- **Logs and caches.** Application, ingress and database logs are not searched or purged. Redis holds rate-limit, quota and live-session keys that contain account or workspace UUIDs; they expire on their own (at most 48 hours).
+- **Step-up authentication.** Authority comes from the OIDC bearer token plus the confirmation body; the token's age is not checked, so enforce short-lived tokens or a fresh-login requirement at the provider if you need it.
+
+### Keeping it complete
+
+`tests/test_data_subject.py` migrates a throwaway database, runs the endpoints as a nonprivileged role under forced row-level security, queries every table keyed by `account_id` or `workspace_id` after deletion, and checks export completeness, secret exclusion, audit contents and rollback. A schema check fails the build when a table exists that is not classified in `app/services/data_subject.py`, so a new table with an `account_id` or `workspace_id` column must be added to `WORKSPACE_DATA_TABLES` (or `ACCOUNT_TABLES`) and any secret column to `SECRET_COLUMNS` before it can merge.
