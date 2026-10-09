@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { api, type Task } from "../api";
+import { api, type Task } from "@/lib/api";
 
 const STATUSES = ["", "open", "in_progress", "blocked", "done", "cancelled"];
 

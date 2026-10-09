@@ -6,7 +6,7 @@ No hosting or customer accounts were created by this change. The application now
 
 Use a standards-compliant OIDC provider with a public browser client using **Authorization Code + PKCE**, signed RS256/ES256 access tokens, and an API audience. Configure the exact issuer, audience and HTTPS JWKS endpoint. Register `https://YOUR-APP-DOMAIN/auth/callback` and the app origin as allowed logout/redirect URLs. Enable verified signup and account recovery at the provider. Passwords are never stored in this application. Access-token expiry returns the browser to sign-in; tokens are not silently renewed.
 
-Copy `.env.production.example` to `.env.production`, set mode 0600, and replace placeholders. Browser client IDs are public; never put client secrets, API keys or connector credentials in Vite variables. The API rejects production/staging with development authentication. Set platform LLM/STT keys and explicit HTTPS CORS origins. A Redis outage blocks authenticated requests rather than allowing unlimited paid work.
+Copy `.env.production.example` to `.env.production`, set mode 0600, and replace placeholders. Browser client IDs are public; never put client secrets, API keys or connector credentials in NEXT_PUBLIC_* variables. The API rejects production/staging with development authentication. Set platform LLM/STT keys and explicit HTTPS CORS origins. A Redis outage blocks authenticated requests rather than allowing unlimited paid work.
 
 Generate `CONNECTOR_ENCRYPTION_KEY` with `Fernet.generate_key()`. Store this key separately from database backups; losing it makes connectors unreadable. Rotate by decrypting/re-encrypting workspace ciphertext in a maintenance window before replacing the key. Restart API/worker processes after configuration changes.
 
@@ -51,7 +51,7 @@ Default limits are 120 requests/minute/account/workspace, 100 paid-operation att
 
 ## Deployment artifacts (not deployed)
 
-`compose.production.yml` builds nonroot API/worker containers and a static Nginx frontend. It does not provision a database, Redis, identity provider, DNS or TLS. Provide those separately. The frontend listens on loopback port 8080 for a TLS ingress; the API is exposed only inside the container network. Configure WebSocket upgrades, request/time limits and HTTPS at the ingress. Database migrations must finish before the API starts. Give migration credentials only to the migration service; API and worker must use `DATABASE_URL` for the runtime role.
+`compose.production.yml` builds nonroot API/worker containers and a Next.js standalone frontend (Node, nonroot). It does not provision a database, Redis, identity provider, DNS or TLS. Provide those separately. The frontend listens on loopback port 8080 for a TLS ingress; the API is exposed only inside the container network. Configure WebSocket upgrades, request/time limits and HTTPS at the ingress. Database migrations must finish before the API starts. Give migration credentials only to the migration service; API and worker must use `DATABASE_URL` for the runtime role.
 
 When you later choose to host, the intended command is:
 

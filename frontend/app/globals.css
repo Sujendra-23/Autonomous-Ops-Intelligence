@@ -126,10 +126,19 @@ a:hover {
   cursor: pointer;
   font: inherit;
 }
-.sidebar button:hover {
+.sidebar nav a {
+  display: block;
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.sidebar button:hover,
+.sidebar nav a:hover {
   background: var(--panel-2);
 }
-.sidebar button.active {
+.sidebar button.active,
+.sidebar nav a.active {
   background: var(--panel-2);
   color: var(--accent);
 }
@@ -328,8 +337,15 @@ th {
   .app { grid-template-columns: minmax(0, 1fr); }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--border); padding: 18px; }
   .sidebar nav { display: flex; flex-wrap: wrap; gap: 4px; }
-  .sidebar nav button { width: auto; }
+  .sidebar nav a { width: auto; }
   .main { padding: 24px 18px; min-width: 0; }
   .workspace-settings form { padding: 18px; }
   .workspace-settings input, .workspace-settings select { font-size: 16px; }
 }
+
+/* Ask panel (Vercel AI SDK chat) */
+.ask-log { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.ask-msg { padding: 10px 12px; border-radius: 8px; background: var(--panel-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-msg.user { background: transparent; border: 1px solid var(--border); }
+.ask-msg .role { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.ask-table-wrap { overflow-x: auto; margin-top: 8px; }

@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { api, type DashboardCounts } from "../api";
+import { api, type DashboardCounts } from "@/lib/api";
 
 export function Dashboard() {
   const [data, setData] = useState<DashboardCounts | null>(null);

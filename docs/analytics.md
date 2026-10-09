@@ -93,3 +93,14 @@ read-only/timeout setup, role checks, and result truncation.
 
 Implementation references: [SQLGlot AST documentation](https://sqlglot.com/sqlglot.html)
 and [PostgreSQL view privileges](https://www.postgresql.org/docs/16/sql-createview.html).
+
+## Ask panel in the console
+
+The Intelligence page streams answers through `frontend/app/api/console/chat/route.ts`
+(Vercel AI SDK, `ASK_MODEL`, default `claude-sonnet-5-5`). The route first checks the
+caller against the backend, then calls `/api/intelligence/ask` with the server-held
+`INTELLIGENCE_API_KEY`. Rows go to the user's UI stream only; the model sees a row count
+and column names. Limits: 20 messages, 2000-character questions, 4 tool steps. Available
+in API-key auth mode only because the analytics endpoint returns 503 under OIDC.
+`cd frontend && npm test` covers the auth gate, validation and the row-hiding behavior
+with a mock model; it does not call a real model.
