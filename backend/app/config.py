@@ -113,6 +113,10 @@ class Settings(BaseSettings):
             "task.updated",
         ]
     )
+    # Outbox alerting: any one of these conditions posts to Slack (cooldown applies).
+    outbox_alert_failed_threshold: int = Field(default=1, ge=1)
+    outbox_alert_stale_seconds: int = Field(default=900, ge=60)
+    outbox_alert_cooldown_seconds: int = Field(default=3600, ge=60)
 
     @property
     def google_calendar_enabled(self) -> bool:
