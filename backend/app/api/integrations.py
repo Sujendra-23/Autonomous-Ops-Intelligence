@@ -29,6 +29,7 @@ async def integration_status() -> dict:
         "linear": s.linear_enabled,
         "jira": s.jira_enabled,
         "salesforce": s.salesforce_enabled,
+        "field_service": s.field_service_enabled,
         "webhooks": bool(s.webhook_url.get_secret_value()),
         "webhook_events": s.webhook_events,
         "interval_seconds": s.integration_interval_seconds,

@@ -5,7 +5,8 @@ transcript has been processed. The dispatcher:
 
 1. Asks the project mirrors (Notion) to ensure the project page exists.
 2. Asks task mirrors (Linear or Jira) to create issues for new tasks.
-3. Asks CRM mirrors (Salesforce) to create a record per task, independently of the tracker.
+3. Asks CRM mirrors (Salesforce) and field-service mirrors (jobs/appointments) to create a record
+   per task, independently of the tracker.
 4. Asks notifiers (Slack, Discord, Teams, Notion) to publish a human-facing summary.
 
 Each adapter is responsible for short-circuiting when disabled, so the
@@ -21,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.base import DispatchResult, Notifier, ProjectMirror, TaskMirror
 from app.integrations.channel_webhooks import DiscordAdapter, TeamsAdapter
+from app.integrations.field_service import FieldServiceAdapter
 from app.integrations.jira import JiraAdapter
 from app.integrations.linear import LinearAdapter
 from app.integrations.notion import NotionAdapter
@@ -43,6 +45,7 @@ class IntegrationDispatcher:
         project_mirrors: list[ProjectMirror] | None = None,
         task_mirrors: list[TaskMirror] | None = None,
         crm_mirrors: list[TaskMirror] | None = None,
+        field_service_mirrors: list[TaskMirror] | None = None,
         notifiers: list[Notifier] | None = None,
     ) -> None:
         self._project_mirrors: list[ProjectMirror] = project_mirrors or [NotionAdapter()]
@@ -53,6 +56,10 @@ class IntegrationDispatcher:
         ]
         # CRM records are additive: they do not replace the Linear or Jira issue.
         self._crm_mirrors: list[TaskMirror] = crm_mirrors or [SalesforceAdapter()]
+        # Field-service jobs are additive too; each has its own already-mirrored check.
+        self._field_service_mirrors: list[TaskMirror] = field_service_mirrors or [
+            FieldServiceAdapter()
+        ]
         self._notifiers: list[Notifier] = notifiers or [
             SlackAdapter(),
             DiscordAdapter(),
@@ -113,6 +120,24 @@ class IntegrationDispatcher:
         for task in task_rows:
             for mirror in self._crm_mirrors:
                 if task.salesforce_task_id or not mirror.is_enabled():
+                    continue
+                outcome = await self._safe(mirror.create_task, task, project)
+                outcomes.append(outcome)
+                if outcome.success and outcome.external_id:
+                    session.add(
+                        TaskActivity(
+                            task_id=task.id,
+                            kind="external_mirror_created",
+                            payload={
+                                "adapter": outcome.adapter,
+                                "external_id": outcome.external_id,
+                                "external_url": outcome.external_url,
+                            },
+                        )
+                    )
+        for task in task_rows:
+            for mirror in self._field_service_mirrors:
+                if task.field_service_job_id or not mirror.is_enabled():
                     continue
                 outcome = await self._safe(mirror.create_task, task, project)
                 outcomes.append(outcome)

@@ -86,6 +86,24 @@ class Settings(BaseSettings):
     salesforce_sandbox: bool = False
     salesforce_api_version: str = Field(default="v60.0", pattern=r"^v\d{2}\.0$")
 
+    # ---- Field service (ServiceTitan-shaped jobs and appointments) ----
+    # Mirrors a task into a field-service job (plus an appointment when it has a due date) using
+    # OAuth client credentials. Built and tested against the bundled mock server
+    # (backend/mock_field_service); real ServiceTitan needs a partner agreement and was never run.
+    field_service_base_url: str = ""
+    field_service_auth_url: str = ""
+    field_service_tenant_id: str = ""
+    field_service_client_id: str = ""
+    field_service_client_secret: SecretStr = SecretStr("")
+    field_service_app_key: SecretStr = SecretStr("")
+    field_service_webhook_secret: SecretStr = SecretStr("")
+    field_service_customer_id: int | None = Field(default=None, ge=1)
+    field_service_location_id: int | None = Field(default=None, ge=1)
+    field_service_business_unit_id: int | None = Field(default=None, ge=1)
+    field_service_job_type_id: int | None = Field(default=None, ge=1)
+    field_service_campaign_id: int | None = Field(default=None, ge=1)
+    field_service_appointment_minutes: int = Field(default=120, ge=15, le=1440)
+
     # ---- Slack ----
     slack_bot_token: SecretStr = SecretStr("")
     slack_default_channel: str = ""
@@ -153,6 +171,27 @@ class Settings(BaseSettings):
                 or not host.endswith((".salesforce.com", ".force.com"))
             ):
                 raise ValueError("SALESFORCE_INSTANCE_URL must be your https Salesforce org URL")
+        for name in ("field_service_base_url", "field_service_auth_url"):
+            destination = getattr(self, name)
+            if not destination:
+                continue
+            parsed = urlsplit(destination)
+            loopback = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+            if (
+                not parsed.hostname
+                or parsed.scheme not in ("https", "http")
+                or (parsed.scheme == "http" and not loopback)
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError(f"{name.upper()} must be https (http only for localhost)")
+        if (
+            self.field_service_webhook_secret.get_secret_value()
+            and len(self.field_service_webhook_secret.get_secret_value()) < 32
+        ):
+            raise ValueError("FIELD_SERVICE_WEBHOOK_SECRET must contain at least 32 characters")
         for name in ("discord_webhook_url", "teams_webhook_url"):
             destination = getattr(self, name).get_secret_value()
             if not destination:
@@ -256,6 +295,21 @@ class Settings(BaseSettings):
             and self.salesforce_client_id
             and self.salesforce_client_secret.get_secret_value()
             and self.salesforce_refresh_token.get_secret_value()
+        )
+
+    @property
+    def field_service_enabled(self) -> bool:
+        return bool(
+            self.field_service_base_url
+            and self.field_service_auth_url
+            and self.field_service_tenant_id
+            and self.field_service_client_id
+            and self.field_service_client_secret.get_secret_value()
+            and self.field_service_app_key.get_secret_value()
+            and self.field_service_customer_id
+            and self.field_service_location_id
+            and self.field_service_business_unit_id
+            and self.field_service_job_type_id
         )
 
     @property

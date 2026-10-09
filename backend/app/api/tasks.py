@@ -37,6 +37,7 @@ class TaskOut(BaseModel):
     linear_issue_url: str | None
     jira_issue_url: str | None
     salesforce_task_url: str | None
+    field_service_job_url: str | None
     created_at: datetime
     last_status_change_at: datetime
     sync_pending: bool
