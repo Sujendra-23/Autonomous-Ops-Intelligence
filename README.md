@@ -540,6 +540,14 @@ apply migration `0002_integrations`, and reload the unpacked extension.
 
 See [setup, supported behavior, and limitations](docs/integrations.md).
 
+## Field-service jobs and appointments
+
+Tasks can be mirrored into a field-service system as jobs (plus an appointment when there is a due
+date) with OAuth client-credentials auth, idempotent retried creates, and an HMAC-verified inbound
+webhook that updates task status. It is **built and tested against a bundled mock server only**;
+it has not been run against ServiceTitan (which needs a partner agreement) and its schema there is
+unverified. See [docs/field-service.md](docs/field-service.md).
+
 ## Natural-language analytics over curated views
 
 `POST /api/intelligence/ask` translates questions with Claude, validates SELECT-only SQL,
