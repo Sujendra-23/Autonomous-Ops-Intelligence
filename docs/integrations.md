@@ -32,7 +32,9 @@ GOOGLE_CALENDAR_REFRESH_TOKEN=your-offline-refresh-token
 GOOGLE_CALENDAR_ID=primary
 ```
 
-The app refreshes an access token when reading the calendar; it never writes calendar events.
+The app refreshes an access token when reading the calendar. It does not write events unless
+you opt in for the [phone booking agent](voice-calls.md): that needs the broader
+`calendar.events` scope plus `GOOGLE_CALENDAR_WRITE_ENABLED=true`.
 There is no built-in Google sign-in/consent screen in this version. Obtain the initial grant
 using your own OAuth setup. See [Google's offline OAuth flow](https://developers.google.com/identity/protocols/oauth2/web-server#offline)
 and [event listing reference](https://developers.google.com/calendar/api/v3/reference/events/list).

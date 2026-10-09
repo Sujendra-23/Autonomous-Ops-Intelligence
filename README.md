@@ -540,6 +540,18 @@ apply migration `0002_integrations`, and reload the unpacked extension.
 
 See [setup, supported behavior, and limitations](docs/integrations.md).
 
+## Phone agent: Twilio inbound calls to a booked appointment
+
+An inbound Twilio call opens a Media Streams WebSocket; the 8 kHz mu-law audio is decoded and
+resampled into the same `StreamingTranscriber` relay the live note-taker uses, and a small Claude
+agent collects name, need and time, then books it in Google Calendar (idempotent, conflict-checked).
+Disabled unless Twilio, an STT provider, an Anthropic key and `GOOGLE_CALENDAR_WRITE_ENABLED=true`
+are configured; `STT_PROVIDER` still defaults to `none`.
+
+**Tested with mocks only** (62 unit/route tests with fake Twilio, STT, Claude and Calendar); it has not
+been run against a real Twilio number, STT provider, or Google Calendar write. See
+[docs/voice-calls.md](docs/voice-calls.md) for setup, the security model and known limits.
+
 ## Natural-language analytics over curated views
 
 `POST /api/intelligence/ask` translates questions with Claude, validates SELECT-only SQL,

@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     google_calendar_client_secret: SecretStr = SecretStr("")
     google_calendar_refresh_token: SecretStr = SecretStr("")
     google_calendar_id: str = "primary"
+    # Booking events is a write; it needs a refresh token granted the
+    # calendar.events scope and is off unless explicitly enabled.
+    google_calendar_write_enabled: bool = False
     task_sync_enabled: bool = False
     # AOI status -> provider workflow status ID. Needed for custom/blocked states.
     linear_status_map: dict[str, str] = Field(default_factory=dict)
@@ -211,6 +214,27 @@ class Settings(BaseSettings):
     live_min_chars: int = Field(default=180, ge=20)
     live_min_interval_seconds: float = Field(default=8.0, ge=1.0)
     live_max_interval_seconds: float = Field(default=30.0, ge=5.0)
+
+    # ---- Voice calls (Twilio Media Streams -> STT relay -> Claude booking agent) ----
+    twilio_account_sid: str = ""
+    twilio_auth_token: SecretStr = SecretStr("")
+    # Public https origin Twilio reaches us on (e.g. an ngrok URL). Twilio signs the exact
+    # URL it called, so we rebuild it from this value instead of trusting proxy headers.
+    twilio_public_base_url: str = ""
+    voice_business_name: str = "our team"
+    voice_timezone: str = "America/Chicago"
+    voice_appointment_minutes: int = Field(default=60, ge=15, le=480)
+    voice_max_turns: int = Field(default=8, ge=2, le=30)
+    # Empty = reuse ANTHROPIC_MODEL.
+    voice_agent_model: str = ""
+
+    @property
+    def voice_enabled(self) -> bool:
+        return bool(
+            self.twilio_auth_token.get_secret_value()
+            and self.twilio_public_base_url
+            and self.anthropic_api_key.get_secret_value()
+        )
 
     @property
     def stt_enabled(self) -> bool:

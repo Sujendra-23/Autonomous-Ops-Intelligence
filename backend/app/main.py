@@ -18,6 +18,7 @@ from app.api import (
     projects,
     tasks,
     transcripts,
+    voice,
 )
 from app.config import get_settings
 from app.logging import configure_logging, get_logger
@@ -139,6 +140,8 @@ app.include_router(live.router, prefix="/api/live", tags=["live"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 
 app.include_router(account.router, prefix="/api/account", tags=["account"])
+# Outside /api on purpose: Twilio authenticates with its own signature, not our bearer tokens.
+app.include_router(voice.router, prefix="/voice/twilio", tags=["voice"])
 
 
 @app.get("/ready", tags=["meta"])
