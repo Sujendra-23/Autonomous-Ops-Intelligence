@@ -41,6 +41,7 @@ export type Task = {
   confidence: number | null;
   linear_issue_url: string | null;
   jira_issue_url: string | null;
+  salesforce_task_url: string | null;
   created_at: string;
   last_status_change_at: string;
 };

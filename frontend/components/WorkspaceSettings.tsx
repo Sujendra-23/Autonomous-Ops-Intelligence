@@ -12,6 +12,7 @@ const connectors: Record<string, [string, string][]> = {
   Notion: [["notion_api_key", "Integration token"], ["notion_parent_page_id", "Parent page ID"]],
   Linear: [["linear_api_key", "API key"], ["linear_team_id", "Team ID"]],
   Jira: [["jira_base_url", "Cloud URL"], ["jira_email", "Account email"], ["jira_api_token", "API token"], ["jira_project_key", "Project key"]],
+  Salesforce: [["salesforce_instance_url", "Org URL"], ["salesforce_client_id", "Connected App consumer key"], ["salesforce_client_secret", "Consumer secret"], ["salesforce_refresh_token", "Refresh token"]],
   "Google Calendar": [["google_calendar_client_id", "OAuth client ID"], ["google_calendar_client_secret", "OAuth client secret"], ["google_calendar_refresh_token", "Refresh token"], ["google_calendar_id", "Calendar ID"]],
 };
 
