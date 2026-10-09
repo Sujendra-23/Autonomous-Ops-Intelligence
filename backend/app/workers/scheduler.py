@@ -17,6 +17,7 @@ from sqlalchemy import and_, or_, select, text
 
 from app.config import base_settings, get_settings
 from app.database import SessionLocal, engine
+from app.integrations.outbox_alert import check_outbox_alerts
 from app.integrations.task_sync import sync_task_statuses
 from app.integrations.webhooks import deliver_webhooks
 from app.logging import configure_logging, get_logger
@@ -106,7 +107,7 @@ async def _run_extraction() -> None:
 
 async def _run_integrations() -> None:
     log = get_logger("app.workers.scheduler")
-    for operation in (sync_task_statuses, deliver_webhooks):
+    for operation in (sync_task_statuses, deliver_webhooks, check_outbox_alerts):
         async with SessionLocal() as session:
             try:
                 await operation(session)

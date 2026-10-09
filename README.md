@@ -547,6 +547,12 @@ and executes through dedicated read-only PostgreSQL roles. Owner names/emails ar
 unless the caller holds the separate analytics owner permission. Includes a deterministic
 20-question eval and an optional live Claude eval. See [setup and security boundaries](docs/analytics.md).
 
+## Operating it
+
+[docs/runbook.md](docs/runbook.md) covers first-response checks, the webhook outbox alert
+(`OUTBOX_ALERT_*` settings) and incident write-ups. Receivers that verify webhook signatures are in
+[examples/webhook-receivers](examples/webhook-receivers/).
+
 ## Console and the streamed "Ask" panel
 
 The console in `frontend/` is a Next.js App Router app (server layout and per-route
