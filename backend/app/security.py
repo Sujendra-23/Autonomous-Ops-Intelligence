@@ -10,6 +10,10 @@ from app.auth import authenticate
 from app.config import base_settings
 from app.tenancy import principal_context, settings_context, workspace_context, workspace_settings
 
+# Self-service endpoints that only ever act on the caller's own account, so a read-only
+# workspace role must not stop someone from exercising their right to erasure.
+SELF_SERVICE_PATHS = frozenset({"/api/account/data-deletion"})
+
 
 class SecurityMiddleware:
     def __init__(self, app):
@@ -70,8 +74,10 @@ class SecurityMiddleware:
             principal = await authenticate(credential, headers.get("x-workspace-id"))
             if credential.startswith("aoi_") and scope["path"].startswith("/api/account/"):
                 raise HTTPException(403, "Sign in to manage workspace accounts and credentials")
-            if principal.role == "viewer" and (
-                scope["type"] == "websocket" or scope["method"] not in ("GET", "HEAD")
+            if (
+                principal.role == "viewer"
+                and scope["path"] not in SELF_SERVICE_PATHS
+                and (scope["type"] == "websocket" or scope["method"] not in ("GET", "HEAD"))
             ):
                 raise HTTPException(403, "Read-only workspace membership")
             # Atomic fixed-window counter; outage fails closed before paid work runs.

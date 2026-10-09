@@ -8,16 +8,20 @@ from datetime import UTC, datetime, timedelta
 
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, base_settings
 from app.database import get_session
+from app.logging import get_logger
 from app.models.account import AccessToken, Account, Membership, Workspace
+from app.services import data_subject
 from app.tenancy import CONNECTOR_FIELDS, principal_context, workspace_settings
 
 router = APIRouter()
+logger = get_logger("app.api.account")
 
 
 def principal():
@@ -237,3 +241,58 @@ async def update_connectors(payload: ConnectorUpdate, db: AsyncSession = Depends
     )
     await db.commit()
     return {"status": "saved"}
+
+
+@router.get("/data-export")
+async def export_my_data(include_embeddings: bool = False, db: AsyncSession = Depends(get_session)):
+    """Everything held about the calling account, as one JSON bundle. Secrets are named only."""
+    p = principal()
+    try:
+        bundle = await data_subject.build_export(
+            db, p.account_id, include_embeddings=include_embeddings
+        )
+    except data_subject.AccountNotFound:
+        raise HTTPException(404, "Account not found") from None
+    logger.info("data_subject.export", operation="data_export", status="completed")
+    return JSONResponse(
+        bundle, headers={"Content-Disposition": 'attachment; filename="aoi-data-export.json"'}
+    )
+
+
+class DataDeletionRequest(BaseModel):
+    account_id: uuid.UUID
+    confirmation: str
+
+
+@router.post("/data-deletion")
+async def delete_my_data(payload: DataDeletionRequest, db: AsyncSession = Depends(get_session)):
+    """Erase the calling account, in one transaction. Only the account itself can ask."""
+    p = principal()
+    # The credential already proves who is calling; the body proves they meant it.
+    if payload.account_id != p.account_id:
+        raise HTTPException(403, "account_id must be the authenticated account")
+    if payload.confirmation != data_subject.CONFIRMATION_PHRASE:
+        raise HTTPException(
+            422, f'confirmation must be exactly "{data_subject.CONFIRMATION_PHRASE}"'
+        )
+    try:
+        result = await data_subject.erase_account(db, p.account_id)
+        await db.commit()
+    except data_subject.ErasureBlocked as blocked:
+        await db.rollback()
+        raise HTTPException(
+            409,
+            {
+                "message": "You are the only owner of workspaces that have other members. "
+                "Remove those members first; nothing was deleted.",
+                "workspaces": blocked.workspaces,
+            },
+        ) from None
+    except data_subject.AccountNotFound:
+        await db.rollback()
+        raise HTTPException(404, "Account not found") from None
+    except Exception:
+        await db.rollback()
+        raise
+    logger.info("data_subject.erasure", operation="data_erasure", status="completed")
+    return {"status": "deleted", **result}
