@@ -23,6 +23,7 @@ from tenacity import (
 from app.config import get_settings
 from app.llm.prompts import SYSTEM_PROMPT, build_user_prompt
 from app.logging import get_logger
+from app.metrics import track_llm_call
 from app.schemas.extraction import ExtractionResult
 
 logger = get_logger("app.llm")
@@ -87,21 +88,30 @@ class OpenAIClient(LLMClient):
             project_hint=project_hint,
             prior_context=prior_context,
         )
-        try:
-            response = await self._client.chat.completions.create(
-                model=self._model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1,
-            )
-        except openai.OpenAIError as exc:
-            raise LLMError(f"OpenAI call failed: {exc}") from exc
+        with track_llm_call("openai", self._model, "extract") as call:
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                )
+            except openai.OpenAIError as exc:
+                raise LLMError(f"OpenAI call failed: {exc}") from exc
 
-        raw = response.choices[0].message.content or ""
-        return _parse_extraction(raw, provider="openai")
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
+            )
+            raw = response.choices[0].message.content or ""
+            try:
+                return _parse_extraction(raw, provider="openai")
+            except LLMError:
+                call.outcome = "invalid_output"
+                raise
 
 
 # --------------------------------------------------------------------------- #
@@ -144,19 +154,28 @@ class AnthropicClient(LLMClient):
             project_hint=project_hint,
             prior_context=prior_context,
         )
-        try:
-            response = await self._client.messages.create(
-                model=self._model,
-                system=SYSTEM_PROMPT,
-                max_tokens=4096,
-                temperature=0.1,
-                messages=[{"role": "user", "content": user_prompt}],
-            )
-        except anthropic.AnthropicError as exc:
-            raise LLMError(f"Anthropic call failed: {exc}") from exc
+        with track_llm_call("anthropic", self._model, "extract") as call:
+            try:
+                response = await self._client.messages.create(
+                    model=self._model,
+                    system=SYSTEM_PROMPT,
+                    max_tokens=4096,
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": user_prompt}],
+                )
+            except anthropic.AnthropicError as exc:
+                raise LLMError(f"Anthropic call failed: {exc}") from exc
 
-        raw = "".join(block.text for block in response.content if hasattr(block, "text"))
-        return _parse_extraction(raw, provider="anthropic")
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
+            )
+            raw = "".join(block.text for block in response.content if hasattr(block, "text"))
+            try:
+                return _parse_extraction(raw, provider="anthropic")
+            except LLMError:
+                call.outcome = "invalid_output"
+                raise
 
 
 # --------------------------------------------------------------------------- #

@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules.yml
+
+scrape_configs:
+  - job_name: aoi-backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:8000"]
+    # If METRICS_TOKEN is set on the backend, add:
+    # authorization:
+    #   credentials_file: /etc/prometheus/metrics_token
