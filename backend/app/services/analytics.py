@@ -14,6 +14,7 @@ from sqlglot import exp
 from sqlglot.errors import SqlglotError
 
 from app.config import get_settings
+from app.metrics import track_llm_call
 
 CATALOG = {
     "tasks": {
@@ -162,13 +163,18 @@ async def generate_sql(question: str, *, read_owners: bool = False) -> str:
         + ". Schema and column descriptions: "
         + json.dumps(CATALOG)
     )
-    async with anthropic.AsyncAnthropic(api_key=key, timeout=30.0, max_retries=1) as client:
-        response = await client.messages.create(
-            model=settings.anthropic_model,
-            max_tokens=1500,
-            temperature=0,
-            system=system,
-            messages=[{"role": "user", "content": question}],
+    with track_llm_call("anthropic", settings.anthropic_model, "analytics_sql") as call:
+        async with anthropic.AsyncAnthropic(api_key=key, timeout=30.0, max_retries=1) as client:
+            response = await client.messages.create(
+                model=settings.anthropic_model,
+                max_tokens=1500,
+                temperature=0,
+                system=system,
+                messages=[{"role": "user", "content": question}],
+            )
+        usage = getattr(response, "usage", None)
+        call.record_usage(
+            getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
         )
     return "".join(block.text for block in response.content if block.type == "text").strip()
 

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app import __version__
 from app.api import (
@@ -119,6 +121,20 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 @app.get("/health", tags=["meta"])
 async def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics(request: Request) -> Response:
+    settings = get_settings()
+    expected = settings.metrics_token.get_secret_value()
+    if not expected and settings.auth_mode == "oidc":
+        return Response(status_code=404)
+    if expected:
+        bearer = request.headers.get("authorization", "")
+        supplied = bearer[7:] if bearer.startswith("Bearer ") else ""
+        if not supplied or not secrets.compare_digest(supplied, expected):
+            return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/", tags=["meta"])

@@ -1,0 +1,30 @@
+groups:
+  - name: aoi-llm
+    rules:
+      - alert: AOILLMErrorRatioHigh
+        expr: |
+          sum(rate(aoi_llm_requests_total{outcome!="success"}[10m]))
+            / sum(rate(aoi_llm_requests_total[10m])) > 0.1
+          and sum(rate(aoi_llm_requests_total[10m])) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than 10% of LLM calls are failing or returning invalid output
+      - alert: AOILLMLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(aoi_llm_request_duration_seconds_bucket[10m]))) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: p95 LLM call latency is above 30 seconds
+      - alert: AOIExtractionFailures
+        expr: |
+          sum(increase(aoi_extractions_total{mode="full",outcome="failed"}[15m])) > 3
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Transcript extractions are failing repeatedly

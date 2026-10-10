@@ -28,6 +28,7 @@ from app.integrations.webhooks import enqueue_event, task_data
 from app.llm.client import LLMError, get_llm_client
 from app.llm.embeddings import get_embedding_client
 from app.logging import get_logger
+from app.metrics import record_extraction
 from app.models.blocker import Blocker
 from app.models.decision import Decision
 from app.models.project import Project
@@ -91,6 +92,7 @@ class ExtractionPipeline:
                 },
             )
             await self._session.commit()
+            record_extraction("completed")
             log.info(
                 "extraction.completed",
                 tasks=len(result.tasks),
@@ -109,11 +111,13 @@ class ExtractionPipeline:
         except LLMError as exc:
             await self._session.rollback()
             await self._mark_failed(transcript_id, f"LLM error: {exc}")
+            record_extraction("failed", "llm_error")
             log.error("extraction.llm_error", error=str(exc))
             return None
         except Exception as exc:
             await self._session.rollback()
             await self._mark_failed(transcript_id, f"Pipeline error: {exc}")
+            record_extraction("failed", "pipeline_error")
             log.exception("extraction.unexpected_error")
             return None
 
@@ -147,15 +151,18 @@ class ExtractionPipeline:
             await self._apply_task_updates(transcript, project, result)
             await self._persist_artefacts(transcript, project, result)
             await self._session.commit()
+            record_extraction("completed", mode="live")
             if dispatch:
                 await self._dispatch(transcript, project, result)
             return result
         except LLMError as exc:
             await self._session.rollback()
+            record_extraction("failed", "llm_error", mode="live")
             logger.warning("extraction.incremental_llm_error", error=str(exc))
             return None
         except Exception:
             await self._session.rollback()
+            record_extraction("failed", "pipeline_error", mode="live")
             logger.exception("extraction.incremental_error")
             return None
 
