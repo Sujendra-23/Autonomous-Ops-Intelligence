@@ -37,7 +37,9 @@ curl http://localhost:8000/api/intelligence/ask \
 
 ## Semantic contract and limits
 
-The logical views are `analytics.tasks`, `analytics.risks`, and `analytics.blockers`.
+The logical views are `analytics.tasks`, `analytics.risks`, `analytics.blockers`, and the
+developer-metrics views `analytics.pull_requests`, `analytics.deployments` and
+`analytics.dora_weekly` ([definitions](developer-metrics.md)).
 Each has one row per entity. Project/task IDs support grouping; free-text titles,
 project names, descriptions, quotes, metadata, and blocker parties are intentionally
 excluded because they may contain identities. The task owner field can contain either
@@ -74,7 +76,7 @@ python -m evals.run_analytics
 python -m evals.run_analytics --live
 ```
 
-`evals/analytics.json` contains exactly 20 questions, reference SQL, expected answer
+`evals/analytics.json` contains exactly 26 questions, reference SQL, expected answer
 rows, and synthetic fixtures. The default eval validates and executes reference SQL
 against an in-memory SQLite semantic fixture, checking aggregates, statuses, overdue
 and missing-owner counts, grouping, and masked output. `--live` calls Claude for each

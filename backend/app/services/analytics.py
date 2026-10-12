@@ -42,6 +42,71 @@ CATALOG = {
         "severity": "text: low, medium, high, critical",
         "resolved_at": "nullable timestamptz: resolution time in UTC",
     },
+    "pull_requests": {
+        "id": "uuid: pull request identifier (one row per pull request)",
+        "repo": "text: GitHub repository as owner/name",
+        "state": "text: open, closed (unmerged), merged",
+        "author": "nullable text: GitHub login; [MASKED] without read_owners permission",
+        "has_author": "boolean: whether an author login is recorded",
+        "created_at": "timestamptz: when the PR was opened (UTC)",
+        "first_review_at": (
+            "nullable timestamptz: first submitted review by someone other than the author"
+        ),
+        "merged_at": "nullable timestamptz: merge time (UTC)",
+        "is_merged": "boolean: merged_at is set",
+        "hours_to_first_review": "nullable double: hours from created_at to first_review_at",
+        "hours_to_merge": "nullable double: hours from created_at to merged_at",
+        "deployed_at": (
+            "nullable timestamptz: finish time of the first successful production deployment "
+            "that started at or after merged_at (proxy for when the change shipped)"
+        ),
+        "deployed_week_start": "nullable date: Monday (UTC) of the week of deployed_at",
+        "lead_time_hours": (
+            "nullable double: DORA lead time for changes, proxy = hours from PR created_at "
+            "to deployed_at (first-commit time is not collected, so it is understated)"
+        ),
+    },
+    "deployments": {
+        "id": "uuid: deployment identifier (one row per deployment run)",
+        "repo": "text: GitHub repository as owner/name",
+        "environment": "text: deployment environment, production by default",
+        "workflow": "nullable text: workflow or deployment task name",
+        "status": "text: success, failure, other (cancelled/skipped, excluded from rates)",
+        "started_at": "nullable timestamptz: run start (UTC)",
+        "finished_at": "nullable timestamptz: run completion (UTC)",
+        "is_production": "boolean: environment is production",
+        "is_failure": "boolean: status is failure",
+        "failed": (
+            "nullable smallint: 1 failure, 0 success, NULL otherwise; AVG(failed) over "
+            "production deployments is the DORA change failure rate"
+        ),
+        "deployed_week_start": "nullable date: Monday (UTC) of the week of finished_at",
+        "restored_at": (
+            "nullable timestamptz: for the failure that starts an incident (previous finished "
+            "deployment did not fail), the finish time of the next success; else NULL"
+        ),
+        "hours_to_restore": (
+            "nullable double: DORA time to restore, proxy = hours from the failed deployment "
+            "to the next successful deployment; NULL when not an incident start or unresolved"
+        ),
+    },
+    "dora_weekly": {
+        "repo": "text: GitHub repository as owner/name",
+        "week_start": "date: Monday (UTC) of the week",
+        "deployment_count": "bigint: successful production deployments (deployment frequency)",
+        "failed_deployment_count": "bigint: failed production deployments",
+        "change_failure_rate": (
+            "nullable double: failed / (successful + failed) production deployments; sum the "
+            "counts across weeks instead of averaging this column"
+        ),
+        "median_lead_time_hours": (
+            "nullable double: median lead_time_hours of PRs first deployed in the week"
+        ),
+        "restored_incident_count": "bigint: incidents whose restoring deployment was this week",
+        "median_time_to_restore_hours": (
+            "nullable double: median hours_to_restore of incidents restored in the week"
+        ),
+    },
 }
 
 # Positive AST allowlist: new parser constructs are denied by default. No casts,
@@ -113,7 +178,9 @@ def validate_sql(sql: str, *, read_owners: bool = False) -> str:
         raise UnsafeQuery("Select from exactly one semantic view")
     table = tables[0]
     if table.catalog or table.db != "analytics" or table.name not in CATALOG:
-        raise UnsafeQuery("Only analytics.tasks, analytics.risks, analytics.blockers are allowed")
+        raise UnsafeQuery(
+            "Only " + ", ".join(f"analytics.{name}" for name in CATALOG) + " are allowed"
+        )
     columns = CATALOG[table.name]
     for column in tree.find_all(exp.Column):
         if (
@@ -157,6 +224,11 @@ async def generate_sql(question: str, *, read_owners: bool = False) -> str:
         "Use original columns/expressions in ORDER BY, not output aliases. "
         "Open tasks means status IN ('open','in_progress','blocked'). "
         "Use is_overdue for overdue tasks. Use has_owner for missing owners. "
+        "Developer metrics: dora_weekly has one row per repo and week (deployment_count is "
+        "deployment frequency; sum counts across weeks, do not average rates); for change "
+        "failure rate over production deployments use AVG(failed) with is_production = TRUE; "
+        "lead time is lead_time_hours on pull_requests (is_merged); time to restore is "
+        "hours_to_restore on deployments. "
         "Do not invent unavailable data; output UNSUPPORTED if unanswerable. "
         "Owner permission: "
         + str(read_owners)

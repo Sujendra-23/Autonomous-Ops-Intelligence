@@ -25,8 +25,9 @@ def fixture_connection() -> sqlite3.Connection:
         conn.execute(f"CREATE TABLE analytics_masked.{table} ({', '.join(columns)})")
         for original in DATA["fixtures"][table]:
             row = original.copy()
-            if table == "tasks" and row[4] is not None:
-                row[4] = "[MASKED]"
+            masked = {"tasks": 4, "pull_requests": 3}.get(table)
+            if masked is not None and row[masked] is not None:
+                row[masked] = "[MASKED]"
             conn.execute(
                 f"INSERT INTO analytics_masked.{table} VALUES "  # noqa: S608 — static catalog
                 f"({','.join('?' for _ in row)})",

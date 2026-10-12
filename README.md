@@ -548,6 +548,15 @@ and executes through dedicated read-only PostgreSQL roles. Owner names/emails ar
 unless the caller holds the separate analytics owner permission. Includes a deterministic
 20-question eval and an optional live Claude eval. See [setup and security boundaries](docs/analytics.md).
 
+## Developer metrics (DORA-style)
+
+`python -m app.ingest.github_metrics` loads pull requests and deployment runs from GitHub into
+`pull_requests` / `deployments`, and the analytics layer exposes them as the masked
+`pull_requests`, `deployments` and `dora_weekly` views, so deployment frequency, lead time,
+change failure rate and time to restore are answerable through `/api/intelligence/ask`. These
+are proxies derived from GitHub data alone; definitions, queries and limits are in
+[docs/developer-metrics.md](docs/developer-metrics.md).
+
 ## Console and the streamed "Ask" panel
 
 The console in `frontend/` is a Next.js App Router app (server layout and per-route

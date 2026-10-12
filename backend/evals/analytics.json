@@ -110,6 +110,171 @@
         "low",
         "2026-01-01"
       ]
+    ],
+    "pull_requests": [
+      [
+        "pr1",
+        "a/x",
+        "merged",
+        "Ada",
+        true,
+        "2026-01-05T09:00",
+        "2026-01-05T10:00",
+        "2026-01-05T17:00",
+        true,
+        1.0,
+        8.0,
+        "2026-01-06T10:00",
+        "2026-01-05",
+        25.0
+      ],
+      [
+        "pr2",
+        "a/x",
+        "merged",
+        "bo",
+        true,
+        "2026-01-06T09:00",
+        "2026-01-06T15:00",
+        "2026-01-07T09:00",
+        true,
+        6.0,
+        24.0,
+        "2026-01-08T09:00",
+        "2026-01-05",
+        48.0
+      ],
+      [
+        "pr3",
+        "a/x",
+        "open",
+        "Cy",
+        true,
+        "2026-01-12T09:00",
+        null,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        "pr4",
+        "a/x",
+        "closed",
+        null,
+        false,
+        "2026-01-12T10:00",
+        null,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
+    "deployments": [
+      [
+        "d1",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "success",
+        "2026-01-06T09:50",
+        "2026-01-06T10:00",
+        true,
+        false,
+        0,
+        "2026-01-05",
+        null,
+        null
+      ],
+      [
+        "d2",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "failure",
+        "2026-01-07T09:50",
+        "2026-01-07T10:00",
+        true,
+        true,
+        1,
+        "2026-01-05",
+        "2026-01-08T09:00",
+        23.0
+      ],
+      [
+        "d3",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "success",
+        "2026-01-08T08:50",
+        "2026-01-08T09:00",
+        true,
+        false,
+        0,
+        "2026-01-05",
+        null,
+        null
+      ],
+      [
+        "d4",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "success",
+        "2026-01-13T09:50",
+        "2026-01-13T10:00",
+        true,
+        false,
+        0,
+        "2026-01-12",
+        null,
+        null
+      ],
+      [
+        "d5",
+        "a/x",
+        "staging",
+        "deploy.yml",
+        "success",
+        "2026-01-13T08:50",
+        "2026-01-13T09:00",
+        false,
+        false,
+        0,
+        "2026-01-12",
+        null,
+        null
+      ]
+    ],
+    "dora_weekly": [
+      [
+        "a/x",
+        "2026-01-05",
+        2,
+        1,
+        0.3333333333333333,
+        36.5,
+        1,
+        23.0
+      ],
+      [
+        "a/x",
+        "2026-01-12",
+        1,
+        0,
+        0.0,
+        null,
+        0,
+        null
+      ]
     ]
   },
   "cases": [
@@ -360,6 +525,65 @@
       "expected": [
         [
           2
+        ]
+      ]
+    },
+    {
+      "question": "How many production deployments succeeded?",
+      "sql": "SELECT COUNT(*) FROM analytics.deployments WHERE is_production = TRUE AND status = 'success'",
+      "expected": [
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "question": "Deployment frequency: successful production deployments per week.",
+      "sql": "SELECT week_start, deployment_count FROM analytics.dora_weekly ORDER BY week_start",
+      "expected": [
+        [
+          "2026-01-05",
+          2
+        ],
+        [
+          "2026-01-12",
+          1
+        ]
+      ]
+    },
+    {
+      "question": "What is the change failure rate of production deployments?",
+      "sql": "SELECT AVG(failed) FROM analytics.deployments WHERE is_production = TRUE",
+      "expected": [
+        [
+          0.25
+        ]
+      ]
+    },
+    {
+      "question": "What is the average lead time in hours for merged pull requests?",
+      "sql": "SELECT AVG(lead_time_hours) FROM analytics.pull_requests WHERE is_merged = TRUE",
+      "expected": [
+        [
+          36.5
+        ]
+      ]
+    },
+    {
+      "question": "What is the average time to restore in hours?",
+      "sql": "SELECT AVG(hours_to_restore) FROM analytics.deployments WHERE is_production = TRUE",
+      "expected": [
+        [
+          23.0
+        ]
+      ]
+    },
+    {
+      "question": "How many pull requests are still open?",
+      "sql": "SELECT COUNT(*) FROM analytics.pull_requests WHERE state = 'open'",
+      "expected": [
+        [
+          1
         ]
       ]
     }

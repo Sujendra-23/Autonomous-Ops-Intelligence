@@ -1,9 +1,10 @@
-.PHONY: help up check-alerts observability down logs build migrate test fmt lint shell seed clean
+.PHONY: help up ingest-github check-alerts observability down logs build migrate test fmt lint shell seed clean
 
 help:
 	@echo "Autonomous Operational Intelligence Layer"
 	@echo ""
 	@echo "  make up          — start the full stack (postgres, redis, backend, worker, frontend)"
+	@echo "  make ingest-github ARGS=\"--repo o/r --workflow deploy.yml\" — load PRs/deploys from GitHub (docs/developer-metrics.md)"
 	@echo "  make check-alerts — promtool check + unit-test observability/rules.yml (needs Docker)"
 	@echo "  make observability — start the stack plus Prometheus (:9090) and Grafana (:3001)"
 	@echo "  make down        — stop the stack"
@@ -20,6 +21,10 @@ help:
 
 up: .env
 	docker compose up -d --build
+
+# Needs GITHUB_TOKEN in .env (or exported) for private repos / real rate limits.
+ingest-github:
+	docker compose exec -T -e GITHUB_TOKEN backend python -m app.ingest.github_metrics $(ARGS)
 
 # promtool comes from the same Prometheus image the observability profile runs.
 PROMTOOL = docker run --rm -v "$(CURDIR)/observability:/obs:ro" --entrypoint promtool prom/prometheus:v2.55.1
