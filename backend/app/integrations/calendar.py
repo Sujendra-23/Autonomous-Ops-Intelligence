@@ -1,4 +1,8 @@
-"""Read-only Google Calendar access using a server-side offline OAuth grant."""
+"""Google Calendar access using a server-side offline OAuth grant.
+
+Reads are always available; event creation (`create_event`) is opt-in via
+GOOGLE_CALENDAR_WRITE_ENABLED and needs the calendar.events scope.
+"""
 
 from datetime import UTC, datetime
 from urllib.parse import quote
@@ -43,7 +47,13 @@ def normalize_event(event: dict) -> CalendarEvent:
 
 
 class GoogleCalendar:
-    async def _get(self, suffix: str = "", params: dict | None = None) -> dict:
+    async def _call(
+        self,
+        method: str = "GET",
+        suffix: str = "",
+        params: dict | None = None,
+        json_body: dict | None = None,
+    ) -> dict:
         settings = get_settings()
         if not settings.google_calendar_enabled:
             raise HTTPException(503, "Google Calendar is not configured on the backend")
@@ -60,13 +70,17 @@ class GoogleCalendar:
                 )
                 token.raise_for_status()
                 calendar_id = quote(settings.google_calendar_id, safe="")
-                response = await client.get(
+                response = await client.request(
+                    method,
                     f"https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events{suffix}",
                     headers={"Authorization": f"Bearer {token.json()['access_token']}"},
                     params=params,
+                    json=json_body,
                 )
                 if response.status_code in (404, 410):
                     raise HTTPException(404, "Calendar event or calendar no longer exists")
+                if response.status_code == 409 and method == "POST":
+                    raise HTTPException(409, "Calendar event already exists")
                 response.raise_for_status()
                 return response.json()
         except (httpx.HTTPError, KeyError, ValueError) as exc:
@@ -74,6 +88,44 @@ class GoogleCalendar:
             raise HTTPException(
                 502, "Calendar request failed; check backend OAuth configuration"
             ) from exc
+
+    async def _get(self, suffix: str = "", params: dict | None = None) -> dict:
+        return await self._call("GET", suffix, params)
+
+    async def create_event(
+        self,
+        *,
+        event_id: str,
+        title: str,
+        start: datetime,
+        end: datetime,
+        description: str = "",
+        timezone: str = "UTC",
+    ) -> CalendarEvent:
+        """Insert an event. `event_id` makes retries idempotent (409 = already created).
+
+        Google requires ids of 5-1024 chars from [a-v0-9]; a hex digest qualifies.
+        Requires a refresh token granted the calendar.events scope and
+        GOOGLE_CALENDAR_WRITE_ENABLED=true.
+        """
+        if not get_settings().google_calendar_write_enabled:
+            raise HTTPException(503, "Calendar writes are disabled (GOOGLE_CALENDAR_WRITE_ENABLED)")
+        if start.tzinfo is None or end.tzinfo is None:
+            raise ValueError("event times must be timezone-aware")
+        body = {
+            "id": event_id,
+            "summary": title[:512],
+            "description": description[:8000],
+            "start": {"dateTime": start.isoformat(), "timeZone": timezone},
+            "end": {"dateTime": end.isoformat(), "timeZone": timezone},
+        }
+        try:
+            data = await self._call("POST", params={"sendUpdates": "none"}, json_body=body)
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
+            data = await self._call("GET", "/" + quote(event_id, safe=""))
+        return normalize_event(data)
 
     async def list_events(
         self, start: datetime, end: datetime, page_token: str | None = None
