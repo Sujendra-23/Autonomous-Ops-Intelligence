@@ -59,7 +59,14 @@ class ExtractionPipeline:
         self._session = session
         self._dispatcher = dispatcher or IntegrationDispatcher()
 
-    async def process(self, transcript_id: uuid.UUID) -> ExtractionResult | None:
+    async def process(
+        self,
+        transcript_id: uuid.UUID,
+        *,
+        precomputed: ExtractionResult | None = None,
+    ) -> ExtractionResult | None:
+        """Run the pipeline. ``precomputed`` skips the text LLM call: the document path has
+        already produced a schema-validated result from page images."""
         transcript = await self._load(transcript_id)
         if transcript is None:
             logger.warning("extraction.missing_transcript", transcript_id=str(transcript_id))
@@ -71,8 +78,11 @@ class ExtractionPipeline:
             await self._chunk_and_embed(transcript)
 
             await self._set_status(transcript, "extracting")
-            prior_context = await self._build_prior_context(transcript)
-            result = await self._extract(transcript, prior_context)
+            if precomputed is None:
+                prior_context = await self._build_prior_context(transcript)
+                result = await self._extract(transcript, prior_context)
+            else:
+                result = precomputed
 
             project = await self._resolve_project(transcript, result)
             updates_applied = await self._apply_task_updates(transcript, project, result)

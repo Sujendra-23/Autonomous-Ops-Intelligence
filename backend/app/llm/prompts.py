@@ -129,3 +129,68 @@ def _json_schema() -> dict:
     # Remove fields that are noisy for the model
     schema.pop("title", None)
     return schema
+
+
+# --------------------------------------------------------------------------- #
+# Vision: scanned documents and screen-recording keyframes                     #
+# --------------------------------------------------------------------------- #
+
+DOCUMENT_SYSTEM_PROMPT = (
+    SYSTEM_PROMPT
+    + """
+# Scanned documents
+
+The input is one or more page images of a meeting agenda, minutes, or action
+list instead of a transcript. The same rules apply, with these differences:
+
+14. `source_quote` must be text you can actually read on the page, copied
+    character for character. If the scan is illegible, omit the item.
+
+15. Treat table rows (Owner / Due / Action) as explicit assignments. Use the
+    meeting date printed on the document to resolve relative dates; if none is
+    printed, only emit dates that are written out.
+
+16. Ignore page furniture (headers, footers, page numbers, logos). An agenda
+    topic with no commitment, choice, or threat attached is not an extraction.
+"""
+)
+
+
+def build_document_prompt(
+    page_count: int,
+    meeting_title: str | None = None,
+    meeting_date: str | None = None,
+    participants: list[str] | None = None,
+    project_hint: str | None = None,
+) -> str:
+    parts: list[str] = []
+    if meeting_title:
+        parts.append(f"Meeting title: {meeting_title}")
+    if meeting_date:
+        parts.append(f"Meeting date: {meeting_date}")
+    if participants:
+        parts.append(f"Participants: {', '.join(participants)}")
+    if project_hint:
+        parts.append(f"Likely project: {project_hint}")
+    header = "## Metadata\n" + "\n".join(parts) + "\n\n" if parts else ""
+    return (
+        f"{header}"
+        f"## Document\nThe {page_count} attached image(s) are the pages of the document, "
+        "in order.\n\n"
+        "## JSON Schema (you must conform exactly)\n"
+        f"{json.dumps(_json_schema(), indent=2)}\n\n"
+        "Return the JSON object now."
+    )
+
+
+CAPTION_SYSTEM_PROMPT = """\
+You describe single frames from a screen recording of a work meeting or demo.
+Write one or two factual sentences: which application or document is visible
+and any legible text that states a task, owner, date, decision, or problem.
+Quote legible text exactly. Do not guess at anything you cannot read. No
+preamble, no markdown.
+"""
+
+
+def build_caption_prompt(timestamp: str) -> str:
+    return f"This frame is from timestamp {timestamp} of the recording. Caption it."

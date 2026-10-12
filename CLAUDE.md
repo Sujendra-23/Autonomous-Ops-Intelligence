@@ -70,6 +70,15 @@ chunking → extracting → completed
 
 `OPENAI_API_KEY` is required for Whisper even when `LLM_PROVIDER=anthropic`.
 
+### Document and recording paths
+
+`POST /api/transcripts/upload-document` renders a PDF (pdfium) or image to page PNGs and calls
+`LLMClient.extract_images`, which returns the same `ExtractionResult`; the pipeline then runs with
+`precomputed=` so the text LLM call is skipped. `POST /api/transcripts/upload-recording` samples
+keyframes with ffmpeg (`services/video_frames.py`), captions them with `LLMClient.caption_image`,
+and feeds the timestamped captions through the normal text path. Both are refused with 501 in
+`AUTH_MODE=oidc`. Offline eval: `python -m evals.run_documents`. See `docs/document-video-ingestion.md`.
+
 ### Integration dispatch
 
 After extraction, `IntegrationDispatcher.publish()` fans out to adapters. Each adapter calls `is_enabled()` and short-circuits when its keys are not configured — adding integrations to an existing deployment is a pure `.env` change. Key constraint: **Linear takes precedence over Jira** for task mirroring; only the first enabled task mirror fires per task.
