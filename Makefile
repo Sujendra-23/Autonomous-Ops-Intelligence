@@ -1,9 +1,10 @@
-.PHONY: help up observability down logs build migrate test fmt lint shell seed clean
+.PHONY: help up check-alerts observability down logs build migrate test fmt lint shell seed clean
 
 help:
 	@echo "Autonomous Operational Intelligence Layer"
 	@echo ""
 	@echo "  make up          — start the full stack (postgres, redis, backend, worker, frontend)"
+	@echo "  make check-alerts — promtool check + unit-test observability/rules.yml (needs Docker)"
 	@echo "  make observability — start the stack plus Prometheus (:9090) and Grafana (:3001)"
 	@echo "  make down        — stop the stack"
 	@echo "  make logs        — tail logs for all services"
@@ -19,6 +20,12 @@ help:
 
 up: .env
 	docker compose up -d --build
+
+# promtool comes from the same Prometheus image the observability profile runs.
+PROMTOOL = docker run --rm -v "$(CURDIR)/observability:/obs:ro" --entrypoint promtool prom/prometheus:v2.55.1
+check-alerts:
+	$(PROMTOOL) check rules /obs/rules.yml
+	$(PROMTOOL) test rules /obs/tests/rules.test.yml
 
 observability: .env
 	@grep -q '^GRAFANA_ADMIN_PASSWORD=.' .env || { \

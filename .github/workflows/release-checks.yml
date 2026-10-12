@@ -62,6 +62,18 @@ jobs:
       - run: npm audit --omit=dev --audit-level=moderate
         working-directory: frontend
       - run: node --test extension/tests/*.test.mjs
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: promtool check and test rules
+        run: |
+          promtool() {
+            docker run --rm -v "$PWD/observability:/obs:ro" -w /obs/tests \
+              --entrypoint promtool prom/prometheus:v2.55.1 "$@"
+          }
+          promtool check rules /obs/rules.yml
+          promtool test rules rules.test.yml
   containers:
     runs-on: ubuntu-latest
     steps:
