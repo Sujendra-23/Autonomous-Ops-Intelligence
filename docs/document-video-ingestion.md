@@ -88,9 +88,23 @@ and reports, per field:
 **What has been run.** Offline mode uses a stub that replays the reference answers after checking it
 was handed the right number of PNG pages. It exercises rendering, the adapter-facing interface, schema
 validation and the scorer, so it always reports 1.00 and says so. Unit tests check the scorer against
-hand-computed counts using a deliberately wrong prediction. **`--live` has not been run**: no API key
-was configured on the machine that built this, so there is no accuracy figure for any model. Run it with
-your key before quoting a number; it makes 20 vision calls.
+hand-computed counts using a deliberately wrong prediction.
+
+`--live` was run once on 2026-10-12 through the real OpenAI adapter with `gpt-4o-mini` (the provider
+configured on the machine that built this; no Anthropic key was available, so **the Claude path has not
+been run against a real API**). All 20 documents returned schema-valid output:
+
+| field | precision | recall | TP / FP / FN |
+| --- | --- | --- | --- |
+| tasks | 1.00 | 1.00 | 54 / 0 / 0 |
+| task.owner | 0.88 | 0.98 | 46 / 6 / 1 |
+| task.due_date | 1.00 | 1.00 | 54 / 0 / 0 |
+| decisions | 1.00 | 1.00 | 19 / 0 / 0 |
+| risks | 0.85 | 0.85 | 11 / 2 / 2 |
+
+`source_quote` grounding was 0.98. The raw summary is in
+`backend/evals/results/documents_live_openai_gpt-4o-mini.json`. This is a single run at temperature 0.1,
+so run-to-run variance is unknown, and it says little about real-world documents (next paragraph).
 
 Limits of the set: it is synthetic and printed-text only (no handwriting, no photographs of whiteboards),
 and the reference answers were written by the generator that also wrote the page, so it measures
