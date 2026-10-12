@@ -572,6 +572,11 @@ cd frontend && npm install && npm test && npm run build
 ServiceMonitor and the seven alert rules), a kind overlay with in-cluster Postgres and Redis, and a
 smoke test CI runs on every PR. See [docs/kubernetes.md](docs/kubernetes.md).
 
+## Java client
+
+`clients/java` is a small Spring Boot 3 client library (Maven, JUnit 5 + MockWebServer) for posting a
+transcript and reading tasks back. See [clients/java/README.md](clients/java/README.md).
+
 ## Scanned documents and screen recordings
 
 `POST /api/transcripts/upload-document` takes a PDF or image of an agenda, minutes or action list

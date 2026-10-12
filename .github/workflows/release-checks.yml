@@ -107,3 +107,15 @@ jobs:
           kubectl -n aoi describe pods | tail -80
           kubectl -n aoi logs deployment/aoi-backend --tail=80 || true
           kubectl -n aoi logs job/aoi-migrate --tail=40 || true
+  java-client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: clients/java/pom.xml
+      - run: ./mvnw -B verify
+        working-directory: clients/java
