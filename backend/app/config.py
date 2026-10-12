@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     ingest_api_key: SecretStr = SecretStr("")
+    # Bearer token for GET /metrics. Unset in development serves metrics openly; in oidc
+    # (SaaS) mode an unset token disables the endpoint (404) so it fails closed.
+    metrics_token: SecretStr = SecretStr("")
     # Analytics credentials are independent of ingestion and fail closed when unset.
     intelligence_api_key: SecretStr = SecretStr("")
     intelligence_owner_api_key: SecretStr = SecretStr("")

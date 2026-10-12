@@ -1,9 +1,11 @@
-.PHONY: help up down logs build migrate test fmt lint shell seed clean
+.PHONY: help up check-alerts observability down logs build migrate test fmt lint shell seed clean
 
 help:
 	@echo "Autonomous Operational Intelligence Layer"
 	@echo ""
 	@echo "  make up          — start the full stack (postgres, redis, backend, worker, frontend)"
+	@echo "  make check-alerts — promtool check + unit-test observability/rules.yml (needs Docker)"
+	@echo "  make observability — start the stack plus Prometheus (:9090) and Grafana (:3001)"
 	@echo "  make down        — stop the stack"
 	@echo "  make logs        — tail logs for all services"
 	@echo "  make build       — rebuild backend image"
@@ -18,6 +20,18 @@ help:
 
 up: .env
 	docker compose up -d --build
+
+# promtool comes from the same Prometheus image the observability profile runs.
+PROMTOOL = docker run --rm -v "$(CURDIR)/observability:/obs:ro" --entrypoint promtool prom/prometheus:v2.55.1
+check-alerts:
+	$(PROMTOOL) check rules /obs/rules.yml
+	$(PROMTOOL) test rules /obs/tests/rules.test.yml
+
+observability: .env
+	@grep -q '^GRAFANA_ADMIN_PASSWORD=.' .env || { \
+	  printf '\nGRAFANA_ADMIN_PASSWORD=%s\n' "$$(openssl rand -hex 16)" >> .env; \
+	  echo "Generated GRAFANA_ADMIN_PASSWORD in .env (Grafana login: admin)"; }
+	docker compose --profile observability up -d --build
 
 # Create .env from the template on first run AND lock it down to owner-only
 # (0600). Without this it would inherit the umask default (often 0644 → world-
@@ -34,7 +48,7 @@ secure-env:
 	@chmod 600 .env && echo ".env permissions tightened to 600 (owner-only)."
 
 down:
-	docker compose down
+	docker compose --profile observability down
 
 logs:
 	docker compose logs -f

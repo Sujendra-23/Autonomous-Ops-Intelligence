@@ -479,6 +479,7 @@ See `.env.example` for the canonical list. Highlights:
 - `STT_PROVIDER` — `deepgram`, `openai` (Realtime), or `none`; enables the live note-taker
 - `DEEPGRAM_API_KEY` — streaming STT key for live transcription (server-side only)
 - `INGEST_API_KEY` — set to require `X-API-Key` on transcript ingestion
+- `METRICS_TOKEN` — bearer token for `GET /metrics` (empty disables it in `AUTH_MODE=oidc`)
 
 ---
 
@@ -570,3 +571,10 @@ API-key auth mode (analytics returns 503 under OIDC).
 ```sh
 cd frontend && npm install && npm test && npm run build
 ```
+
+## Observability
+
+`GET /metrics` exposes Prometheus metrics for LLM latency, token usage, call outcomes (including
+responses that fail schema validation), and extraction failures. `make observability` starts
+Prometheus and a provisioned Grafana dashboard next to the stack. See
+[docs/observability.md](docs/observability.md).

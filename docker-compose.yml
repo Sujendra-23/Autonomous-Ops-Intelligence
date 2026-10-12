@@ -95,5 +95,46 @@ services:
       - ./frontend:/app
     command: sh -c "npm install && npm run dev -- -H 0.0.0.0"
 
+  # Optional observability stack: `docker compose --profile observability up -d`
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v2.55.1
+    container_name: aoi-prometheus
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/rules.yml:/etc/prometheus/rules.yml:ro
+      - aoi_prometheus_data:/prometheus
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.3.0
+    container_name: aoi-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    # Refuse to start without a password so Grafana never runs with a blank or default login.
+    entrypoint:
+      - sh
+      - -c
+      - 'test -n "$$GF_SECURITY_ADMIN_PASSWORD" || { echo "Set GRAFANA_ADMIN_PASSWORD in .env (make observability does this)"; exit 1; }; exec /run.sh'
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/aoi-llm-observability.json
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - aoi_grafana_data:/var/lib/grafana
+
 volumes:
   aoi_pg_data:
+  aoi_prometheus_data:
+  aoi_grafana_data:

@@ -5,6 +5,7 @@ every model with SQLAlchemy's metadata, which Alembic relies on for autogenerate
 """
 
 from app.models.blocker import Blocker
+from app.models.data_subject import DataSubjectAudit
 from app.models.decision import Decision
 from app.models.integration import WebhookDelivery
 from app.models.project import Project
@@ -14,6 +15,7 @@ from app.models.transcript import Transcript, TranscriptChunk
 
 __all__ = [
     "Blocker",
+    "DataSubjectAudit",
     "Decision",
     "Project",
     "Risk",
