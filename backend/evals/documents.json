@@ -1,0 +1,795 @@
+{
+ "cases": [
+  {
+   "id": "doc01",
+   "file": "doc01.pdf",
+   "pages": 1,
+   "meeting_date": "2026-03-05",
+   "tasks": [
+    {
+     "title": "Remove the legacy export endpoint",
+     "owner": "Marcus",
+     "due_date": "2026-03-23"
+    },
+    {
+     "title": "Draft the Q2 capacity plan",
+     "owner": "Billing team",
+     "due_date": "2026-03-22"
+    },
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": "Tomasz",
+     "due_date": "2026-03-16"
+    }
+   ],
+   "decisions": [],
+   "risks": [
+    {
+     "title": "Load tests have not covered the new search index"
+    }
+   ],
+   "text": [
+    "Onboarding sync - meeting 2026-03-05",
+    "Agenda: Hiring, Budget, Roadmap",
+    "Remove the legacy export endpoint Marcus Mar 23, 2026",
+    "Draft the Q2 capacity plan Billing team 22 Mar 2026",
+    "Backfill the missing invoice rows Tomasz 2026-03-16",
+    "Risks",
+    "Load tests have not covered the new search index"
+   ]
+  },
+  {
+   "id": "doc02",
+   "file": "doc02.png",
+   "pages": 1,
+   "meeting_date": "2026-03-02",
+   "tasks": [
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Lucia",
+     "due_date": "2026-03-14"
+    },
+    {
+     "title": "Draft the Q2 capacity plan",
+     "owner": "Dmitri",
+     "due_date": "2026-03-27"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Freeze schema changes during the audit window"
+    },
+    {
+     "summary": "Keep Postgres as the primary datastore"
+    }
+   ],
+   "risks": [],
+   "text": [
+    "Search sync - meeting 2026-03-02",
+    "Agenda: Roadmap, Support queue, Budget",
+    "Action items",
+    "Lucia will publish the incident review for the March outage by 14 Mar 2026.",
+    "Dmitri will draft the Q2 capacity plan by 2026-03-27.",
+    "Decisions",
+    "Freeze schema changes during the audit window",
+    "Keep Postgres as the primary datastore"
+   ]
+  },
+  {
+   "id": "doc03",
+   "file": "doc03.png",
+   "pages": 1,
+   "meeting_date": "2026-03-06",
+   "tasks": [
+    {
+     "title": "Update the on-call escalation policy",
+     "owner": "Aiko",
+     "due_date": "2026-03-24"
+    },
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": null,
+     "due_date": "2026-03-13"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Marcus",
+     "due_date": "2026-03-22"
+    },
+    {
+     "title": "Migrate the cron jobs to the new scheduler",
+     "owner": "Priya",
+     "due_date": "2026-03-16"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Adopt weekly release trains starting in April"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Audit evidence collection is behind schedule"
+    }
+   ],
+   "text": [
+    "Platform sync - meeting 2026-03-06",
+    "Agenda: Tooling, Hiring, Budget",
+    "Update the on-call escalation policy Aiko 2026-03-24",
+    "Backfill the missing invoice rows TBD Mar 13, 2026",
+    "Publish the incident review for the March outage Marcus 22 Mar 2026",
+    "Migrate the cron jobs to the new scheduler Priya 2026-03-16",
+    "Decisions",
+    "Adopt weekly release trains starting in April",
+    "Risks",
+    "Audit evidence collection is behind schedule"
+   ]
+  },
+  {
+   "id": "doc04",
+   "file": "doc04.jpg",
+   "pages": 1,
+   "meeting_date": "2026-03-06",
+   "tasks": [
+    {
+     "title": "Benchmark the new search index",
+     "owner": null,
+     "due_date": "2026-03-23"
+    },
+    {
+     "title": "Review the vendor security questionnaire",
+     "owner": "Data team",
+     "due_date": "2026-03-23"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Priya",
+     "due_date": "2026-03-19"
+    }
+   ],
+   "decisions": [],
+   "risks": [
+    {
+     "title": "Vendor delivery may slip past the launch date"
+    }
+   ],
+   "text": [
+    "Data sync - meeting 2026-03-06",
+    "Agenda: Support queue, Roadmap, Hiring",
+    "Action items",
+    "Owner to be confirmed will benchmark the new search index by Mar 23, 2026.",
+    "Data team will review the vendor security questionnaire by 23 Mar 2026.",
+    "Priya will publish the incident review for the March outage by 2026-03-19.",
+    "Risks",
+    "Vendor delivery may slip past the launch date"
+   ]
+  },
+  {
+   "id": "doc05",
+   "file": "doc05.pdf",
+   "pages": 2,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Draft the Q2 capacity plan",
+     "owner": "Onboarding team",
+     "due_date": "2026-03-15"
+    },
+    {
+     "title": "Update the on-call escalation policy",
+     "owner": "Dmitri",
+     "due_date": "2026-03-10"
+    },
+    {
+     "title": "Benchmark the new search index",
+     "owner": "Elena",
+     "due_date": "2026-03-28"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Adopt weekly release trains starting in April"
+    },
+    {
+     "summary": "Keep Postgres as the primary datastore"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Vendor delivery may slip past the launch date"
+    }
+   ],
+   "text": [
+    "Billing sync - meeting 2026-03-07",
+    "Agenda: Roadmap, Hiring, Tooling",
+    "Action items",
+    "Onboarding team will draft the Q2 capacity plan by 15 Mar 2026.",
+    "Dmitri will update the on-call escalation policy by 2026-03-10.",
+    "Elena will benchmark the new search index by Mar 28, 2026.",
+    "Decisions",
+    "Adopt weekly release trains starting in April",
+    "Keep Postgres as the primary datastore",
+    "Risks",
+    "Vendor delivery may slip past the launch date"
+   ]
+  },
+  {
+   "id": "doc06",
+   "file": "doc06.png",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": "Aiko",
+     "due_date": "2026-03-20"
+    },
+    {
+     "title": "Benchmark the new search index",
+     "owner": "Elena",
+     "due_date": "2026-03-24"
+    },
+    {
+     "title": "Prepare the customer migration FAQ",
+     "owner": "Dmitri",
+     "due_date": "2026-03-20"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Adopt weekly release trains starting in April"
+    }
+   ],
+   "risks": [],
+   "text": [
+    "Onboarding sync - meeting 2026-03-07",
+    "Agenda: Tooling, Roadmap, Hiring",
+    "Action items",
+    "Aiko will backfill the missing invoice rows by 2026-03-20.",
+    "Elena will benchmark the new search index by Mar 24, 2026.",
+    "Dmitri will prepare the customer migration FAQ by 20 Mar 2026.",
+    "Decisions",
+    "Adopt weekly release trains starting in April"
+   ]
+  },
+  {
+   "id": "doc07",
+   "file": "doc07.png",
+   "pages": 1,
+   "meeting_date": "2026-03-08",
+   "tasks": [
+    {
+     "title": "Rotate the staging database credentials",
+     "owner": "Tomasz",
+     "due_date": "2026-03-27"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Priya",
+     "due_date": "2026-03-15"
+    },
+    {
+     "title": "Write the rollout checklist for the mobile release",
+     "owner": "Aiko",
+     "due_date": "2026-03-13"
+    }
+   ],
+   "decisions": [],
+   "risks": [
+    {
+     "title": "Vendor delivery may slip past the launch date"
+    }
+   ],
+   "text": [
+    "Data sync - meeting 2026-03-08",
+    "Agenda: Roadmap, Budget, Tooling",
+    "Rotate the staging database credentials Tomasz Mar 27, 2026",
+    "Publish the incident review for the March outage Priya 15 Mar 2026",
+    "Write the rollout checklist for the mobile release Aiko 2026-03-13",
+    "Risks",
+    "Vendor delivery may slip past the launch date"
+   ]
+  },
+  {
+   "id": "doc08",
+   "file": "doc08.jpg",
+   "pages": 1,
+   "meeting_date": "2026-03-08",
+   "tasks": [],
+   "decisions": [],
+   "risks": [],
+   "text": [
+    "Platform sync - meeting 2026-03-08",
+    "Agenda: Tooling, Hiring, Support queue",
+    "Notes: discussion only, nothing was assigned or agreed."
+   ]
+  },
+  {
+   "id": "doc09",
+   "file": "doc09.pdf",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Write the rollout checklist for the mobile release",
+     "owner": "Elena",
+     "due_date": "2026-03-27"
+    },
+    {
+     "title": "Review the vendor security questionnaire",
+     "owner": "Dmitri",
+     "due_date": "2026-03-09"
+    },
+    {
+     "title": "Draft the Q2 capacity plan",
+     "owner": null,
+     "due_date": "2026-03-26"
+    },
+    {
+     "title": "Update the on-call escalation policy",
+     "owner": "Aiko",
+     "due_date": "2026-03-16"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Keep Postgres as the primary datastore"
+    },
+    {
+     "summary": "Adopt weekly release trains starting in April"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Single engineer holds all knowledge of the billing batch job"
+    }
+   ],
+   "text": [
+    "Billing sync - meeting 2026-03-07",
+    "Agenda: Roadmap, Hiring, Support queue",
+    "Write the rollout checklist for the mobile release Elena 2026-03-27",
+    "Review the vendor security questionnaire Dmitri Mar 9, 2026",
+    "Draft the Q2 capacity plan TBD 26 Mar 2026",
+    "Update the on-call escalation policy Aiko 2026-03-16",
+    "Decisions",
+    "Keep Postgres as the primary datastore",
+    "Adopt weekly release trains starting in April",
+    "Risks",
+    "Single engineer holds all knowledge of the billing batch job"
+   ]
+  },
+  {
+   "id": "doc10",
+   "file": "doc10.png",
+   "pages": 1,
+   "meeting_date": "2026-03-08",
+   "tasks": [
+    {
+     "title": "Rotate the staging database credentials",
+     "owner": "Platform team",
+     "due_date": "2026-03-24"
+    },
+    {
+     "title": "Write the rollout checklist for the mobile release",
+     "owner": null,
+     "due_date": "2026-03-14"
+    }
+   ],
+   "decisions": [],
+   "risks": [],
+   "text": [
+    "Search sync - meeting 2026-03-08",
+    "Agenda: Hiring, Tooling, Support queue",
+    "Action items",
+    "Platform team will rotate the staging database credentials by Mar 24, 2026.",
+    "Owner to be confirmed will write the rollout checklist for the mobile release by 14 Mar 2026."
+   ]
+  },
+  {
+   "id": "doc11",
+   "file": "doc11.png",
+   "pages": 1,
+   "meeting_date": "2026-03-06",
+   "tasks": [
+    {
+     "title": "Update the on-call escalation policy",
+     "owner": null,
+     "due_date": "2026-03-22"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Lucia",
+     "due_date": "2026-03-14"
+    },
+    {
+     "title": "Benchmark the new search index",
+     "owner": "Lucia",
+     "due_date": "2026-03-15"
+    },
+    {
+     "title": "Draft the Q2 capacity plan",
+     "owner": "Platform team",
+     "due_date": "2026-03-25"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Defer the dark mode work to next quarter"
+    },
+    {
+     "summary": "Keep Postgres as the primary datastore"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Audit evidence collection is behind schedule"
+    }
+   ],
+   "text": [
+    "Data sync - meeting 2026-03-06",
+    "Agenda: Budget, Roadmap, Support queue",
+    "Update the on-call escalation policy TBD 22 Mar 2026",
+    "Publish the incident review for the March outage Lucia 2026-03-14",
+    "Benchmark the new search index Lucia Mar 15, 2026",
+    "Draft the Q2 capacity plan Platform team 25 Mar 2026",
+    "Decisions",
+    "Defer the dark mode work to next quarter",
+    "Keep Postgres as the primary datastore",
+    "Risks",
+    "Audit evidence collection is behind schedule"
+   ]
+  },
+  {
+   "id": "doc12",
+   "file": "doc12.jpg",
+   "pages": 1,
+   "meeting_date": "2026-03-03",
+   "tasks": [
+    {
+     "title": "Add retry limits to the webhook sender",
+     "owner": "Kwame",
+     "due_date": "2026-03-21"
+    },
+    {
+     "title": "Rotate the staging database credentials",
+     "owner": "Kwame",
+     "due_date": "2026-03-25"
+    },
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": "Elena",
+     "due_date": "2026-03-12"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Defer the dark mode work to next quarter"
+    },
+    {
+     "summary": "Use feature flags for every customer-facing launch"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Vendor delivery may slip past the launch date"
+    }
+   ],
+   "text": [
+    "Mobile sync - meeting 2026-03-03",
+    "Agenda: Roadmap, Support queue, Budget",
+    "Action items",
+    "Kwame will add retry limits to the webhook sender by 2026-03-21.",
+    "Kwame will rotate the staging database credentials by Mar 25, 2026.",
+    "Elena will backfill the missing invoice rows by 12 Mar 2026.",
+    "Decisions",
+    "Defer the dark mode work to next quarter",
+    "Use feature flags for every customer-facing launch",
+    "Risks",
+    "Vendor delivery may slip past the launch date"
+   ]
+  },
+  {
+   "id": "doc13",
+   "file": "doc13.pdf",
+   "pages": 2,
+   "meeting_date": "2026-03-02",
+   "tasks": [
+    {
+     "title": "Migrate the cron jobs to the new scheduler",
+     "owner": "Priya",
+     "due_date": "2026-03-20"
+    },
+    {
+     "title": "Prepare the customer migration FAQ",
+     "owner": "Lucia",
+     "due_date": "2026-03-26"
+    },
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": "Tomasz",
+     "due_date": "2026-03-13"
+    }
+   ],
+   "decisions": [],
+   "risks": [
+    {
+     "title": "Audit evidence collection is behind schedule"
+    }
+   ],
+   "text": [
+    "Data sync - meeting 2026-03-02",
+    "Agenda: Support queue, Tooling, Roadmap",
+    "Action items",
+    "Priya will migrate the cron jobs to the new scheduler by Mar 20, 2026.",
+    "Lucia will prepare the customer migration FAQ by 26 Mar 2026.",
+    "Tomasz will backfill the missing invoice rows by 2026-03-13.",
+    "Risks",
+    "Audit evidence collection is behind schedule"
+   ]
+  },
+  {
+   "id": "doc14",
+   "file": "doc14.png",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Add retry limits to the webhook sender",
+     "owner": "Priya",
+     "due_date": "2026-03-21"
+    },
+    {
+     "title": "Migrate the cron jobs to the new scheduler",
+     "owner": "Lucia",
+     "due_date": "2026-03-16"
+    },
+    {
+     "title": "Update the on-call escalation policy",
+     "owner": "Priya",
+     "due_date": "2026-03-19"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Freeze schema changes during the audit window"
+    }
+   ],
+   "risks": [],
+   "text": [
+    "Data sync - meeting 2026-03-07",
+    "Agenda: Budget, Roadmap, Support queue",
+    "Action items",
+    "Priya will add retry limits to the webhook sender by 21 Mar 2026.",
+    "Lucia will migrate the cron jobs to the new scheduler by 2026-03-16.",
+    "Priya will update the on-call escalation policy by Mar 19, 2026.",
+    "Decisions",
+    "Freeze schema changes during the audit window"
+   ]
+  },
+  {
+   "id": "doc15",
+   "file": "doc15.png",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Rotate the staging database credentials",
+     "owner": "Lucia",
+     "due_date": "2026-03-28"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Elena",
+     "due_date": "2026-03-23"
+    },
+    {
+     "title": "Add retry limits to the webhook sender",
+     "owner": "Kwame",
+     "due_date": "2026-03-17"
+    },
+    {
+     "title": "Prepare the customer migration FAQ",
+     "owner": null,
+     "due_date": "2026-03-22"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Adopt weekly release trains starting in April"
+    },
+    {
+     "summary": "Freeze schema changes during the audit window"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Single engineer holds all knowledge of the billing batch job"
+    }
+   ],
+   "text": [
+    "Search sync - meeting 2026-03-07",
+    "Agenda: Hiring, Tooling, Budget",
+    "Rotate the staging database credentials Lucia 2026-03-28",
+    "Publish the incident review for the March outage Elena Mar 23, 2026",
+    "Add retry limits to the webhook sender Kwame 17 Mar 2026",
+    "Prepare the customer migration FAQ TBD 2026-03-22",
+    "Decisions",
+    "Adopt weekly release trains starting in April",
+    "Freeze schema changes during the audit window",
+    "Risks",
+    "Single engineer holds all knowledge of the billing batch job"
+   ]
+  },
+  {
+   "id": "doc16",
+   "file": "doc16.jpg",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Add retry limits to the webhook sender",
+     "owner": "Lucia",
+     "due_date": "2026-03-17"
+    },
+    {
+     "title": "Write the rollout checklist for the mobile release",
+     "owner": "Aiko",
+     "due_date": "2026-03-24"
+    }
+   ],
+   "decisions": [],
+   "risks": [
+    {
+     "title": "Vendor delivery may slip past the launch date"
+    }
+   ],
+   "text": [
+    "Search sync - meeting 2026-03-07",
+    "Agenda: Roadmap, Support queue, Hiring",
+    "Action items",
+    "Lucia will add retry limits to the webhook sender by Mar 17, 2026.",
+    "Aiko will write the rollout checklist for the mobile release by 24 Mar 2026.",
+    "Risks",
+    "Vendor delivery may slip past the launch date"
+   ]
+  },
+  {
+   "id": "doc17",
+   "file": "doc17.pdf",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [],
+   "decisions": [],
+   "risks": [],
+   "text": [
+    "Mobile sync - meeting 2026-03-07",
+    "Agenda: Support queue, Budget, Tooling",
+    "Notes: discussion only, nothing was assigned or agreed."
+   ]
+  },
+  {
+   "id": "doc18",
+   "file": "doc18.png",
+   "pages": 1,
+   "meeting_date": "2026-03-05",
+   "tasks": [
+    {
+     "title": "Remove the legacy export endpoint",
+     "owner": null,
+     "due_date": "2026-03-12"
+    },
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": "Aiko",
+     "due_date": "2026-03-12"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Aiko",
+     "due_date": "2026-03-09"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Use feature flags for every customer-facing launch"
+    },
+    {
+     "summary": "Freeze schema changes during the audit window"
+    }
+   ],
+   "risks": [],
+   "text": [
+    "Search sync - meeting 2026-03-05",
+    "Agenda: Tooling, Budget, Hiring",
+    "Action items",
+    "Owner to be confirmed will remove the legacy export endpoint by 2026-03-12.",
+    "Aiko will backfill the missing invoice rows by Mar 12, 2026.",
+    "Aiko will publish the incident review for the March outage by 9 Mar 2026.",
+    "Decisions",
+    "Use feature flags for every customer-facing launch",
+    "Freeze schema changes during the audit window"
+   ]
+  },
+  {
+   "id": "doc19",
+   "file": "doc19.png",
+   "pages": 1,
+   "meeting_date": "2026-03-07",
+   "tasks": [
+    {
+     "title": "Remove the legacy export endpoint",
+     "owner": "Tomasz",
+     "due_date": "2026-03-27"
+    },
+    {
+     "title": "Backfill the missing invoice rows",
+     "owner": "Tomasz",
+     "due_date": "2026-03-14"
+    },
+    {
+     "title": "Draft the Q2 capacity plan",
+     "owner": "Lucia",
+     "due_date": "2026-03-15"
+    }
+   ],
+   "decisions": [],
+   "risks": [
+    {
+     "title": "Vendor delivery may slip past the launch date"
+    }
+   ],
+   "text": [
+    "Onboarding sync - meeting 2026-03-07",
+    "Agenda: Support queue, Hiring, Roadmap",
+    "Remove the legacy export endpoint Tomasz Mar 27, 2026",
+    "Backfill the missing invoice rows Tomasz 14 Mar 2026",
+    "Draft the Q2 capacity plan Lucia 2026-03-15",
+    "Risks",
+    "Vendor delivery may slip past the launch date"
+   ]
+  },
+  {
+   "id": "doc20",
+   "file": "doc20.jpg",
+   "pages": 1,
+   "meeting_date": "2026-03-03",
+   "tasks": [
+    {
+     "title": "Review the vendor security questionnaire",
+     "owner": "Tomasz",
+     "due_date": "2026-03-23"
+    },
+    {
+     "title": "Publish the incident review for the March outage",
+     "owner": "Search team",
+     "due_date": "2026-03-16"
+    }
+   ],
+   "decisions": [
+    {
+     "summary": "Use feature flags for every customer-facing launch"
+    },
+    {
+     "summary": "Freeze schema changes during the audit window"
+    }
+   ],
+   "risks": [
+    {
+     "title": "Load tests have not covered the new search index"
+    }
+   ],
+   "text": [
+    "Mobile sync - meeting 2026-03-03",
+    "Agenda: Budget, Roadmap, Tooling",
+    "Action items",
+    "Tomasz will review the vendor security questionnaire by 23 Mar 2026.",
+    "Search team will publish the incident review for the March outage by 2026-03-16.",
+    "Decisions",
+    "Use feature flags for every customer-facing launch",
+    "Freeze schema changes during the audit window",
+    "Risks",
+    "Load tests have not covered the new search index"
+   ]
+  }
+ ]
+}

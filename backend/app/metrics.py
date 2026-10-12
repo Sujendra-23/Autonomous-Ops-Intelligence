@@ -72,3 +72,14 @@ def track_llm_call(provider: str, model: str, operation: str) -> Iterator[LLMCal
 
 def record_extraction(outcome: str, reason: str = "none", *, mode: str = "full") -> None:
     EXTRACTIONS.labels(mode, outcome, reason).inc()
+
+DOCUMENT_PAGES = Counter(
+    "aoi_ingest_document_pages_total",
+    "Pages (or images) rendered for vision extraction, by file type.",
+    ["file_type"],
+)
+VIDEO_FRAMES = Counter(
+    "aoi_ingest_video_frames_total",
+    "Keyframes sampled from screen recordings, by sampling mode (scene or interval).",
+    ["mode"],
+)
