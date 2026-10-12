@@ -548,6 +548,31 @@ and executes through dedicated read-only PostgreSQL roles. Owner names/emails ar
 unless the caller holds the separate analytics owner permission. Includes a deterministic
 20-question eval and an optional live Claude eval. See [setup and security boundaries](docs/analytics.md).
 
+## MCP server for the analytics layer
+
+`python -m app.mcp_server` (or `make mcp`) serves the same curated views to any MCP client
+(Claude Desktop, Claude Code, an IDE) over stdio, built on the official Python `mcp` SDK
+(`FastMCP`). Three tools: `list_views`, `describe_view`, `run_query`. `run_query` goes through
+the same `validate_sql` / `execute_sql` path as `/api/intelligence/ask`, so the closed SQL
+dialect, single-view allowlist, restricted read-only role and 200-row cap are unchanged. The
+client's own model writes the SQL from `describe_view`; this server calls no LLM.
+
+It answers from the masked views. Owner names/emails need `MCP_ALLOW_OWNER_ACCESS=true` **and**
+`INTELLIGENCE_OWNER_DATABASE_URL`; the flag alone grants nothing.
+
+```json
+{
+  "mcpServers": {
+    "aoi-analytics": {
+      "command": "make",
+      "args": ["-C", "/path/to/autonomous-ops-intelligence", "-s", "mcp"]
+    }
+  }
+}
+```
+
+Details, local (non-Docker) launch, and the threat model: [docs/mcp.md](docs/mcp.md).
+
 ## Console and the streamed "Ask" panel
 
 The console in `frontend/` is a Next.js App Router app (server layout and per-route
