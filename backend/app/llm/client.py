@@ -21,7 +21,15 @@ from tenacity import (
 )
 
 from app.config import get_settings
-from app.llm.prompts import SYSTEM_PROMPT, build_user_prompt
+from app.llm.prompts import (
+    CAPTION_SYSTEM_PROMPT,
+    DOCUMENT_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    build_caption_prompt,
+    build_document_prompt,
+    build_user_prompt,
+)
+from app.llm.vision import ImagePart, anthropic_image_block, openai_image_block
 from app.logging import get_logger
 from app.metrics import track_llm_call
 from app.schemas.extraction import ExtractionResult
@@ -46,6 +54,22 @@ class LLMClient(ABC):
         prior_context: str | None = None,
     ) -> ExtractionResult:
         ...
+
+    async def extract_images(
+        self,
+        images: list[ImagePart],
+        *,
+        meeting_title: str | None = None,
+        meeting_date: str | None = None,
+        participants: list[str] | None = None,
+        project_hint: str | None = None,
+    ) -> ExtractionResult:
+        """Extract the same typed result from page images (scanned agenda, action list)."""
+        raise LLMError(f"{type(self).__name__} does not support image input")
+
+    async def caption_image(self, image: ImagePart, *, timestamp: str) -> str:
+        """Describe one video keyframe in a sentence or two (operation ``caption_frame``)."""
+        raise LLMError(f"{type(self).__name__} does not support image input")
 
 
 # --------------------------------------------------------------------------- #
@@ -113,6 +137,88 @@ class OpenAIClient(LLMClient):
                 call.outcome = "invalid_output"
                 raise
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (openai.RateLimitError, openai.APIConnectionError, openai.APIStatusError)
+        ),
+    )
+    async def extract_images(
+        self,
+        images: list[ImagePart],
+        *,
+        meeting_title: str | None = None,
+        meeting_date: str | None = None,
+        participants: list[str] | None = None,
+        project_hint: str | None = None,
+    ) -> ExtractionResult:
+        prompt = build_document_prompt(
+            len(images),
+            meeting_title=meeting_title,
+            meeting_date=meeting_date,
+            participants=participants,
+            project_hint=project_hint,
+        )
+        content = [{"type": "text", "text": prompt}, *(openai_image_block(i) for i in images)]
+        with track_llm_call("openai", self._model, "extract_document") as call:
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": DOCUMENT_SYSTEM_PROMPT},
+                        {"role": "user", "content": content},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                )
+            except openai.OpenAIError as exc:
+                raise LLMError(f"OpenAI call failed: {exc}") from exc
+
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
+            )
+            raw = response.choices[0].message.content or ""
+            try:
+                return _parse_extraction(raw, provider="openai")
+            except LLMError:
+                call.outcome = "invalid_output"
+                raise
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (openai.RateLimitError, openai.APIConnectionError, openai.APIStatusError)
+        ),
+    )
+    async def caption_image(self, image: ImagePart, *, timestamp: str) -> str:
+        content = [
+            {"type": "text", "text": build_caption_prompt(timestamp)},
+            openai_image_block(image),
+        ]
+        with track_llm_call("openai", self._model, "caption_frame") as call:
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": CAPTION_SYSTEM_PROMPT},
+                        {"role": "user", "content": content},
+                    ],
+                    max_tokens=300,
+                    temperature=0.1,
+                )
+            except openai.OpenAIError as exc:
+                raise LLMError(f"OpenAI call failed: {exc}") from exc
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
+            )
+            return (response.choices[0].message.content or "").strip()
+
 
 # --------------------------------------------------------------------------- #
 # Anthropic                                                                   #
@@ -177,6 +283,84 @@ class AnthropicClient(LLMClient):
                 call.outcome = "invalid_output"
                 raise
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.APIStatusError)
+        ),
+    )
+    async def extract_images(
+        self,
+        images: list[ImagePart],
+        *,
+        meeting_title: str | None = None,
+        meeting_date: str | None = None,
+        participants: list[str] | None = None,
+        project_hint: str | None = None,
+    ) -> ExtractionResult:
+        prompt = build_document_prompt(
+            len(images),
+            meeting_title=meeting_title,
+            meeting_date=meeting_date,
+            participants=participants,
+            project_hint=project_hint,
+        )
+        content = [*(anthropic_image_block(i) for i in images), {"type": "text", "text": prompt}]
+        with track_llm_call("anthropic", self._model, "extract_document") as call:
+            try:
+                response = await self._client.messages.create(
+                    model=self._model,
+                    system=DOCUMENT_SYSTEM_PROMPT,
+                    max_tokens=4096,
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": content}],
+                )
+            except anthropic.AnthropicError as exc:
+                raise LLMError(f"Anthropic call failed: {exc}") from exc
+
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
+            )
+            raw = "".join(block.text for block in response.content if hasattr(block, "text"))
+            try:
+                return _parse_extraction(raw, provider="anthropic")
+            except LLMError:
+                call.outcome = "invalid_output"
+                raise
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(
+            (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.APIStatusError)
+        ),
+    )
+    async def caption_image(self, image: ImagePart, *, timestamp: str) -> str:
+        content = [
+            anthropic_image_block(image),
+            {"type": "text", "text": build_caption_prompt(timestamp)},
+        ]
+        with track_llm_call("anthropic", self._model, "caption_frame") as call:
+            try:
+                response = await self._client.messages.create(
+                    model=self._model,
+                    system=CAPTION_SYSTEM_PROMPT,
+                    max_tokens=300,
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": content}],
+                )
+            except anthropic.AnthropicError as exc:
+                raise LLMError(f"Anthropic call failed: {exc}") from exc
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
+            )
+            return "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+
 
 # --------------------------------------------------------------------------- #
 # Helpers                                                                      #
@@ -205,7 +389,7 @@ def _parse_extraction(raw: str, *, provider: str) -> ExtractionResult:
 
     try:
         return ExtractionResult.model_validate(data)
-    except Exception as exc:  # noqa: BLE001 — pydantic raises various subclasses
+    except Exception as exc:
         logger.error(
             "llm.schema_violation", provider=provider, data=data, error=str(exc)
         )
