@@ -39,6 +39,7 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __table_args__ = (
         Index("ix_tasks_status_due", "status", "due_date"),
         Index("ix_tasks_owner", "owner"),
+        Index("ix_tasks_field_service_job_id", "field_service_job_id"),
     )
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -74,6 +75,8 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     jira_issue_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     salesforce_task_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     salesforce_task_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    field_service_job_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    field_service_job_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     notion_block_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     last_status_change_at: Mapped[datetime] = mapped_column(

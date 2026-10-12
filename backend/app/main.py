@@ -14,6 +14,7 @@ from app import __version__
 from app.api import (
     account,
     decisions,
+    field_service_webhook,
     integrations,
     intelligence,
     live,
@@ -66,6 +67,7 @@ async def lifespan(app: FastAPI):
         linear=settings.linear_enabled,
         jira=settings.jira_enabled,
         salesforce=settings.salesforce_enabled,
+        field_service=settings.field_service_enabled,
         slack=settings.slack_enabled,
     )
     yield
@@ -155,6 +157,8 @@ app.include_router(live.router, prefix="/api/live", tags=["live"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 
 app.include_router(account.router, prefix="/api/account", tags=["account"])
+# Outside /api on purpose: the provider authenticates with an HMAC signature, not our tokens.
+app.include_router(field_service_webhook.router, prefix="/webhooks", tags=["webhooks"])
 
 
 @app.get("/ready", tags=["meta"])

@@ -17,6 +17,10 @@ The existing app is not a multi-tenant authorization boundary; use a trusted dep
 Provider keys, calendar grants, and webhook signing keys stay on the backend. The extension
 only needs the backend URL and its ingestion key.
 
+## Field service
+
+Jobs and appointments mirroring with signed webhooks: see [field-service.md](field-service.md).
+
 ## Google Calendar
 
 Enable Google Calendar API in your Google Cloud project and create an OAuth client.
