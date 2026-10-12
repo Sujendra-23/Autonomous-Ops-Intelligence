@@ -5,8 +5,12 @@ CREATE ROLE aoi_analytics_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOIN
 ALTER ROLE aoi_analytics_masked SET default_transaction_read_only = on;
 ALTER ROLE aoi_analytics_owner SET default_transaction_read_only = on;
 GRANT USAGE ON SCHEMA analytics_masked TO aoi_analytics_masked;
-GRANT SELECT ON analytics_masked.tasks, analytics_masked.risks, analytics_masked.blockers TO aoi_analytics_masked;
+GRANT SELECT ON analytics_masked.tasks, analytics_masked.risks, analytics_masked.blockers,
+    analytics_masked.pull_requests, analytics_masked.deployments, analytics_masked.dora_weekly
+    TO aoi_analytics_masked;
 GRANT USAGE ON SCHEMA analytics_owner TO aoi_analytics_owner;
-GRANT SELECT ON analytics_owner.tasks, analytics_owner.risks, analytics_owner.blockers TO aoi_analytics_owner;
+GRANT SELECT ON analytics_owner.tasks, analytics_owner.risks, analytics_owner.blockers,
+    analytics_owner.pull_requests, analytics_owner.deployments, analytics_owner.dora_weekly
+    TO aoi_analytics_owner;
 -- Provision LOGIN and separate generated passwords through your secret manager.
 -- Never grant these roles membership in application/owner roles or base tables.

@@ -1,4 +1,4 @@
-"""Regenerate the checked-in, deterministic 20-question evaluation dataset."""
+"""Regenerate the checked-in, deterministic 26-question evaluation dataset."""
 
 import json
 from pathlib import Path
@@ -20,6 +20,154 @@ BLOCKERS = [
     ["b1", "p1", "t1", "open", "high", None],
     ["b2", "p2", "t4", "open", "critical", None],
     ["b3", "p1", "t2", "resolved", "low", "2026-01-01"],
+]
+# Precomputed view outputs (the eval fixture stands in for the semantic views, not the tables).
+PULL_REQUESTS = [
+    [
+        "pr1",
+        "a/x",
+        "merged",
+        "Ada",
+        True,
+        "2026-01-05T09:00",
+        "2026-01-05T10:00",
+        "2026-01-05T17:00",
+        True,
+        1.0,
+        8.0,
+        "2026-01-06T10:00",
+        "2026-01-05",
+        25.0,
+    ],
+    [
+        "pr2",
+        "a/x",
+        "merged",
+        "bo",
+        True,
+        "2026-01-06T09:00",
+        "2026-01-06T15:00",
+        "2026-01-07T09:00",
+        True,
+        6.0,
+        24.0,
+        "2026-01-08T09:00",
+        "2026-01-05",
+        48.0,
+    ],
+    [
+        "pr3",
+        "a/x",
+        "open",
+        "Cy",
+        True,
+        "2026-01-12T09:00",
+        None,
+        None,
+        False,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ],
+    [
+        "pr4",
+        "a/x",
+        "closed",
+        None,
+        False,
+        "2026-01-12T10:00",
+        None,
+        None,
+        False,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ],
+]
+DEPLOYMENTS = [
+    [
+        "d1",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "success",
+        "2026-01-06T09:50",
+        "2026-01-06T10:00",
+        True,
+        False,
+        0,
+        "2026-01-05",
+        None,
+        None,
+    ],
+    [
+        "d2",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "failure",
+        "2026-01-07T09:50",
+        "2026-01-07T10:00",
+        True,
+        True,
+        1,
+        "2026-01-05",
+        "2026-01-08T09:00",
+        23.0,
+    ],
+    [
+        "d3",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "success",
+        "2026-01-08T08:50",
+        "2026-01-08T09:00",
+        True,
+        False,
+        0,
+        "2026-01-05",
+        None,
+        None,
+    ],
+    [
+        "d4",
+        "a/x",
+        "production",
+        "deploy.yml",
+        "success",
+        "2026-01-13T09:50",
+        "2026-01-13T10:00",
+        True,
+        False,
+        0,
+        "2026-01-12",
+        None,
+        None,
+    ],
+    [
+        "d5",
+        "a/x",
+        "staging",
+        "deploy.yml",
+        "success",
+        "2026-01-13T08:50",
+        "2026-01-13T09:00",
+        False,
+        False,
+        0,
+        "2026-01-12",
+        None,
+        None,
+    ],
+]
+DORA_WEEKLY = [
+    ["a/x", "2026-01-05", 2, 1, 1 / 3, 36.5, 1, 23.0],
+    ["a/x", "2026-01-12", 1, 0, 0.0, None, 0, None],
 ]
 CASES = [
     ("How many tasks are there?", "SELECT COUNT(*) FROM analytics.tasks", [[6]]),
@@ -118,13 +266,51 @@ CASES = [
         "SELECT COUNT(*) FROM analytics.blockers WHERE resolved_at IS NULL",
         [[2]],
     ),
+    (
+        "How many production deployments succeeded?",
+        "SELECT COUNT(*) FROM analytics.deployments "
+        "WHERE is_production = TRUE AND status = 'success'",
+        [[3]],
+    ),
+    (
+        "Deployment frequency: successful production deployments per week.",
+        "SELECT week_start, deployment_count FROM analytics.dora_weekly ORDER BY week_start",
+        [["2026-01-05", 2], ["2026-01-12", 1]],
+    ),
+    (
+        "What is the change failure rate of production deployments?",
+        "SELECT AVG(failed) FROM analytics.deployments WHERE is_production = TRUE",
+        [[0.25]],
+    ),
+    (
+        "What is the average lead time in hours for merged pull requests?",
+        "SELECT AVG(lead_time_hours) FROM analytics.pull_requests WHERE is_merged = TRUE",
+        [[36.5]],
+    ),
+    (
+        "What is the average time to restore in hours?",
+        "SELECT AVG(hours_to_restore) FROM analytics.deployments WHERE is_production = TRUE",
+        [[23.0]],
+    ),
+    (
+        "How many pull requests are still open?",
+        "SELECT COUNT(*) FROM analytics.pull_requests WHERE state = 'open'",
+        [[1]],
+    ),
 ]
 
 if __name__ == "__main__":
     Path(__file__).with_name("analytics.json").write_text(
         json.dumps(
             {
-                "fixtures": {"tasks": TASKS, "risks": RISKS, "blockers": BLOCKERS},
+                "fixtures": {
+                    "tasks": TASKS,
+                    "risks": RISKS,
+                    "blockers": BLOCKERS,
+                    "pull_requests": PULL_REQUESTS,
+                    "deployments": DEPLOYMENTS,
+                    "dora_weekly": DORA_WEEKLY,
+                },
                 "cases": [
                     {"question": q, "sql": sql, "expected": expected} for q, sql, expected in CASES
                 ],

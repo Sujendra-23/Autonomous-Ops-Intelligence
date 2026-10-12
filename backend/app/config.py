@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     intelligence_owner_api_key: SecretStr = SecretStr("")
     intelligence_database_url: SecretStr = SecretStr("")
     intelligence_owner_database_url: SecretStr = SecretStr("")
+    # Read-only GitHub token for the developer-metrics ingest (python -m app.ingest.github_metrics).
+    github_token: SecretStr = SecretStr("")
 
     # ---- Database ----
     database_url: str = "postgresql+asyncpg://aoi:aoi@localhost:5432/aoi"

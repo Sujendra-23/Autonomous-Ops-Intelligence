@@ -51,8 +51,12 @@ WORKSPACE_DATA_TABLES = (
 )
 ACCOUNT_TABLES = ("memberships", "access_tokens")
 ROOT_TABLES = ("accounts", "workspaces")
-# Tables that are reviewed and known to hold neither account nor customer data.
-UNRELATED_TABLES = frozenset({"alembic_version", "data_subject_audit"})
+# Tables that are reviewed and known to hold neither account nor customer data. The developer
+# metrics tables are operator-ingested engineering telemetry (GitHub PR author logins, no
+# account or workspace key), not SaaS customer content; see docs/developer-metrics.md.
+UNRELATED_TABLES = frozenset(
+    {"alembic_version", "data_subject_audit", "pull_requests", "deployments"}
+)
 
 # Columns that are never exported. Named in the bundle, never valued.
 SECRET_COLUMNS = {

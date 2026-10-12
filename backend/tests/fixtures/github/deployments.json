@@ -1,0 +1,30 @@
+[
+ {
+  "id": 903,
+  "sha": "c3",
+  "task": "deploy",
+  "environment": "production",
+  "created_at": "2026-01-12T10:00:00Z"
+ },
+ {
+  "id": 902,
+  "sha": "b2",
+  "task": "deploy",
+  "environment": "production",
+  "created_at": "2026-01-08T10:00:00Z"
+ },
+ {
+  "id": 901,
+  "sha": "a1",
+  "task": "deploy",
+  "environment": "production",
+  "created_at": "2026-01-05T10:00:00Z"
+ },
+ {
+  "id": 900,
+  "sha": "a0",
+  "task": "deploy",
+  "environment": "production",
+  "created_at": "2025-06-01T10:00:00Z"
+ }
+]
