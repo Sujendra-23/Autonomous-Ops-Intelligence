@@ -1,0 +1,41 @@
+# Backend only. The worker is deliberately not autoscaled (see worker.yaml).
+#
+# Choices, with the reasons in docs/observability.md and docs/kubernetes.md:
+# - CPU is the only signal, and a weak one: most request time is spent waiting on the LLM
+#   provider. Treat this as a safety valve for bursts, not as capacity planning.
+# - maxReplicas is 4 because each pod's SQLAlchemy pool allows 30 connections (10 + 20 overflow):
+#   4 pods can open 120, which already exceeds PostgreSQL's default max_connections of 100.
+#   Raise it only after sizing max_connections or putting a session-mode pooler in front.
+# - Scale-down is slow and one pod at a time. Pods removed by scale-in lose their in-process
+#   metrics series and may be holding a live-transcription WebSocket (up to a 45 s drain).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aoi-backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aoi-backend
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300

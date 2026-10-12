@@ -37,6 +37,34 @@ analytics endpoint. Labels are low-cardinality on purpose: no tenant, transcript
 Metrics are per process. Run a single uvicorn worker, as Compose does, or enable
 `prometheus_client` multiprocess mode before scaling out.
 
+### Scaling and per-process metrics on Kubernetes
+
+`deploy/k8s` keeps the one-uvicorn-process-per-pod rule and scales by adding pods instead. What that
+does and does not break, and what was chosen:
+
+- **Scrape pods, not the Service.** The counters and histograms live in each process. The
+  ServiceMonitor (and the `prometheus.io/*` pod annotations) make Prometheus scrape every pod's
+  endpoint as its own series. Pointing a scrape at the Service ClusterIP would round-robin between
+  pods and make each counter appear to jump up and down, which `increase()` reads as resets.
+- **The alert rules already aggregate correctly.** They are written as
+  `sum by (...) (increase(metric[window]))`: `increase()` runs per pod series, then the results are
+  summed. A pod added by the autoscaler, restarted, or removed contributes what it recorded inside the
+  window and nothing breaks. The existing caveat applies per pod: Prometheus cannot see a new series'
+  first sample, so the first error from a brand-new pod is not counted.
+- **`AOIMetricsTargetDown` fires per pod** (`up{job="aoi-backend"} == 0` for 5 minutes). A rolling
+  update stays under that; a pod that stays unreachable pages. The `job` label equals the Service name,
+  which is why the Service is called `aoi-backend`.
+- **Only the backend autoscales, on CPU, between 2 and 4 pods, scaling down slowly.** Slow scale-in
+  limits how often a pod's series disappears mid-window and gives live-transcription WebSockets time to
+  drain (45 s grace period). CPU is a weak signal because requests mostly wait on the LLM provider, so
+  treat the HPA as a burst valve. The cap of 4 is set by the database: each pod's pool allows 30
+  connections, so more pods need a larger `max_connections` or a session-mode pooler first.
+- **The worker is not autoscaled and runs one replica.** Outside SaaS mode its scheduler takes no
+  lock, so a second replica would run every drift scan again and send duplicate reminders.
+- **Not chosen:** `prometheus_client` multiprocess mode. It would allow `--workers` inside a pod, at the
+  cost of a shared metrics directory, gauge-mode decisions and a cleanup hook on worker exit.
+  More small pods give the same capacity with no code change.
+
 ## Alerts
 
 `observability/rules.yml` ships seven alerts, loaded automatically by Prometheus. Each carries a
@@ -60,6 +88,10 @@ not counted until a second arrives.
 ```sh
 make check-alerts      # promtool check rules + promtool test rules (needs Docker)
 ```
+
+On Kubernetes the same rules ship as a `PrometheusRule` generated from this file
+(`scripts/render_prometheusrule.py`), so there is still one definition; see
+[kubernetes.md](kubernetes.md).
 
 `observability/tests/rules.test.yml` feeds synthetic series to every alert and asserts both that
 it fires with the expected labels and annotations and that near-misses (healthy traffic, too few

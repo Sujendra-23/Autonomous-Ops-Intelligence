@@ -1,0 +1,60 @@
+# Drift monitor, webhook delivery and (in SaaS mode) queued extraction. It has no HTTP server, so
+# there are no probes: the kubelet restarts it if the process exits. It is not autoscaled and runs
+# one replica: outside SaaS mode the scheduler takes no lock, so two replicas would each run every
+# drift scan and send duplicate reminders. Recreate (not RollingUpdate) avoids an overlap while
+# the old pod is still running.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aoi-worker
+  labels:
+    app.kubernetes.io/name: aoi-worker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aoi-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aoi-worker
+    spec:
+      serviceAccountName: aoi-backend
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: aoi-backend
+          command: ["python", "-m", "app.workers.scheduler"]
+          envFrom:
+            - configMapRef:
+                name: aoi-config
+            - secretRef:
+                name: aoi-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

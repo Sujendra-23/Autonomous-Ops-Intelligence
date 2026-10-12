@@ -1,0 +1,99 @@
+# GENERATED from observability/rules.yml by scripts/render_prometheusrule.py. Do not edit.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aoi-alerts
+  labels:
+    app.kubernetes.io/part-of: autonomous-ops-intelligence
+spec:
+  groups:
+  - name: aoi-llm
+    rules:
+    - alert: AOILLMProviderErrorRatioHigh
+      expr: "sum by (provider, operation) (increase(aoi_llm_requests_total{outcome=\"error\"}[30m]))\n\
+        \  / sum by (provider, operation) (increase(aoi_llm_requests_total[30m])) > 0.1\nand sum by (provider,\
+        \ operation) (increase(aoi_llm_requests_total[30m])) >= 5\n"
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: More than 10% of {{ $labels.provider }} {{ $labels.operation }} calls are failing
+        description: '{{ $value | humanizePercentage }} of {{ $labels.operation }} calls to {{ $labels.provider
+          }} ended in outcome="error" (provider/network/auth failure) over 30 minutes. Retries count once
+          per attempt.'
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmprovidererrorratiohigh
+    - alert: AOILLMProviderUnavailable
+      expr: "sum by (provider, operation) (increase(aoi_llm_requests_total{outcome=\"error\"}[10m]))\n\
+        \  / sum by (provider, operation) (increase(aoi_llm_requests_total[10m])) > 0.5\nand sum by (provider,\
+        \ operation) (increase(aoi_llm_requests_total[10m])) >= 3\n"
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: '{{ $labels.provider }} {{ $labels.operation }} calls are mostly failing'
+        description: '{{ $value | humanizePercentage }} of {{ $labels.operation }} calls to {{ $labels.provider
+          }} failed over 10 minutes: treat as an outage or a broken credential, not a blip.'
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmproviderunavailable
+    - alert: AOILLMInvalidOutputRatioHigh
+      expr: "sum by (provider, model, operation) (increase(aoi_llm_requests_total{outcome=\"invalid_output\"\
+        }[30m]))\n  / sum by (provider, model, operation) (increase(aoi_llm_requests_total[30m])) > 0.1\n\
+        and sum by (provider, model, operation) (increase(aoi_llm_requests_total[30m])) >= 5\n"
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: '{{ $labels.model }} is returning unparseable output for {{ $labels.operation }}'
+        description: '{{ $value | humanizePercentage }} of {{ $labels.operation }} responses from {{ $labels.model
+          }} failed JSON or schema validation over 30 minutes (the provider answered, but the answer was
+          unusable).'
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillminvalidoutputratiohigh
+    - alert: AOILLMLatencyP95High
+      expr: "histogram_quantile(0.95,\n  sum by (le, provider, operation) (increase(aoi_llm_request_duration_seconds_bucket[15m])))\n\
+        \  > 30\nand sum by (provider, operation) (increase(aoi_llm_request_duration_seconds_count[15m]))\
+        \ >= 5\n"
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: p95 {{ $labels.provider }} {{ $labels.operation }} latency is above 30s
+        description: p95 latency is {{ $value | humanizeDuration }} over 15 minutes. Each retry attempt
+          is its own observation.
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmlatencyp95high
+    - alert: AOILLMLatencyP95Critical
+      expr: "histogram_quantile(0.95,\n  sum by (le, provider, operation) (increase(aoi_llm_request_duration_seconds_bucket[15m])))\n\
+        \  > 60\nand sum by (provider, operation) (increase(aoi_llm_request_duration_seconds_count[15m]))\
+        \ >= 5\n"
+      for: 10m
+      labels:
+        severity: critical
+      annotations:
+        summary: p95 {{ $labels.provider }} {{ $labels.operation }} latency is above 60s
+        description: p95 latency is {{ $value | humanizeDuration }} over 15 minutes; the provider call
+          timeouts and request deadlines are close.
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmlatencyp95critical
+  - name: aoi-extraction
+    rules:
+    - alert: AOIExtractionFailures
+      expr: 'sum(increase(aoi_extractions_total{mode="full",outcome="failed"}[15m])) > 3
+
+        '
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: Transcript extractions are failing repeatedly
+        description: '{{ $value | printf "%.0f" }} full extractions failed in the last 15 minutes. Check
+          the reason label (llm_error vs pipeline_error) to see which side is failing.'
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoiextractionfailures
+  - name: aoi-scrape
+    rules:
+    - alert: AOIMetricsTargetDown
+      expr: up{job="aoi-backend"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: Prometheus cannot scrape the AOI backend
+        description: No metrics from {{ $labels.instance }} for 5 minutes. Every alert above is blind
+          while this fires.
+        runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown
