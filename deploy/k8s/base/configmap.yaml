@@ -1,0 +1,21 @@
+# Non-secret settings. Credentials (database/Redis URLs, API keys, tokens) live in the Secret
+# `aoi-secrets`; see ../secret.example.yaml. The defaults here are fail-closed: the app refuses to
+# start with ENVIRONMENT=production unless AUTH_MODE=oidc and the issuer/audience/JWKS are set,
+# so an overlay must fill them in (overlays/production) or deliberately choose development
+# (overlays/kind).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aoi-config
+data:
+  ENVIRONMENT: production
+  AUTH_MODE: oidc
+  AUTH_ISSUER: ""
+  AUTH_AUDIENCE: ""
+  AUTH_JWKS_URL: ""
+  CORS_ORIGINS: ""
+  LLM_PROVIDER: anthropic
+  ANTHROPIC_MODEL: claude-haiku-4-5-20251001
+  OPENAI_MODEL: gpt-4o-mini
+  EMBEDDING_PROVIDER: openai
+  LOG_LEVEL: INFO

@@ -1,0 +1,8 @@
+# Optional. Apply with `kubectl apply -k deploy/k8s/monitoring` after the Prometheus Operator CRDs
+# exist; it adds the scrape config and the seven alert rules from observability/rules.yml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: aoi
+resources:
+  - servicemonitor.yaml
+  - prometheusrule.yaml

@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: aoi
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: autonomous-ops-intelligence
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - backend.yaml
+  - worker.yaml
+  - hpa.yaml
+  - pdb.yaml
+images:
+  - name: aoi-backend
+    newName: aoi-backend
+    newTag: dev

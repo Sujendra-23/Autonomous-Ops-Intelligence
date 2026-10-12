@@ -566,6 +566,12 @@ API-key auth mode (analytics returns 503 under OIDC).
 cd frontend && npm install && npm test && npm run build
 ```
 
+## Kubernetes
+
+`deploy/k8s` has Kustomize manifests for the backend and worker (probes, HPA, PDB, migration Job,
+ServiceMonitor and the seven alert rules), a kind overlay with in-cluster Postgres and Redis, and a
+smoke test CI runs on every PR. See [docs/kubernetes.md](docs/kubernetes.md).
+
 ## Observability
 
 `GET /metrics` exposes Prometheus metrics for LLM latency, token usage, call outcomes (including

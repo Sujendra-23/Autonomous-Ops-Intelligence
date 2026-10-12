@@ -1,0 +1,62 @@
+# Development overlay for a local kind cluster: in-cluster PostgreSQL (pgvector) and Redis with
+# throwaway storage, development auth, and the local embedder so no API keys are needed.
+# The values in the generated Secret are dev placeholders for a cluster that exists on one
+# laptop or CI runner; they are not secrets.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../migrate
+  - postgres.yaml
+  - redis.yaml
+images:
+  - name: aoi-backend
+    newName: aoi-backend
+    newTag: kind
+generatorOptions:
+  disableNameSuffixHash: true
+secretGenerator:
+  - name: aoi-secrets
+    namespace: aoi
+    literals:
+      - DATABASE_URL=postgresql+asyncpg://aoi:aoi@postgres:5432/aoi
+      - MIGRATION_DATABASE_URL=postgresql+asyncpg://aoi:aoi@postgres:5432/aoi
+      - REDIS_URL=redis://redis:6379/0
+      - METRICS_TOKEN=dev-metrics-token
+patches:
+  # The stock postgres and redis images start as root, which the restricted Pod Security level
+  # rejects. Managed databases are used outside dev, so only this overlay relaxes it.
+  - target: {kind: Namespace, name: aoi}
+    patch: |-
+      - op: replace
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce
+        value: baseline
+  - target: {kind: ConfigMap, name: aoi-config}
+    patch: |-
+      - op: replace
+        path: /data/ENVIRONMENT
+        value: development
+      - op: replace
+        path: /data/AUTH_MODE
+        value: development
+      - op: replace
+        path: /data/EMBEDDING_PROVIDER
+        value: local
+      - op: replace
+        path: /data/CORS_ORIGINS
+        value: http://localhost:5173
+  - target: {kind: Deployment, name: aoi-backend}
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target: {kind: HorizontalPodAutoscaler, name: aoi-backend}
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+  - target: {kind: PodDisruptionBudget, name: aoi-backend}
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 0

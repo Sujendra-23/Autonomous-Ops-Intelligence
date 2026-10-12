@@ -1,0 +1,32 @@
+# Requires the Prometheus Operator CRDs (kube-prometheus-stack or similar). Prometheus must be
+# configured to select this namespace and these labels (serviceMonitorNamespaceSelector /
+# serviceMonitorSelector, plus ruleSelector for aoi-alerts).
+#
+# Prometheus discovers the Endpoints behind the Service, so every backend pod is scraped
+# individually. That is required: /metrics is per process, and scraping the Service address would
+# round-robin between pods and make the counters jump around.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: aoi-backend
+  labels:
+    app.kubernetes.io/part-of: autonomous-ops-intelligence
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aoi-backend
+  namespaceSelector:
+    matchNames: [aoi]
+  # The Service is named aoi-backend, so the target's `job` label is aoi-backend, which is what
+  # AOIMetricsTargetDown in observability/rules.yml expects.
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      # In oidc mode the endpoint is closed (404) without METRICS_TOKEN; with it, require Bearer.
+      authorization:
+        type: Bearer
+        credentials:
+          name: aoi-secrets
+          key: METRICS_TOKEN
