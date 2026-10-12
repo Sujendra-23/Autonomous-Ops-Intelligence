@@ -566,6 +566,11 @@ API-key auth mode (analytics returns 503 under OIDC).
 cd frontend && npm install && npm test && npm run build
 ```
 
+## Java client
+
+`clients/java` is a small Spring Boot 3 client library (Maven, JUnit 5 + MockWebServer) for posting a
+transcript and reading tasks back. See [clients/java/README.md](clients/java/README.md).
+
 ## Observability
 
 `GET /metrics` exposes Prometheus metrics for LLM latency, token usage, call outcomes (including
