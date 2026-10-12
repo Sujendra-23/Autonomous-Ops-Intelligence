@@ -1,0 +1,212 @@
+# Unit tests for ../rules.yml. Run: make check-alerts
+#   promtool test rules observability/tests/rules.test.yml
+# Counters start at 0 on purpose: Prometheus' increase() cannot see a series' first sample, so
+# a counter that appears already at 1 is invisible until the second event (see docs/runbook.md).
+rule_files:
+  - ../rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: provider error ratio above 10% (but below 50%) warns only
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_requests_total{provider="anthropic",model="m",operation="extract",outcome="success"}'
+        values: '0+9x90'
+      - series: 'aoi_llm_requests_total{provider="anthropic",model="m",operation="extract",outcome="error"}'
+        values: '0+3x90'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AOILLMProviderErrorRatioHigh
+        exp_alerts: []  # still within the 10m "for"
+      - eval_time: 30m
+        alertname: AOILLMProviderErrorRatioHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              provider: anthropic
+              operation: extract
+            exp_annotations:
+              summary: "More than 10% of anthropic extract calls are failing"
+              description: "25% of extract calls to anthropic ended in outcome=\"error\" (provider/network/auth failure) over 30 minutes. Retries count once per attempt."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmprovidererrorratiohigh
+      - eval_time: 30m
+        alertname: AOILLMProviderUnavailable
+        exp_alerts: []
+
+  - name: provider mostly failing is critical
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_requests_total{provider="openai",model="m",operation="analytics_sql",outcome="success"}'
+        values: '0+1x60'
+      - series: 'aoi_llm_requests_total{provider="openai",model="m",operation="analytics_sql",outcome="error"}'
+        values: '0+4x60'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: AOILLMProviderUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              provider: openai
+              operation: analytics_sql
+            exp_annotations:
+              summary: "openai analytics_sql calls are mostly failing"
+              description: "80% of analytics_sql calls to openai failed over 10 minutes: treat as an outage or a broken credential, not a blip."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmproviderunavailable
+
+  - name: healthy traffic and tiny samples do not alert
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_requests_total{provider="anthropic",model="m",operation="extract",outcome="success"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_requests_total{provider="anthropic",model="m",operation="extract",outcome="error"}'
+        values: '0+0x90'
+      # Two failures in total (fewer than the 5-call minimum): one bad hour is not a trend.
+      - series: 'aoi_llm_requests_total{provider="openai",model="m",operation="extract",outcome="error"}'
+        values: '0 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOILLMProviderErrorRatioHigh
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: AOILLMProviderUnavailable
+        exp_alerts: []
+
+  - name: invalid output ratio
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_requests_total{provider="anthropic",model="haiku",operation="extract",outcome="success"}'
+        values: '0+4x90'
+      - series: 'aoi_llm_requests_total{provider="anthropic",model="haiku",operation="extract",outcome="invalid_output"}'
+        values: '0+1x90'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOILLMInvalidOutputRatioHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              provider: anthropic
+              model: haiku
+              operation: extract
+            exp_annotations:
+              summary: "haiku is returning unparseable output for extract"
+              description: "20% of extract responses from haiku failed JSON or schema validation over 30 minutes (the provider answered, but the answer was unusable)."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillminvalidoutputratiohigh
+      # Provider errors are a different alert.
+      - eval_time: 30m
+        alertname: AOILLMProviderErrorRatioHigh
+        exp_alerts: []
+
+  - name: p95 latency between 30s and 60s warns only
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="30"}'
+        values: '0+0x90'
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="60"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="+Inf"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_request_duration_seconds_count{provider="anthropic",model="m",operation="extract"}'
+        values: '0+10x90'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOILLMLatencyP95High
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              provider: anthropic
+              operation: extract
+            exp_annotations:
+              summary: "p95 anthropic extract latency is above 30s"
+              description: "p95 latency is 58.5s over 15 minutes. Each retry attempt is its own observation."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmlatencyp95high
+      - eval_time: 30m
+        alertname: AOILLMLatencyP95Critical
+        exp_alerts: []
+
+  - name: p95 latency above 60s is critical
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="60"}'
+        values: '0+0x90'
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="120"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="+Inf"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_request_duration_seconds_count{provider="anthropic",model="m",operation="extract"}'
+        values: '0+10x90'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOILLMLatencyP95Critical
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              provider: anthropic
+              operation: extract
+            exp_annotations:
+              summary: "p95 anthropic extract latency is above 60s"
+              description: "p95 latency is 1m 57s over 15 minutes; the provider call timeouts and request deadlines are close."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoillmlatencyp95critical
+
+  - name: fast healthy calls do not alert on latency
+    interval: 1m
+    input_series:
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="4"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_request_duration_seconds_bucket{provider="anthropic",model="m",operation="extract",le="+Inf"}'
+        values: '0+10x90'
+      - series: 'aoi_llm_request_duration_seconds_count{provider="anthropic",model="m",operation="extract"}'
+        values: '0+10x90'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOILLMLatencyP95High
+        exp_alerts: []
+
+  - name: repeated full-extraction failures are critical, live-mode failures are not counted
+    interval: 1m
+    input_series:
+      - series: 'aoi_extractions_total{mode="full",outcome="failed",reason="llm_error"}'
+        values: '0+1x60'
+      - series: 'aoi_extractions_total{mode="live",outcome="failed",reason="llm_error"}'
+        values: '0+0x60'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOIExtractionFailures
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Transcript extractions are failing repeatedly"
+              description: "15 full extractions failed in the last 15 minutes. Check the reason label (llm_error vs pipeline_error) to see which side is failing."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoiextractionfailures
+
+  - name: live-only failures do not trigger extraction alert
+    interval: 1m
+    input_series:
+      - series: 'aoi_extractions_total{mode="live",outcome="failed",reason="pipeline_error"}'
+        values: '0+5x60'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: AOIExtractionFailures
+        exp_alerts: []
+
+  - name: scrape target down
+    interval: 1m
+    input_series:
+      - series: 'up{job="aoi-backend",instance="backend:8000"}'
+        values: '1x10 0x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: AOIMetricsTargetDown
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: AOIMetricsTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: aoi-backend
+              instance: "backend:8000"
+            exp_annotations:
+              summary: "Prometheus cannot scrape the AOI backend"
+              description: "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires."
+              runbook_url: https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown
