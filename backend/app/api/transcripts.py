@@ -15,6 +15,7 @@ from app.api.deps import require_ingest_key
 from app.config import get_settings
 from app.database import get_session
 from app.integrations.calendar import meeting_context, resolve_meeting_project
+from app.llm.client import LLMError, get_llm_client
 from app.models.blocker import Blocker
 from app.models.decision import Decision
 from app.models.risk import Risk
@@ -30,9 +31,16 @@ from app.schemas.transcript import (
     TranscriptList,
     TranscriptSummary,
 )
+from app.services.documents import (
+    MAX_DOCUMENT_BYTES,
+    DocumentError,
+    extract_document,
+    result_to_text,
+)
 from app.services.extraction import ExtractionPipeline
 from app.services.project_resolver import get_or_create_project
 from app.services.transcriber import MAX_BYTES, TranscriptionError, transcribe_path
+from app.services.video_frames import FrameSamplingError, recording_to_text
 
 router = APIRouter()
 
@@ -96,6 +104,142 @@ async def upload_video(
     pipeline = ExtractionPipeline(session)
     if get_settings().auth_mode != "oidc":
         await pipeline.process(transcript.id)
+    await session.refresh(transcript)
+    return await _to_detail(session, transcript)
+
+
+async def _read_limited(file: UploadFile, limit: int) -> bytes:
+    data = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        data.extend(chunk)
+        if len(data) > limit:
+            raise HTTPException(
+                status_code=413, detail=f"File exceeds the {limit // 1024 // 1024} MB limit."
+            )
+    return bytes(data)
+
+
+def _reject_in_saas_mode() -> None:
+    if get_settings().auth_mode == "oidc":
+        raise HTTPException(
+            status_code=501,
+            detail="Document and recording ingestion is not available in SaaS mode yet.",
+        )
+
+
+@router.post(
+    "/upload-document",
+    response_model=TranscriptDetail,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_ingest_key)],
+    summary="Extract tasks, decisions and risks from a scanned PDF or image",
+)
+async def upload_document(
+    file: UploadFile = File(
+        ..., description="PDF or PNG/JPEG/WebP of an agenda, minutes or action list. Max 20 MB."
+    ),
+    title: str = Form(""),
+    project_hint: str = Form(""),
+    participants: str = Form("", description="Comma-separated participant names"),
+    meeting_date: str = Form("", description="ISO date, used to resolve relative deadlines"),
+    session: AsyncSession = Depends(get_session),
+) -> TranscriptDetail:
+    _reject_in_saas_mode()
+    filename = file.filename or "document.pdf"
+    data = await _read_limited(file, MAX_DOCUMENT_BYTES)
+    participant_list = [p.strip() for p in participants.split(",") if p.strip()] or None
+    resolved_title = title.strip() or Path(filename).stem
+    try:
+        result = await extract_document(
+            get_llm_client(),
+            filename,
+            data,
+            meeting_title=resolved_title,
+            meeting_date=meeting_date.strip() or None,
+            participants=participant_list,
+            project_hint=project_hint.strip() or None,
+        )
+    except DocumentError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LLMError as exc:
+        raise HTTPException(status_code=502, detail=f"Vision extraction failed: {exc}") from exc
+
+    project = await get_or_create_project(
+        session, project_hint.strip() or result.project_hint
+    )
+    transcript = Transcript(
+        title=resolved_title,
+        content=result_to_text(result),
+        source="document_upload",
+        participants=participant_list,
+        project_id=project.id if project else None,
+    )
+    session.add(transcript)
+    await session.commit()
+    await session.refresh(transcript)
+
+    await ExtractionPipeline(session).process(transcript.id, precomputed=result)
+    await session.refresh(transcript)
+    return await _to_detail(session, transcript)
+
+
+@router.post(
+    "/upload-recording",
+    response_model=TranscriptDetail,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_ingest_key)],
+    summary="Caption a screen recording's keyframes and run extraction on the captions",
+)
+async def upload_recording(
+    file: UploadFile = File(..., description="Screen recording (mp4, webm). Max 100 MB."),
+    title: str = Form(""),
+    project_hint: str = Form(""),
+    participants: str = Form("", description="Comma-separated participant names"),
+    frame_mode: str = Form("scene", pattern="^(scene|interval)$"),
+    interval_seconds: float = Form(30.0, ge=1.0, le=600.0),
+    include_audio: bool = Form(False, description="Also transcribe the audio track (Whisper)"),
+    session: AsyncSession = Depends(get_session),
+) -> TranscriptDetail:
+    _reject_in_saas_mode()
+    filename = file.filename or "recording.mp4"
+    ext = Path(filename).suffix.lower() or ".mp4"
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        upload_path = Path(tmp_dir) / f"upload{ext}"
+        size = 0
+        with upload_path.open("wb") as fh:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="File exceeds the 100 MB limit.")
+                fh.write(chunk)
+        try:
+            audio_text = await transcribe_path(upload_path, filename) if include_audio else None
+            text = await recording_to_text(
+                get_llm_client(),
+                upload_path,
+                audio_transcript=audio_text,
+                mode=frame_mode,
+                interval=interval_seconds,
+            )
+        except (TranscriptionError, FrameSamplingError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except LLMError as exc:
+            raise HTTPException(status_code=502, detail=f"Captioning failed: {exc}") from exc
+
+    participant_list = [p.strip() for p in participants.split(",") if p.strip()] or None
+    project = await get_or_create_project(session, project_hint.strip() or None)
+    transcript = Transcript(
+        title=title.strip() or Path(filename).stem,
+        content=text,
+        source="screen_recording",
+        participants=participant_list,
+        project_id=project.id if project else None,
+    )
+    session.add(transcript)
+    await session.commit()
+    await session.refresh(transcript)
+
+    await ExtractionPipeline(session).process(transcript.id)
     await session.refresh(transcript)
     return await _to_detail(session, transcript)
 

@@ -19,8 +19,11 @@ stops everything, including the profile services.
 | `aoi_llm_request_duration_seconds` | histogram | provider, model, operation | Latency of one call, including output parsing. Each retry attempt is its own observation. |
 | `aoi_llm_tokens_total` | counter | provider, model, operation, direction | Tokens reported by the provider. `direction` is `input` or `output`. |
 | `aoi_extractions_total` | counter | mode, outcome, reason | Extractions. `mode` is `full` (finished transcript) or `live` (incremental pass). `reason` is `none`, `llm_error`, or `pipeline_error`. |
+| `aoi_ingest_document_pages_total` | counter | file_type | Pages or images rendered for vision extraction. |
+| `aoi_ingest_video_frames_total` | counter | mode | Keyframes sampled from screen recordings (`scene` or `interval`). |
 
-`operation` is `extract` for transcript extraction and `analytics_sql` for the natural-language
+`operation` is `extract` for transcript extraction, `extract_document` for scanned PDFs and images,
+`caption_frame` for screen-recording keyframes, and `analytics_sql` for the natural-language
 analytics endpoint. Labels are low-cardinality on purpose: no tenant, transcript, or user ids.
 
 ## Securing `/metrics`

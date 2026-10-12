@@ -572,6 +572,15 @@ cd frontend && npm install && npm test && npm run build
 ServiceMonitor and the seven alert rules), a kind overlay with in-cluster Postgres and Redis, and a
 smoke test CI runs on every PR. See [docs/kubernetes.md](docs/kubernetes.md).
 
+## Scanned documents and screen recordings
+
+`POST /api/transcripts/upload-document` takes a PDF or image of an agenda, minutes or action list
+and returns the same typed result as the transcript path; `POST /api/transcripts/upload-recording`
+captions a screen recording's keyframes and extracts from the timestamped captions. A 20-document
+synthetic eval set reports per-field precision and recall. See
+[docs/document-video-ingestion.md](docs/document-video-ingestion.md) for what has and has not
+been measured.
+
 ## Observability
 
 `GET /metrics` exposes Prometheus metrics for LLM latency, token usage, call outcomes (including
