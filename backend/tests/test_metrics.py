@@ -208,3 +208,19 @@ def test_prometheus_config_scrapes_backend_metrics() -> None:
     job = config["scrape_configs"][0]
     assert job["metrics_path"] == "/metrics"
     assert job["static_configs"][0]["targets"] == ["backend:8000"]
+
+
+def test_every_alert_has_severity_and_a_resolving_runbook_section() -> None:
+    rules = yaml.safe_load((OBSERVABILITY / "rules.yml").read_text())
+    runbook = (OBSERVABILITY.parent / "docs" / "runbook.md").read_text()
+    anchors = {
+        re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
+        for heading in re.findall(r"^#{2,3} (.+)$", runbook, re.M)
+    }
+    alerts = [r for g in rules["groups"] for r in g["rules"] if "alert" in r]
+    assert alerts
+    for rule in alerts:
+        assert rule["labels"]["severity"] in {"warning", "critical"}, rule["alert"]
+        url = rule["annotations"]["runbook_url"]
+        assert url.endswith("/docs/runbook.md#" + rule["alert"].lower()), rule["alert"]
+        assert rule["alert"].lower() in anchors, f"{rule['alert']} has no runbook section"

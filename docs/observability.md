@@ -36,11 +36,35 @@ Metrics are per process. Run a single uvicorn worker, as Compose does, or enable
 
 ## Alerts
 
-`observability/rules.yml` ships three starter alerts: LLM failure ratio above 10%, p95 latency above
-30 seconds, and repeated failed full extractions. Prometheus loads them automatically.
+`observability/rules.yml` ships seven alerts, loaded automatically by Prometheus. Each carries a
+`runbook_url` to its section in [runbook.md](runbook.md).
+
+| Alert | Severity | Fires when |
+| --- | --- | --- |
+| `AOILLMProviderErrorRatioHigh` | warning | more than 10% of calls for a provider and operation end in `outcome="error"` over 30 minutes (at least 5 calls) |
+| `AOILLMProviderUnavailable` | critical | more than 50% error outcomes over 10 minutes (at least 3 calls) |
+| `AOILLMInvalidOutputRatioHigh` | warning | more than 10% `invalid_output` outcomes per model over 30 minutes (at least 5 calls) |
+| `AOILLMLatencyP95High` | warning | p95 call latency above 30 s over 15 minutes |
+| `AOILLMLatencyP95Critical` | critical | p95 call latency above 60 s over 15 minutes |
+| `AOIExtractionFailures` | critical | more than 3 full extractions failed in 15 minutes |
+| `AOIMetricsTargetDown` | critical | the `aoi-backend` scrape target is down for 5 minutes |
+
+Ratios use `increase()` over a window plus a minimum call count rather than a request-rate
+floor, so a deployment that handles a few meetings a day can still alert. One caveat: Prometheus
+cannot see the first sample of a counter series, so the first error after a backend start is
+not counted until a second arrives.
+
+```sh
+make check-alerts      # promtool check rules + promtool test rules (needs Docker)
+```
+
+`observability/tests/rules.test.yml` feeds synthetic series to every alert and asserts both that
+it fires with the expected labels and annotations and that near-misses (healthy traffic, too few
+calls, live-mode failures) stay silent. CI runs the same commands.
 
 ## Checks
 
 `backend/tests/test_metrics.py` records calls through the real Anthropic and OpenAI client code paths
 with stubbed SDKs, and checks that every metric named in the dashboard and alert rules is actually
-exposed and parses as PromQL.
+exposed, parses as PromQL, and that every alert has a `runbook_url` that resolves to a section
+in `docs/runbook.md`.
