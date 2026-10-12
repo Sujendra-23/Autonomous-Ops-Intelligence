@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     intelligence_owner_api_key: SecretStr = SecretStr("")
     intelligence_database_url: SecretStr = SecretStr("")
     intelligence_owner_database_url: SecretStr = SecretStr("")
+    # The MCP server (python -m app.mcp_server) answers from the masked views unless this is
+    # switched on explicitly; it then also needs INTELLIGENCE_OWNER_DATABASE_URL.
+    mcp_allow_owner_access: bool = False
 
     # ---- Database ----
     database_url: str = "postgresql+asyncpg://aoi:aoi@localhost:5432/aoi"
