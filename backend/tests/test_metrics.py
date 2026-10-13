@@ -16,7 +16,7 @@ from pydantic import SecretStr
 
 from app import main as app_main
 from app.llm.client import AnthropicClient, LLMError, OpenAIClient
-from app.metrics import record_extraction, track_llm_call
+from app.metrics import record_extraction, start_worker_metrics, track_llm_call
 
 OBSERVABILITY = Path(__file__).resolve().parents[2] / "observability"
 
@@ -140,7 +140,9 @@ def test_record_extraction_labels() -> None:
 
 
 def settings(token: str = "", auth_mode: str = "development") -> SimpleNamespace:
-    return SimpleNamespace(metrics_token=SecretStr(token), auth_mode=auth_mode)
+    return SimpleNamespace(
+        metrics_token=SecretStr(token), auth_mode=auth_mode, environment="development"
+    )
 
 
 def test_metrics_endpoint_is_open_in_development(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,6 +164,30 @@ def test_metrics_endpoint_requires_token_when_configured(monkeypatch: pytest.Mon
 def test_metrics_endpoint_fails_closed_in_saas_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(app_main, "get_settings", lambda: settings(auth_mode="oidc"))
     assert TestClient(app_main.app).get("/metrics").status_code == 404
+
+
+def test_worker_metrics_enforces_token_and_serves_worker_counters(monkeypatch):
+    import httpx
+
+    monkeypatch.setattr("app.config.base_settings", lambda: settings("worker-token"))
+    server = start_worker_metrics(port=0, addr="127.0.0.1")
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/metrics"
+        record_extraction("completed", mode="live")
+        assert httpx.get(url).status_code == 401
+        assert httpx.get(url, headers={"Authorization": "Bearer wrong"}).status_code == 401
+        response = httpx.get(url, headers={"Authorization": "Bearer worker-token"})
+        assert response.status_code == 200
+        assert 'mode="live"' in response.text
+        assert "worker-token" not in response.text
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_worker_metrics_disabled_without_token_in_saas(monkeypatch):
+    monkeypatch.setattr("app.config.base_settings", lambda: settings(auth_mode="oidc"))
+    assert start_worker_metrics(port=0, addr="127.0.0.1") is None
 
 
 # --------------------------------------------------------------------------- #

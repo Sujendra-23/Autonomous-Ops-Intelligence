@@ -31,6 +31,7 @@ from app.schemas.transcript import (
     TranscriptList,
     TranscriptSummary,
 )
+from app.services.dlp import Sensitivity
 from app.services.documents import (
     MAX_DOCUMENT_BYTES,
     DocumentError,
@@ -59,6 +60,7 @@ async def upload_video(
     title: str = Form(""),
     project_hint: str = Form(""),
     participants: str = Form("", description="Comma-separated participant names"),
+    sensitivity_label: Sensitivity = Form("internal"),
     session: AsyncSession = Depends(get_session),
 ) -> TranscriptDetail:
     filename = file.filename or "upload.mp4"
@@ -93,6 +95,7 @@ async def upload_video(
     transcript = Transcript(
         title=resolved_title,
         content=transcript_text,
+        sensitivity_label=sensitivity_label,
         source="video_upload",
         participants=participant_list,
         project_id=project.id if project else None,
@@ -141,6 +144,7 @@ async def upload_document(
     title: str = Form(""),
     project_hint: str = Form(""),
     participants: str = Form("", description="Comma-separated participant names"),
+    sensitivity_label: Sensitivity = Form("internal"),
     meeting_date: str = Form("", description="ISO date, used to resolve relative deadlines"),
     session: AsyncSession = Depends(get_session),
 ) -> TranscriptDetail:
@@ -164,12 +168,11 @@ async def upload_document(
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=f"Vision extraction failed: {exc}") from exc
 
-    project = await get_or_create_project(
-        session, project_hint.strip() or result.project_hint
-    )
+    project = await get_or_create_project(session, project_hint.strip() or result.project_hint)
     transcript = Transcript(
         title=resolved_title,
         content=result_to_text(result),
+        sensitivity_label=sensitivity_label,
         source="document_upload",
         participants=participant_list,
         project_id=project.id if project else None,
@@ -195,6 +198,7 @@ async def upload_recording(
     title: str = Form(""),
     project_hint: str = Form(""),
     participants: str = Form("", description="Comma-separated participant names"),
+    sensitivity_label: Sensitivity = Form("internal"),
     frame_mode: str = Form("scene", pattern="^(scene|interval)$"),
     interval_seconds: float = Form(30.0, ge=1.0, le=600.0),
     include_audio: bool = Form(False, description="Also transcribe the audio track (Whisper)"),
@@ -231,6 +235,7 @@ async def upload_recording(
     transcript = Transcript(
         title=title.strip() or Path(filename).stem,
         content=text,
+        sensitivity_label=sensitivity_label,
         source="screen_recording",
         participants=participant_list,
         project_id=project.id if project else None,
@@ -260,6 +265,7 @@ async def ingest_transcript(
     transcript = Transcript(
         title=context.get("title") or payload.title,
         content=payload.content,
+        sensitivity_label=payload.sensitivity_label,
         source=payload.source,
         meeting_date=payload.meeting_date or context.get("meeting_date"),
         participants=payload.participants
@@ -407,6 +413,9 @@ async def _to_detail(session: AsyncSession, transcript: Transcript) -> Transcrip
         title=transcript.title,
         status=transcript.status,
         source=transcript.source,
+        sensitivity_label=transcript.sensitivity_label,
+        dlp_findings=transcript.dlp_findings,
+        dlp_policy_version=transcript.dlp_policy_version,
         project_id=transcript.project_id,
         meeting_date=transcript.meeting_date,
         processed_at=transcript.processed_at,

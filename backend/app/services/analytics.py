@@ -15,6 +15,7 @@ from sqlglot.errors import SqlglotError
 
 from app.config import get_settings
 from app.metrics import track_llm_call
+from app.services.dlp import redact
 
 CATALOG = {
     "tasks": {
@@ -170,7 +171,7 @@ async def generate_sql(question: str, *, read_owners: bool = False) -> str:
                 max_tokens=1500,
                 temperature=0,
                 system=system,
-                messages=[{"role": "user", "content": question}],
+                messages=[{"role": "user", "content": redact(question)}],
             )
         usage = getattr(response, "usage", None)
         call.record_usage(

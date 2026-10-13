@@ -24,14 +24,14 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from app.config import get_settings
 from app.logging import get_logger
 from app.models.transcript import EMBEDDING_DIMS
+from app.services.dlp import redact
 
 logger = get_logger("app.llm.embeddings")
 
 
 class EmbeddingClient(ABC):
     @abstractmethod
-    async def embed(self, texts: list[str]) -> list[list[float]]:
-        ...
+    async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
 class OpenAIEmbeddingClient(EmbeddingClient):
@@ -54,7 +54,9 @@ class OpenAIEmbeddingClient(EmbeddingClient):
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        response = await self._client.embeddings.create(model=self._model, input=texts)
+        response = await self._client.embeddings.create(
+            model=self._model, input=[redact(text) for text in texts]
+        )
         return [item.embedding for item in response.data]
 
 

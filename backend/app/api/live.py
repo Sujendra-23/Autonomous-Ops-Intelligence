@@ -41,6 +41,7 @@ from app.models.decision import Decision
 from app.models.risk import Risk
 from app.models.task import Task
 from app.models.transcript import Transcript
+from app.services.dlp import Sensitivity
 from app.services.extraction import ExtractionPipeline
 from app.services.live_session import LiveSession
 from app.services.live_stt import configured_sample_rate, get_transcriber
@@ -50,6 +51,7 @@ router = APIRouter()
 
 
 class LiveSessionCreate(BaseModel):
+    sensitivity_label: Sensitivity = "internal"
     calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
     title: str = Field(default="Live meeting", max_length=512)
     project_hint: str | None = Field(None, max_length=256)
@@ -78,6 +80,7 @@ async def create_live_session(
     transcript = Transcript(
         title=context.get("title") or payload.title.strip() or "Live meeting",
         content="",
+        sensitivity_label=payload.sensitivity_label,
         source="live",
         participants=payload.participants
         if payload.participants is not None

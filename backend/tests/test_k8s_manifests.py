@@ -119,3 +119,13 @@ def test_prometheus_rule_matches_observability_rules() -> None:
         for rule in group["rules"]
     ]
     assert len(alerts) == 7
+
+
+def test_worker_metrics_are_scraped_with_authentication() -> None:
+    service = objects("Service")["aoi-worker"]
+    monitor = objects("ServiceMonitor")["aoi-worker"]["spec"]
+    assert monitor["selector"]["matchLabels"] == service["metadata"]["labels"]
+    endpoint = monitor["endpoints"][0]
+    assert endpoint["port"] == service["spec"]["ports"][0]["name"] == "metrics"
+    assert endpoint["authorization"]["credentials"]["key"] == "METRICS_TOKEN"
+    assert container(objects("Deployment")["aoi-worker"])["ports"][0]["containerPort"] == 8001

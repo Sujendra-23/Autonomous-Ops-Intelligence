@@ -127,7 +127,7 @@ async def health() -> dict[str, str]:
 async def metrics(request: Request) -> Response:
     settings = get_settings()
     expected = settings.metrics_token.get_secret_value()
-    if not expected and settings.auth_mode == "oidc":
+    if not expected and (settings.auth_mode == "oidc" or settings.environment != "development"):
         return Response(status_code=404)
     if expected:
         bearer = request.headers.get("authorization", "")

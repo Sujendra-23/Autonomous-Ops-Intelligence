@@ -12,6 +12,7 @@ from app.integrations.base import DispatchResult, TaskMirror
 from app.logging import get_logger
 from app.models.project import Project
 from app.models.task import Task
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.integrations.jira")
 
@@ -39,7 +40,7 @@ class JiraAdapter(TaskMirror):
         payload = {
             "fields": {
                 "project": {"key": self._project},
-                "summary": task.title[:255],
+                "summary": redact(task.title)[:255],
                 "description": _adf(task, project),
                 "issuetype": {"name": "Task"},
                 "priority": {"name": priority.get(task.priority, "Medium")},
@@ -50,7 +51,7 @@ class JiraAdapter(TaskMirror):
 
         try:
             data = await self._post("/rest/api/3/issue", payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("jira.create_failed", error=str(exc))
             return DispatchResult(self.name, False, detail=str(exc))
 
@@ -72,7 +73,7 @@ class JiraAdapter(TaskMirror):
                     "Accept": "application/json",
                     "Content-Type": "application/json",
                 },
-                json=payload,
+                json=redact_payload(payload),
             )
             response.raise_for_status()
             return response.json()
@@ -96,5 +97,5 @@ def _adf(task: Task, project: Project | None) -> dict:
 def _p(text: str) -> dict:
     return {
         "type": "paragraph",
-        "content": [{"type": "text", "text": text[:2000]}],
+        "content": [{"type": "text", "text": redact(text)[:2000]}],
     }

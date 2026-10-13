@@ -30,14 +30,13 @@ k8s-render:
 		kubectl kustomize deploy/k8s/$$d > /dev/null && echo "deploy/k8s/$$d renders"; done
 
 check-alerts:
-	$(PROMTOOL) check rules /obs/rules.yml
-	$(PROMTOOL) test rules /obs/tests/rules.test.yml
+	python3 scripts/check_alerts.py
 
 observability: .env
 	@grep -q '^GRAFANA_ADMIN_PASSWORD=.' .env || { \
 	  printf '\nGRAFANA_ADMIN_PASSWORD=%s\n' "$$(openssl rand -hex 16)" >> .env; \
 	  echo "Generated GRAFANA_ADMIN_PASSWORD in .env (Grafana login: admin)"; }
-	docker compose --profile observability up -d --build
+	docker compose -f docker-compose.yml -f compose.observability.yml --profile observability up -d --build
 
 # Create .env from the template on first run AND lock it down to owner-only
 # (0600). Without this it would inherit the umask default (often 0644 → world-
@@ -54,7 +53,7 @@ secure-env:
 	@chmod 600 .env && echo ".env permissions tightened to 600 (owner-only)."
 
 down:
-	docker compose --profile observability down
+	docker compose -f docker-compose.yml -f compose.observability.yml --profile observability down
 
 logs:
 	docker compose logs -f
@@ -84,3 +83,10 @@ seed:
 
 clean:
 	docker compose down -v
+
+.PHONY: eval-dlp drill-metrics
+eval-dlp:
+	cd backend && python3 -m evals.run_dlp
+
+drill-metrics:
+	python3 scripts/drill_metrics_target.py

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, event, inspect
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,12 @@ EMBEDDING_DIMS = 1536  # OpenAI text-embedding-3-small / local fallback both pro
 
 class Transcript(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "transcripts"
+    __table_args__ = (
+        CheckConstraint(
+            "sensitivity_label IN ('public', 'internal', 'confidential')",
+            name="ck_transcripts_sensitivity_label",
+        ),
+    )
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -37,6 +43,13 @@ class Transcript(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     participants: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     calendar_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    sensitivity_label: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="internal", server_default="internal"
+    )
+    dlp_findings: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    dlp_policy_version: Mapped[str] = mapped_column(
+        String(64), default="regex-checksum-v1", server_default="regex-checksum-v1"
+    )
 
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="received")
     # received → chunking → extracting → completed | failed
@@ -52,6 +65,19 @@ class Transcript(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
 
     def __repr__(self) -> str:
         return f"<Transcript {self.title!r} status={self.status}>"
+
+
+@event.listens_for(Transcript, "before_insert")
+@event.listens_for(Transcript, "before_update")
+def sanitize_transcript(mapper, connection, transcript):
+    from app.services.dlp import RANK, protect_transcript
+
+    previous = inspect(transcript).attrs.sensitivity_label.history.deleted
+    if previous:
+        transcript.sensitivity_label = max(
+            (previous[0], transcript.sensitivity_label or "internal"), key=RANK.__getitem__
+        )
+    protect_transcript(transcript)
 
 
 class TranscriptChunk(TenantMixin, UUIDPrimaryKey, Timestamps, Base):

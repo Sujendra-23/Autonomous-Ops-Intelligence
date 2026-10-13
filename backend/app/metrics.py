@@ -9,11 +9,41 @@ operation, and outcome. No tenant, transcript, or user identifiers appear.
 
 from __future__ import annotations
 
+import secrets
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from http.server import ThreadingHTTPServer
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, MetricsHandler
+
+
+def start_worker_metrics(port: int = 8001, addr: str = "0.0.0.0"):  # noqa: S104 - internal container network
+    """Expose worker-process counters on the internal network, with API-equivalent auth."""
+    from app.config import base_settings
+
+    settings = base_settings()
+    token = settings.metrics_token.get_secret_value()
+    if not token and (settings.auth_mode == "oidc" or settings.environment != "development"):
+        return None
+
+    class ProtectedMetricsHandler(MetricsHandler):
+        def do_GET(self):
+            if self.path != "/metrics":
+                self.send_error(404)
+                return
+            bearer = self.headers.get("Authorization", "")
+            supplied = bearer[7:] if bearer.startswith("Bearer ") else ""
+            if token and not secrets.compare_digest(supplied, token):
+                self.send_error(401)
+                return
+            super().do_GET()
+
+    server = ThreadingHTTPServer((addr, port), ProtectedMetricsHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
 
 LLM_REQUESTS = Counter(
     "aoi_llm_requests_total",

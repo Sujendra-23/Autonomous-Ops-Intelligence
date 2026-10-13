@@ -15,6 +15,7 @@ from app.logging import get_logger
 from app.models.project import Project
 from app.models.transcript import Transcript
 from app.schemas.extraction import ExtractionResult
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.integrations.slack")
 
@@ -60,8 +61,8 @@ class SlackAdapter(Notifier):
                 },
                 json={
                     "channel": self._channel,
-                    "text": fallback,
-                    "blocks": blocks,
+                    "text": redact(fallback),
+                    "blocks": redact_payload(blocks),
                 },
             )
             response.raise_for_status()
@@ -82,7 +83,7 @@ class SlackAdapter(Notifier):
                     "Authorization": f"Bearer {self._token}",
                     "Content-Type": "application/json; charset=utf-8",
                 },
-                json={"channel": self._channel, "text": text},
+                json={"channel": self._channel, "text": redact(text)},
             )
             response.raise_for_status()
             body = response.json()

@@ -35,6 +35,9 @@ spec:
         - name: worker
           image: aoi-backend
           command: ["python", "-m", "app.workers.scheduler"]
+          ports:
+            - name: metrics
+              containerPort: 8001
           envFrom:
             - configMapRef:
                 name: aoi-config
@@ -58,3 +61,17 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aoi-worker
+  labels:
+    app.kubernetes.io/name: aoi-worker
+spec:
+  selector:
+    app.kubernetes.io/name: aoi-worker
+  ports:
+    - name: metrics
+      port: 8001
+      targetPort: metrics

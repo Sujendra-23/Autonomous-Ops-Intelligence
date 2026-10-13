@@ -18,6 +18,7 @@ from app.logging import get_logger
 from app.models.project import Project
 from app.models.transcript import Transcript
 from app.schemas.extraction import ExtractionResult
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.integrations.notion")
 
@@ -51,7 +52,7 @@ class NotionAdapter(ProjectMirror, Notifier):
 
         try:
             page_id = await self._create_project_page(project)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("notion.create_project_failed", error=str(exc))
             return DispatchResult(self.name, False, detail=str(exc))
 
@@ -85,7 +86,7 @@ class NotionAdapter(ProjectMirror, Notifier):
         try:
             await self._append_meeting_block(project.notion_page_id, transcript, result)
             return DispatchResult(self.name, True, external_id=project.notion_page_id)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("notion.append_failed", error=str(exc))
             return DispatchResult(self.name, False, detail=str(exc))
 
@@ -104,11 +105,7 @@ class NotionAdapter(ProjectMirror, Notifier):
     async def _create_project_page(self, project: Project) -> str:
         payload = {
             "parent": {"page_id": self._parent_page_id},
-            "properties": {
-                "title": [
-                    {"type": "text", "text": {"content": project.name}}
-                ]
-            },
+            "properties": {"title": [{"type": "text", "text": {"content": project.name}}]},
             "children": [
                 _heading("Overview", level=1),
                 _paragraph(project.description or "No description yet."),
@@ -119,7 +116,7 @@ class NotionAdapter(ProjectMirror, Notifier):
             response = await client.post(
                 f"{_NOTION_API}/pages",
                 headers=self._headers(),
-                json=payload,
+                json=redact_payload(payload),
             )
             response.raise_for_status()
             return response.json()["id"]
@@ -141,11 +138,7 @@ class NotionAdapter(ProjectMirror, Notifier):
                 _bullet(
                     f"{t.title}"
                     + (f" — owner: {t.owner}" if t.owner else "")
-                    + (
-                        f" — due {t.due_date.date().isoformat()}"
-                        if t.due_date
-                        else ""
-                    )
+                    + (f" — due {t.due_date.date().isoformat()}" if t.due_date else "")
                 )
                 for t in result.tasks
             )
@@ -154,9 +147,7 @@ class NotionAdapter(ProjectMirror, Notifier):
             blocks.extend(_bullet(d.summary) for d in result.decisions)
         if result.risks:
             blocks.append(_heading("Risks", level=3))
-            blocks.extend(
-                _bullet(f"[{r.severity}] {r.title}") for r in result.risks
-            )
+            blocks.extend(_bullet(f"[{r.severity}] {r.title}") for r in result.risks)
         if result.blockers:
             blocks.append(_heading("Blockers", level=3))
             blocks.extend(_bullet(b.summary) for b in result.blockers)
@@ -165,7 +156,7 @@ class NotionAdapter(ProjectMirror, Notifier):
             response = await client.patch(
                 f"{_NOTION_API}/blocks/{page_id}/children",
                 headers=self._headers(),
-                json={"children": blocks},
+                json={"children": redact_payload(blocks)},
             )
             response.raise_for_status()
 
@@ -180,7 +171,7 @@ def _heading(text: str, level: int = 1) -> dict:
     return {
         "object": "block",
         "type": block_type,
-        block_type: {"rich_text": [{"type": "text", "text": {"content": text[:2000]}}]},
+        block_type: {"rich_text": [{"type": "text", "text": {"content": redact(text)[:2000]}}]},
     }
 
 
@@ -188,7 +179,7 @@ def _paragraph(text: str) -> dict:
     return {
         "object": "block",
         "type": "paragraph",
-        "paragraph": {"rich_text": [{"type": "text", "text": {"content": text[:2000]}}]},
+        "paragraph": {"rich_text": [{"type": "text", "text": {"content": redact(text)[:2000]}}]},
     }
 
 
@@ -197,6 +188,6 @@ def _bullet(text: str) -> dict:
         "object": "block",
         "type": "bulleted_list_item",
         "bulleted_list_item": {
-            "rich_text": [{"type": "text", "text": {"content": text[:2000]}}]
+            "rich_text": [{"type": "text", "text": {"content": redact(text)[:2000]}}]
         },
     }

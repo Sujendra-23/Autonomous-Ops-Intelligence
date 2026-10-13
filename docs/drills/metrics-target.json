@@ -1,0 +1,219 @@
+{
+  "started_at": "2026-10-13T17:26:47.866151+00:00",
+  "project": "aoi-drill-dc53e565b5",
+  "alert": "AOIMetricsTargetDown",
+  "rule_hold": "5m",
+  "events": [
+    {
+      "received_at": "2026-10-13T17:32:37.215356+00:00",
+      "path": "/platform-oncall",
+      "payload": {
+        "receiver": "platform-oncall",
+        "status": "firing",
+        "alerts": [
+          {
+            "status": "firing",
+            "labels": {
+              "alertname": "AOIMetricsTargetDown",
+              "dri": "platform-oncall",
+              "instance": "backend:8000",
+              "job": "aoi-backend",
+              "service": "aoi",
+              "severity": "critical"
+            },
+            "annotations": {
+              "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+              "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+              "summary": "Prometheus cannot scrape the AOI backend"
+            },
+            "startsAt": "2026-10-13T17:32:27.192Z",
+            "endsAt": "0001-01-01T00:00:00Z",
+            "generatorURL": "http://d2f9e2713f9b:9090/graph?g0.expr=up%7Bjob%3D%22aoi-backend%22%7D+%3D%3D+0&g0.tab=1",
+            "fingerprint": "f4413cfc3d0f96eb"
+          }
+        ],
+        "groupLabels": {
+          "alertname": "AOIMetricsTargetDown",
+          "service": "aoi"
+        },
+        "commonLabels": {
+          "alertname": "AOIMetricsTargetDown",
+          "dri": "platform-oncall",
+          "instance": "backend:8000",
+          "job": "aoi-backend",
+          "service": "aoi",
+          "severity": "critical"
+        },
+        "commonAnnotations": {
+          "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+          "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+          "summary": "Prometheus cannot scrape the AOI backend"
+        },
+        "externalURL": "http://a308ae42a5d1:9093",
+        "version": "4",
+        "groupKey": "{}/{dri=\"platform-oncall\",service=\"aoi\",severity=\"critical\"}:{alertname=\"AOIMetricsTargetDown\", service=\"aoi\"}",
+        "truncatedAlerts": 0
+      }
+    },
+    {
+      "received_at": "2026-10-13T17:33:07.217798+00:00",
+      "path": "/platform-oncall",
+      "payload": {
+        "receiver": "platform-oncall",
+        "status": "resolved",
+        "alerts": [
+          {
+            "status": "resolved",
+            "labels": {
+              "alertname": "AOIMetricsTargetDown",
+              "dri": "platform-oncall",
+              "instance": "backend:8000",
+              "job": "aoi-backend",
+              "service": "aoi",
+              "severity": "critical"
+            },
+            "annotations": {
+              "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+              "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+              "summary": "Prometheus cannot scrape the AOI backend"
+            },
+            "startsAt": "2026-10-13T17:32:27.192Z",
+            "endsAt": "2026-10-13T17:32:57.192Z",
+            "generatorURL": "http://d2f9e2713f9b:9090/graph?g0.expr=up%7Bjob%3D%22aoi-backend%22%7D+%3D%3D+0&g0.tab=1",
+            "fingerprint": "f4413cfc3d0f96eb"
+          }
+        ],
+        "groupLabels": {
+          "alertname": "AOIMetricsTargetDown",
+          "service": "aoi"
+        },
+        "commonLabels": {
+          "alertname": "AOIMetricsTargetDown",
+          "dri": "platform-oncall",
+          "instance": "backend:8000",
+          "job": "aoi-backend",
+          "service": "aoi",
+          "severity": "critical"
+        },
+        "commonAnnotations": {
+          "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+          "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+          "summary": "Prometheus cannot scrape the AOI backend"
+        },
+        "externalURL": "http://a308ae42a5d1:9093",
+        "version": "4",
+        "groupKey": "{}/{dri=\"platform-oncall\",service=\"aoi\",severity=\"critical\"}:{alertname=\"AOIMetricsTargetDown\", service=\"aoi\"}",
+        "truncatedAlerts": 0
+      }
+    }
+  ],
+  "healthy_at": "2026-10-13T17:27:04.270562+00:00",
+  "fault_injected_at": "2026-10-13T17:27:07.525730+00:00",
+  "firing": {
+    "received_at": "2026-10-13T17:32:37.215356+00:00",
+    "path": "/platform-oncall",
+    "payload": {
+      "receiver": "platform-oncall",
+      "status": "firing",
+      "alerts": [
+        {
+          "status": "firing",
+          "labels": {
+            "alertname": "AOIMetricsTargetDown",
+            "dri": "platform-oncall",
+            "instance": "backend:8000",
+            "job": "aoi-backend",
+            "service": "aoi",
+            "severity": "critical"
+          },
+          "annotations": {
+            "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+            "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+            "summary": "Prometheus cannot scrape the AOI backend"
+          },
+          "startsAt": "2026-10-13T17:32:27.192Z",
+          "endsAt": "0001-01-01T00:00:00Z",
+          "generatorURL": "http://d2f9e2713f9b:9090/graph?g0.expr=up%7Bjob%3D%22aoi-backend%22%7D+%3D%3D+0&g0.tab=1",
+          "fingerprint": "f4413cfc3d0f96eb"
+        }
+      ],
+      "groupLabels": {
+        "alertname": "AOIMetricsTargetDown",
+        "service": "aoi"
+      },
+      "commonLabels": {
+        "alertname": "AOIMetricsTargetDown",
+        "dri": "platform-oncall",
+        "instance": "backend:8000",
+        "job": "aoi-backend",
+        "service": "aoi",
+        "severity": "critical"
+      },
+      "commonAnnotations": {
+        "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+        "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+        "summary": "Prometheus cannot scrape the AOI backend"
+      },
+      "externalURL": "http://a308ae42a5d1:9093",
+      "version": "4",
+      "groupKey": "{}/{dri=\"platform-oncall\",service=\"aoi\",severity=\"critical\"}:{alertname=\"AOIMetricsTargetDown\", service=\"aoi\"}",
+      "truncatedAlerts": 0
+    }
+  },
+  "firing_observed_at": "2026-10-13T17:32:38.670851+00:00",
+  "mitigated_at": "2026-10-13T17:32:38.895208+00:00",
+  "resolved": {
+    "received_at": "2026-10-13T17:33:07.217798+00:00",
+    "path": "/platform-oncall",
+    "payload": {
+      "receiver": "platform-oncall",
+      "status": "resolved",
+      "alerts": [
+        {
+          "status": "resolved",
+          "labels": {
+            "alertname": "AOIMetricsTargetDown",
+            "dri": "platform-oncall",
+            "instance": "backend:8000",
+            "job": "aoi-backend",
+            "service": "aoi",
+            "severity": "critical"
+          },
+          "annotations": {
+            "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+            "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+            "summary": "Prometheus cannot scrape the AOI backend"
+          },
+          "startsAt": "2026-10-13T17:32:27.192Z",
+          "endsAt": "2026-10-13T17:32:57.192Z",
+          "generatorURL": "http://d2f9e2713f9b:9090/graph?g0.expr=up%7Bjob%3D%22aoi-backend%22%7D+%3D%3D+0&g0.tab=1",
+          "fingerprint": "f4413cfc3d0f96eb"
+        }
+      ],
+      "groupLabels": {
+        "alertname": "AOIMetricsTargetDown",
+        "service": "aoi"
+      },
+      "commonLabels": {
+        "alertname": "AOIMetricsTargetDown",
+        "dri": "platform-oncall",
+        "instance": "backend:8000",
+        "job": "aoi-backend",
+        "service": "aoi",
+        "severity": "critical"
+      },
+      "commonAnnotations": {
+        "description": "No metrics from backend:8000 for 5 minutes. Every alert above is blind while this fires.",
+        "runbook_url": "https://github.com/Sujendra-23/Autonomous-Ops-Intelligence/blob/main/docs/runbook.md#aoimetricstargetdown",
+        "summary": "Prometheus cannot scrape the AOI backend"
+      },
+      "externalURL": "http://a308ae42a5d1:9093",
+      "version": "4",
+      "groupKey": "{}/{dri=\"platform-oncall\",service=\"aoi\",severity=\"critical\"}:{alertname=\"AOIMetricsTargetDown\", service=\"aoi\"}",
+      "truncatedAlerts": 0
+    }
+  },
+  "resolved_observed_at": "2026-10-13T17:33:09.001059+00:00",
+  "result": "passed",
+  "finished_at": "2026-10-13T17:33:09.004031+00:00"
+}

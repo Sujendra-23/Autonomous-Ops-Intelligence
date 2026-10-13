@@ -20,6 +20,7 @@ from app.database import SessionLocal, engine
 from app.integrations.task_sync import sync_task_statuses
 from app.integrations.webhooks import deliver_webhooks
 from app.logging import configure_logging, get_logger
+from app.metrics import start_worker_metrics
 from app.models.account import Workspace
 from app.models.transcript import Transcript
 from app.services.extraction import ExtractionPipeline
@@ -117,6 +118,7 @@ async def _run_integrations() -> None:
 
 async def main() -> None:
     configure_logging()
+    metrics_server = start_worker_metrics()
     log = get_logger("app.workers.scheduler")
     settings = get_settings()
     interval = min(settings.monitor_interval_seconds, settings.integration_interval_seconds)
@@ -144,6 +146,9 @@ async def main() -> None:
         except TimeoutError:
             continue
     log.info("scheduler.stopped")
+    if metrics_server is not None:
+        metrics_server.shutdown()
+        metrics_server.server_close()
 
 
 if __name__ == "__main__":

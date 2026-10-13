@@ -43,6 +43,8 @@ jobs:
           PY
       - run: python -m pytest -q
         working-directory: backend
+      - run: python -m evals.run_dlp
+        working-directory: backend
       - run: pip-audit -r backend/requirements.txt
   frontend:
     runs-on: ubuntu-latest
@@ -66,14 +68,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: promtool check and test rules
-        run: |
-          promtool() {
-            docker run --rm -v "$PWD/observability:/obs:ro" -w /obs/tests \
-              --entrypoint promtool prom/prometheus:v2.55.1 "$@"
-          }
-          promtool check rules /obs/rules.yml
-          promtool test rules rules.test.yml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install PyYAML==6.0.2
+      - run: python scripts/check_alerts.py
   containers:
     runs-on: ubuntu-latest
     steps:

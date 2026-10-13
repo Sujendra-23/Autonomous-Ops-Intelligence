@@ -14,26 +14,27 @@ from app.integrations.base import DispatchResult, Notifier
 from app.models.project import Project
 from app.models.transcript import Transcript
 from app.schemas.extraction import ExtractionResult
+from app.services.dlp import redact, redact_payload
 
 
 def summary_text(
     transcript: Transcript, project: Project | None, result: ExtractionResult, limit: int
 ) -> str:
     """Bound provider payloads while including all extracted item categories."""
-    heading = transcript.title[:300]
+    heading = redact(transcript.title)[:300]
     if project:
-        heading += f" · {project.name[:150]}"
-    parts = [heading, result.summary[:1200]]
+        heading += f" · {redact(project.name)[:150]}"
+    parts = [heading, redact(result.summary)[:1200]]
     tasks = []
     for task in result.tasks[:10]:
-        owner = f" — {task.owner[:100]}" if task.owner else ""
+        owner = f" — {redact(task.owner)[:100]}" if task.owner else ""
         due = f" — due {task.due_date.date().isoformat()}" if task.due_date else ""
-        tasks.append(f"- {task.title[:250]}{owner}{due}")
+        tasks.append(f"- {redact(task.title)[:250]}{owner}{due}")
     for label, lines in (
         ("Tasks", tasks),
-        ("Decisions", [f"- {item.summary[:250]}" for item in result.decisions[:6]]),
-        ("Risks", [f"- {item.title[:250]}" for item in result.risks[:6]]),
-        ("Blockers", [f"- {item.summary[:250]}" for item in result.blockers[:6]]),
+        ("Decisions", [f"- {redact(item.summary)[:250]}" for item in result.decisions[:6]]),
+        ("Risks", [f"- {redact(item.title)[:250]}" for item in result.risks[:6]]),
+        ("Blockers", [f"- {redact(item.summary)[:250]}" for item in result.blockers[:6]]),
     ):
         if lines:
             parts.append(label + "\n" + "\n".join(lines))
@@ -72,7 +73,7 @@ class ChannelWebhookAdapter(Notifier):
             url = url.copy_merge_params({"wait": "true"})
         try:
             async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
-                response = await client.post(url, json=self.payload(text))
+                response = await client.post(url, json=redact_payload(self.payload(text)))
                 response.raise_for_status()
             external_id = None
             if self.name == "discord":

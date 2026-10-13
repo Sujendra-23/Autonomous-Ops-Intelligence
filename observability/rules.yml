@@ -14,6 +14,8 @@ groups:
           and sum by (provider, operation) (increase(aoi_llm_requests_total[30m])) >= 5
         for: 10m
         labels:
+          service: aoi
+          dri: ai-oncall
           severity: warning
         annotations:
           summary: "More than 10% of {{ $labels.provider }} {{ $labels.operation }} calls are failing"
@@ -30,6 +32,8 @@ groups:
           and sum by (provider, operation) (increase(aoi_llm_requests_total[10m])) >= 3
         for: 5m
         labels:
+          service: aoi
+          dri: ai-oncall
           severity: critical
         annotations:
           summary: "{{ $labels.provider }} {{ $labels.operation }} calls are mostly failing"
@@ -46,6 +50,8 @@ groups:
           and sum by (provider, model, operation) (increase(aoi_llm_requests_total[30m])) >= 5
         for: 10m
         labels:
+          service: aoi
+          dri: ai-oncall
           severity: warning
         annotations:
           summary: "{{ $labels.model }} is returning unparseable output for {{ $labels.operation }}"
@@ -63,6 +69,8 @@ groups:
           and sum by (provider, operation) (increase(aoi_llm_request_duration_seconds_count[15m])) >= 5
         for: 10m
         labels:
+          service: aoi
+          dri: ai-oncall
           severity: warning
         annotations:
           summary: "p95 {{ $labels.provider }} {{ $labels.operation }} latency is above 30s"
@@ -79,6 +87,8 @@ groups:
           and sum by (provider, operation) (increase(aoi_llm_request_duration_seconds_count[15m])) >= 5
         for: 10m
         labels:
+          service: aoi
+          dri: ai-oncall
           severity: critical
         annotations:
           summary: "p95 {{ $labels.provider }} {{ $labels.operation }} latency is above 60s"
@@ -94,6 +104,8 @@ groups:
           sum(increase(aoi_extractions_total{mode="full",outcome="failed"}[15m])) > 3
         for: 5m
         labels:
+          service: aoi
+          dri: platform-oncall
           severity: critical
         annotations:
           summary: Transcript extractions are failing repeatedly
@@ -108,6 +120,8 @@ groups:
         expr: up{job="aoi-backend"} == 0
         for: 5m
         labels:
+          service: aoi
+          dri: platform-oncall
           severity: critical
         annotations:
           summary: Prometheus cannot scrape the AOI backend

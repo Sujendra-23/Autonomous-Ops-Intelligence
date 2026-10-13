@@ -592,3 +592,15 @@ been measured.
 responses that fail schema validation), and extraction failures. `make observability` starts
 Prometheus and a provisioned Grafana dashboard next to the stack. See
 [docs/observability.md](docs/observability.md).
+
+### Transcript classification and alert ownership
+
+Transcripts default to `internal` and are promoted to `confidential` when supported
+PII is detected. Stored text and external payloads are redacted before extraction
+or publication. See [classification and DLP](docs/classification-dlp.md) for the
+policy, migration behavior and `make eval-dlp` regression evaluation.
+
+`make observability` loads the seven LLM/extraction alerts and Alertmanager DRI
+routes. `make check-alerts` validates all rules and receivers; `make drill-metrics`
+runs an isolated target-outage drill and writes a postmortem. See
+[observability](docs/observability.md) and the [runbook](docs/runbook.md).

@@ -1,0 +1,230 @@
+[
+  {
+    "id": "public-announcement",
+    "text": "Release notes are approved for publication.",
+    "requested_label": "public",
+    "expected_label": "public",
+    "expected_counts": {}
+  },
+  {
+    "id": "public-pii",
+    "text": "Contact alice@example.com for the public launch.",
+    "requested_label": "public",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "EMAIL": 1
+    }
+  },
+  {
+    "id": "internal-default",
+    "text": "We will deploy the release next Tuesday.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "explicit-confidential",
+    "text": "The planning meeting is routine.",
+    "requested_label": "confidential",
+    "expected_label": "confidential",
+    "expected_counts": {}
+  },
+  {
+    "id": "confidential-marker",
+    "text": "Confidential: the acquisition plan is pending.",
+    "requested_label": "public",
+    "expected_label": "confidential",
+    "expected_counts": {}
+  },
+  {
+    "id": "trade-secret",
+    "text": "Discuss the trade secret formula tomorrow.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {}
+  },
+  {
+    "id": "email",
+    "text": "Ask alice@example.com to review the patch.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "EMAIL": 1
+    }
+  },
+  {
+    "id": "plus-email",
+    "text": "Send it to alice+ops@sub.example.co.uk.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "EMAIL": 1
+    }
+  },
+  {
+    "id": "two-emails",
+    "text": "alice@example.com and bob@example.org own it.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "EMAIL": 2
+    }
+  },
+  {
+    "id": "phone-local",
+    "text": "Call 415-555-2671 after the meeting.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "PHONE": 1
+    }
+  },
+  {
+    "id": "phone-parens",
+    "text": "Call (415) 555-2671 ext. 42 after the meeting.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "PHONE": 1
+    }
+  },
+  {
+    "id": "phone-plain",
+    "text": "Call 4155552671 after the meeting.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "PHONE": 1
+    }
+  },
+  {
+    "id": "phone-international",
+    "text": "Call +44 20 7946 0958 after the meeting.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "PHONE": 1
+    }
+  },
+  {
+    "id": "visa-test",
+    "text": "Synthetic test card 4111 1111 1111 1111.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "CARD": 1
+    }
+  },
+  {
+    "id": "amex-test",
+    "text": "Synthetic test card 378282246310005.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "CARD": 1
+    }
+  },
+  {
+    "id": "card-invalid-checksum",
+    "text": "Order reference 4111 1111 1111 1112.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "card-repeated",
+    "text": "Order reference 0000000000000000.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "ssn-synthetic",
+    "text": "Synthetic SSN 123-45-6789 for testing.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "SSN": 1
+    }
+  },
+  {
+    "id": "ssn-invalid-area",
+    "text": "Reference 000-45-6789 is invalid.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "ssn-invalid-group",
+    "text": "Reference 123-00-6789 is invalid.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "aadhaar-synthetic",
+    "text": "Synthetic Aadhaar 2345 6789 0124 for tests.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "AADHAAR": 1
+    }
+  },
+  {
+    "id": "aadhaar-invalid-checksum",
+    "text": "Reference 2345 6789 0123 is invalid.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "labeled-passport",
+    "text": "Synthetic passport number: AB1234567 is private.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "ID": 1
+    }
+  },
+  {
+    "id": "labeled-license",
+    "text": "Synthetic driver's license: D1234567 is private.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "ID": 1
+    }
+  },
+  {
+    "id": "dates-and-version",
+    "text": "Deploy 2026-10-13 with version 1.2.3 at 10:30.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "short-number",
+    "text": "Ticket 123456 and build 9876543 are ready.",
+    "requested_label": "internal",
+    "expected_label": "internal",
+    "expected_counts": {}
+  },
+  {
+    "id": "already-redacted",
+    "text": "Contact [REDACTED:EMAIL] about [REDACTED:CARD].",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {}
+  },
+  {
+    "id": "mixed",
+    "text": "alice@example.com: call 415-555-2671 about 4111-1111-1111-1111.",
+    "requested_label": "internal",
+    "expected_label": "confidential",
+    "expected_counts": {
+      "EMAIL": 1,
+      "PHONE": 1,
+      "CARD": 1
+    }
+  }
+]

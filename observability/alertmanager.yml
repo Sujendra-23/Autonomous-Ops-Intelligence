@@ -1,0 +1,45 @@
+# Local capture receivers. Replace URLs with your incident service webhooks for deployment.
+# The capture service never forwards alerts to people or third-party services.
+global:
+  resolve_timeout: 5m
+route:
+  receiver: platform-triage
+  group_by: [service, alertname, provider, operation]
+  group_wait: 30s
+  group_interval: 30s
+  repeat_interval: 4h
+  routes:
+    - matchers: ['service="aoi"', 'severity="critical"', 'dri="ai-oncall"']
+      receiver: ai-oncall
+      group_wait: 10s
+      repeat_interval: 30m
+    - matchers: ['service="aoi"', 'severity="critical"', 'dri="platform-oncall"']
+      receiver: platform-oncall
+      group_wait: 10s
+      repeat_interval: 30m
+    - matchers: ['service="aoi"', 'severity="warning"', 'dri="ai-oncall"']
+      receiver: ai-triage
+receivers:
+  - name: platform-triage
+    webhook_configs:
+      - url: http://alert-receiver:8080/platform-triage
+        send_resolved: true
+  - name: ai-oncall
+    webhook_configs:
+      - url: http://alert-receiver:8080/ai-oncall
+        send_resolved: true
+  - name: platform-oncall
+    webhook_configs:
+      - url: http://alert-receiver:8080/platform-oncall
+        send_resolved: true
+  - name: ai-triage
+    webhook_configs:
+      - url: http://alert-receiver:8080/ai-triage
+        send_resolved: true
+inhibit_rules:
+  - source_matchers: ['alertname="AOILLMProviderUnavailable"']
+    target_matchers: ['alertname="AOILLMProviderErrorRatioHigh"']
+    equal: [service, provider, operation]
+  - source_matchers: ['alertname="AOILLMLatencyP95Critical"']
+    target_matchers: ['alertname="AOILLMLatencyP95High"']
+    equal: [service, provider, operation]

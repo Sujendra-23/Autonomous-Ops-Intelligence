@@ -23,6 +23,8 @@ tests:
         alertname: AOILLMProviderErrorRatioHigh
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: ai-oncall
               severity: warning
               provider: anthropic
               operation: extract
@@ -46,6 +48,8 @@ tests:
         alertname: AOILLMProviderUnavailable
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: ai-oncall
               severity: critical
               provider: openai
               operation: analytics_sql
@@ -84,6 +88,8 @@ tests:
         alertname: AOILLMInvalidOutputRatioHigh
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: ai-oncall
               severity: warning
               provider: anthropic
               model: haiku
@@ -113,6 +119,8 @@ tests:
         alertname: AOILLMLatencyP95High
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: ai-oncall
               severity: warning
               provider: anthropic
               operation: extract
@@ -140,6 +148,8 @@ tests:
         alertname: AOILLMLatencyP95Critical
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: ai-oncall
               severity: critical
               provider: anthropic
               operation: extract
@@ -174,6 +184,8 @@ tests:
         alertname: AOIExtractionFailures
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: platform-oncall
               severity: critical
             exp_annotations:
               summary: "Transcript extractions are failing repeatedly"
@@ -203,6 +215,8 @@ tests:
         alertname: AOIMetricsTargetDown
         exp_alerts:
           - exp_labels:
+              service: aoi
+              dri: platform-oncall
               severity: critical
               job: aoi-backend
               instance: "backend:8000"

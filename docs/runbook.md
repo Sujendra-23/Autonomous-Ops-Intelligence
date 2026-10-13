@@ -5,8 +5,8 @@ alert's `runbook_url` points at the heading of the same name below. Metric meani
 [observability.md](observability.md).
 
 Commands assume the Docker Compose stack from this repo with `make observability` running
-(Prometheus on `127.0.0.1:9090`, Grafana on `127.0.0.1:3001`, dashboard **AOI LLM and Extraction
-Observability**). If you set `METRICS_TOKEN`, add `-H "Authorization: Bearer $METRICS_TOKEN"` to the
+(Prometheus on `127.0.0.1:9090`, Alertmanager on `127.0.0.1:9093`; optionally import the
+provided Grafana dashboard into your own Grafana). If you set `METRICS_TOKEN`, add `-H "Authorization: Bearer $METRICS_TOKEN"` to the
 `curl` calls.
 
 ## First five minutes (any alert)
@@ -252,13 +252,30 @@ minutes. Every other alert in this file is blind while it fires.
 
 **Mitigate.** Restart the backend (`docker compose up -d backend`) after reading its logs, or
 fix the token configuration. If the backend is healthy but unreachable from Prometheus, check
-that both are on the Compose network (`docker compose --profile observability up -d`).
+that both are on the Compose network (`docker compose -f docker-compose.yml -f compose.observability.yml --profile observability up -d`).
 
 ## Maintaining these alerts
 
 * Rules: `observability/rules.yml`. Unit tests: `observability/tests/rules.test.yml`.
-* `make check-alerts` runs `promtool check rules` and `promtool test rules` (from the same
-  `prom/prometheus` image Compose uses); CI runs the same two commands.
+* `make check-alerts` runs `promtool check rules`, `promtool test rules`, Alertmanager
+  config validation and receiver assertions for every rule; CI runs the same checks.
 * `backend/tests/test_metrics.py` checks that every `aoi_*` metric named in a rule is really
   exposed, that expressions parse, and that every alert has a runbook section.
 * Add a runbook section whenever you add an alert; the test fails otherwise.
+
+## Ownership, acknowledgement and recovery
+
+DRIs and receivers are defined in [observability.md](observability.md#dri-and-notification-routing).
+The AI service on-call owns provider/latency/output incidents; platform on-call owns
+extraction and scrape incidents. These roles must be assigned to the real on-call
+roster before enabling production paging. Critical incidents should be acknowledged
+within five minutes; warnings within one business day. If a critical incident is
+unacknowledged after ten minutes, the incident-service escalation policy should
+page the secondary and then the engineering lead. Alertmanager repeats alone do
+not implement human acknowledgement or escalation timers.
+
+Record impact, start/detection/mitigation/recovery timestamps, accountable DRI,
+root cause and a follow-up owner. Require the resolved notification and a healthy
+scrape/counter trend before closing. A reproducible local drill is available as
+`make drill-metrics`; its [postmortem](drills/metrics-target.md) and JSON evidence
+exercise the AOIMetricsTargetDown runbook with the real five-minute alert hold.

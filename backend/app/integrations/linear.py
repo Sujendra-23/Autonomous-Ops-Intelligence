@@ -15,6 +15,7 @@ from app.integrations.base import DispatchResult, TaskMirror
 from app.logging import get_logger
 from app.models.project import Project
 from app.models.task import Task
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.integrations.linear")
 
@@ -52,7 +53,7 @@ class LinearAdapter(TaskMirror):
         variables = {
             "input": {
                 "teamId": self._team_id,
-                "title": task.title[:255],
+                "title": redact(task.title)[:255],
                 "description": description,
                 "priority": priority,
             }
@@ -62,7 +63,7 @@ class LinearAdapter(TaskMirror):
 
         try:
             data = await self._gql(mutation, variables)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("linear.create_failed", error=str(exc))
             return DispatchResult(self.name, False, detail=str(exc))
 
@@ -86,7 +87,7 @@ class LinearAdapter(TaskMirror):
             response = await client.post(
                 _LINEAR_GQL,
                 headers={"Authorization": self._api_key, "Content-Type": "application/json"},
-                json={"query": query, "variables": variables},
+                json={"query": query, "variables": redact_payload(variables)},
             )
             response.raise_for_status()
             body = response.json()

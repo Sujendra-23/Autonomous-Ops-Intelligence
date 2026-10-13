@@ -33,6 +33,7 @@ from app.llm.vision import ImagePart, anthropic_image_block, openai_image_block
 from app.logging import get_logger
 from app.metrics import track_llm_call
 from app.schemas.extraction import ExtractionResult
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.llm")
 
@@ -52,8 +53,7 @@ class LLMClient(ABC):
         participants: list[str] | None = None,
         project_hint: str | None = None,
         prior_context: str | None = None,
-    ) -> ExtractionResult:
-        ...
+    ) -> ExtractionResult: ...
 
     async def extract_images(
         self,
@@ -112,6 +112,7 @@ class OpenAIClient(LLMClient):
             project_hint=project_hint,
             prior_context=prior_context,
         )
+        user_prompt = redact(user_prompt)
         with track_llm_call("openai", self._model, "extract") as call:
             try:
                 response = await self._client.chat.completions.create(
@@ -161,7 +162,10 @@ class OpenAIClient(LLMClient):
             participants=participants,
             project_hint=project_hint,
         )
-        content = [{"type": "text", "text": prompt}, *(openai_image_block(i) for i in images)]
+        content = [
+            {"type": "text", "text": redact(prompt)},
+            *(openai_image_block(i) for i in images),
+        ]
         with track_llm_call("openai", self._model, "extract_document") as call:
             try:
                 response = await self._client.chat.completions.create(
@@ -197,7 +201,7 @@ class OpenAIClient(LLMClient):
     )
     async def caption_image(self, image: ImagePart, *, timestamp: str) -> str:
         content = [
-            {"type": "text", "text": build_caption_prompt(timestamp)},
+            {"type": "text", "text": redact(build_caption_prompt(timestamp))},
             openai_image_block(image),
         ]
         with track_llm_call("openai", self._model, "caption_frame") as call:
@@ -217,7 +221,7 @@ class OpenAIClient(LLMClient):
             call.record_usage(
                 getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
             )
-            return (response.choices[0].message.content or "").strip()
+            return redact((response.choices[0].message.content or "").strip())
 
 
 # --------------------------------------------------------------------------- #
@@ -260,6 +264,7 @@ class AnthropicClient(LLMClient):
             project_hint=project_hint,
             prior_context=prior_context,
         )
+        user_prompt = redact(user_prompt)
         with track_llm_call("anthropic", self._model, "extract") as call:
             try:
                 response = await self._client.messages.create(
@@ -307,7 +312,10 @@ class AnthropicClient(LLMClient):
             participants=participants,
             project_hint=project_hint,
         )
-        content = [*(anthropic_image_block(i) for i in images), {"type": "text", "text": prompt}]
+        content = [
+            *(anthropic_image_block(i) for i in images),
+            {"type": "text", "text": redact(prompt)},
+        ]
         with track_llm_call("anthropic", self._model, "extract_document") as call:
             try:
                 response = await self._client.messages.create(
@@ -342,7 +350,7 @@ class AnthropicClient(LLMClient):
     async def caption_image(self, image: ImagePart, *, timestamp: str) -> str:
         content = [
             anthropic_image_block(image),
-            {"type": "text", "text": build_caption_prompt(timestamp)},
+            {"type": "text", "text": redact(build_caption_prompt(timestamp))},
         ]
         with track_llm_call("anthropic", self._model, "caption_frame") as call:
             try:
@@ -359,7 +367,7 @@ class AnthropicClient(LLMClient):
             call.record_usage(
                 getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
             )
-            return "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+            return redact("".join(b.text for b in response.content if hasattr(b, "text")).strip())
 
 
 # --------------------------------------------------------------------------- #
@@ -384,15 +392,13 @@ def _parse_extraction(raw: str, *, provider: str) -> ExtractionResult:
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        logger.error("llm.parse_failed", provider=provider, raw=raw[:500])
+        logger.error("llm.parse_failed", provider=provider)
         raise LLMError(f"{provider} returned invalid JSON: {exc}") from exc
 
     try:
-        return ExtractionResult.model_validate(data)
+        return ExtractionResult.model_validate(redact_payload(data))
     except Exception as exc:
-        logger.error(
-            "llm.schema_violation", provider=provider, data=data, error=str(exc)
-        )
+        logger.error("llm.schema_violation", provider=provider, error_type=type(exc).__name__)
         raise LLMError(f"{provider} output did not match schema: {exc}") from exc
 
 
