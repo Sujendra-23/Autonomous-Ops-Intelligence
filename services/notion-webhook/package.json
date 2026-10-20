@@ -1,0 +1,13 @@
+{
+  "name": "aoi-notion-webhook",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "start": "node dist/server.js"
+  },
+  "devDependencies": {"@types/node": "^22.0.0", "typescript": "^5.6.2"}
+}

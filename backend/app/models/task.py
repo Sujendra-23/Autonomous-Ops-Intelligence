@@ -39,6 +39,7 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __table_args__ = (
         Index("ix_tasks_status_due", "status", "due_date"),
         Index("ix_tasks_owner", "owner"),
+        Index("ix_tasks_notion_block", "workspace_id", "notion_block_id", unique=True),
     )
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -75,6 +76,12 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     salesforce_task_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     salesforce_task_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     notion_block_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    notion_sync_pending: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
+    notion_sync_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notion_sync_error: Mapped[str | None] = mapped_column(String(128))
 
     last_status_change_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow

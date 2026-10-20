@@ -42,6 +42,10 @@ class TaskOut(BaseModel):
     sync_pending: bool
     sync_checked_at: datetime | None
     sync_error: str | None
+    notion_block_id: str | None
+    notion_sync_pending: bool
+    notion_sync_checked_at: datetime | None
+    notion_sync_error: str | None
 
 
 class TaskUpdate(BaseModel):

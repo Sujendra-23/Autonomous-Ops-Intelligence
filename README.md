@@ -67,7 +67,7 @@ team's behalf between meetings.
 | 🔒 `SecretStr` on every credential      | ✅       | Keys can't leak into logs, traces, or settings dumps           |
 | 🔒 `.env` auto-locked to mode `0600`    | ✅       | First-class security UX, not buried in implementation          |
 | 🔍 Auditable source quotes              | ✅       | Every extraction carries a verbatim quote + confidence score   |
-| 🤖 Notion mirror                        | ✅       | Auto-creates project page + appends each meeting               |
+| 🤖 Notion mirror                        | ✅       | Project pages, task checkboxes, and meeting summaries               |
 | 🤖 Linear mirror (GraphQL)              | ✅       | One issue per extracted task                                   |
 | 🤖 Jira mirror (REST + ADF)             | ✅       | Alternative to Linear                                          |
 | 🤖 Slack summaries + nudges             | ✅       | Block Kit summary post-meeting; reminders on drift             |
@@ -519,10 +519,8 @@ is reachable. Tests split into:
   port directly to activities and workflows.
 - **Add contradiction detection.** Embed every decision and flag pairs whose
   cosine similarity is high but whose source quotes are semantically opposed.
-- **Two-way sync.** Right now we push to Linear/Notion; pulling status changes
-  back into the task model would close the loop.
-- **Webhooks.** Replace polling with Linear/Notion/Slack webhooks for
-  near-real-time updates.
+- **More webhook providers.** Notion now has a signed TypeScript webhook receiver
+  with polling recovery; add inbound Linear and Slack event handlers.
 - **Auth.** The ingest API supports a static key; swap that for OIDC if you
   deploy this for a real org.
 
@@ -535,7 +533,7 @@ This is your codebase — use it however you want.
 ## Calendar context, task status sync, and webhooks
 
 Optional integrations now include Google Calendar meeting selection in the Chrome extension,
-two-way status sync for existing Linear/Jira issues, and a signed webhook outbox for automation
+two-way status sync for Linear/Jira issues and Notion task checkboxes, and a signed webhook outbox for automation
 receivers such as n8n, Zapier, or Make. They are disabled until configured. Run `make up` to
 apply migration `0002_integrations`, and reload the unpacked extension.
 
@@ -592,3 +590,18 @@ been measured.
 responses that fail schema validation), and extraction failures. `make observability` starts
 Prometheus and a provisioned Grafana dashboard next to the stack. See
 [docs/observability.md](docs/observability.md).
+
+### Notion task sync and workspace permissions
+
+Notion task checkboxes now have stable AOI task mappings. Enable
+`NOTION_SYNC_ENABLED=true` to reconcile completion in both directions; the existing
+worker polls at `INTEGRATION_INTERVAL_SECONDS`. Optional signed Notion webhooks
+are handled by the TypeScript service in `services/notion-webhook`.
+
+In OIDC mode, workspace owners/admins configure the connector; owners, admins
+and members can trigger writes. Viewers cannot write. The connector checks
+that project pages and task blocks remain beneath the configured Notion parent.
+Workspace workers use explicit service authority and encrypted workspace credentials.
+
+Apply migration `0007_notion_sync` before starting the updated API/worker. See
+[Notion sync setup and permission boundaries](docs/notion-sync.md).

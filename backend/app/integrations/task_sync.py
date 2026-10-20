@@ -21,6 +21,10 @@ class SyncError(Exception):
 
 
 def mark_sync_pending(task: Task) -> None:
+    if get_settings().notion_sync_enabled and task.notion_block_id:
+        task.notion_sync_pending = True
+        task.notion_sync_checked_at = None
+        task.notion_sync_error = None
     if get_settings().task_sync_enabled and (task.linear_issue_id or task.jira_issue_key):
         task.sync_pending = True
         task.sync_error = None
@@ -174,6 +178,9 @@ async def sync_task_statuses(session: AsyncSession, limit: int = 100) -> int:
                 adapter = StatusClient(client)
                 status = await getattr(adapter, provider)(task)
             if status != task.status:
+                if settings.notion_sync_enabled and task.notion_block_id:
+                    task.notion_sync_pending = True
+                    task.notion_sync_checked_at = None
                 previous = task.status
                 task.status = status
                 task.last_status_change_at = datetime.now(UTC)
