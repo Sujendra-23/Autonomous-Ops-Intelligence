@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     # ---- Notion ----
     notion_api_key: SecretStr = SecretStr("")
     notion_parent_page_id: str = ""
+    notion_sync_enabled: bool = False
 
     # ---- Linear ----
     linear_api_key: SecretStr = SecretStr("")

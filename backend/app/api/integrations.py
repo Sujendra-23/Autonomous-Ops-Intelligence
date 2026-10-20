@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,8 @@ from app.config import get_settings
 from app.database import get_session
 from app.integrations.calendar import GoogleCalendar
 from app.models.integration import WebhookDelivery
+from app.models.project import Project
+from app.models.task import Task
 
 router = APIRouter(dependencies=[Depends(require_ingest_key)])
 
@@ -22,6 +25,7 @@ async def integration_status() -> dict:
     return {
         "google_calendar": s.google_calendar_enabled,
         "notion": s.notion_enabled,
+        "notion_sync": s.notion_sync_enabled,
         "slack": s.slack_enabled,
         "discord": s.discord_enabled,
         "teams": s.teams_enabled,
@@ -88,3 +92,38 @@ async def retry_delivery(
     row.next_attempt_at = datetime.now(UTC)
     await session.commit()
     return {"id": str(row.id), "status": row.status}
+
+
+class NotionReconcileRequest(BaseModel):
+    page_id: uuid.UUID
+
+
+@router.post("/notion/reconcile")
+async def reconcile_notion(
+    payload: NotionReconcileRequest, session: AsyncSession = Depends(get_session)
+) -> dict:
+    """Schedule a bounded workspace batch; provider calls stay in the worker."""
+    from app.integrations.notion_permissions import NotionAccessError, require_notion_write
+
+    try:
+        require_notion_write()
+        if not get_settings().notion_sync_enabled or not get_settings().notion_enabled:
+            raise HTTPException(409, "Enable the workspace Notion connector and status sync")
+        rows = (
+            await session.scalars(
+                select(Task)
+                .join(Project, Task.project_id == Project.id)
+                .where(
+                    Project.notion_page_id == str(payload.page_id),
+                    Task.notion_block_id.is_not(None),
+                )
+                .limit(500)
+                .with_for_update(of=Task, skip_locked=True)
+            )
+        ).all()
+        for task in rows:
+            task.notion_sync_checked_at = None
+        await session.commit()
+    except NotionAccessError:
+        raise HTTPException(403, "Writable workspace membership required") from None
+    return {"scheduled": len(rows)}

@@ -79,12 +79,29 @@ class IntegrationDispatcher:
         # Re-load the tasks emitted for this transcript so we can attach
         # external identifiers as the mirrors return them.
         task_rows = (
-            (await session.execute(select(Task).where(Task.transcript_id == transcript.id)))
+            (
+                await session.execute(
+                    select(Task).where(Task.transcript_id == transcript.id).with_for_update()
+                )
+            )
             .scalars()
             .all()
         )
 
+        notion = NotionAdapter()
         for task in task_rows:
+            if notion.is_enabled():
+                outcome = await self._safe(notion.create_task, task, project)
+                outcomes.append(outcome)
+                if outcome.success and outcome.external_id and outcome.detail != "exists":
+                    session.add(
+                        TaskActivity(
+                            task_id=task.id,
+                            kind="external_mirror_created",
+                            actor="notion",
+                            payload={"adapter": "notion", "external_id": outcome.external_id},
+                        )
+                    )
             # Once mirrored, keep the existing provider even if configuration changes.
             if task.linear_issue_id or task.jira_issue_key:
                 continue

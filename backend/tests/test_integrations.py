@@ -33,6 +33,7 @@ def task(**kwargs):
         status="open",
         priority="medium",
         sync_pending=False,
+        notion_sync_pending=False,
         **kwargs,
     )
 

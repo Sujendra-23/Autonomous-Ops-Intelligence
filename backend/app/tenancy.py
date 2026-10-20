@@ -7,11 +7,13 @@ LEGACY_WORKSPACE = UUID("00000000-0000-0000-0000-000000000001")
 workspace_context: ContextVar[UUID | None] = ContextVar("workspace", default=None)
 settings_context: ContextVar = ContextVar("workspace_settings", default=None)
 principal_context: ContextVar = ContextVar("principal", default=None)
+connector_service_context: ContextVar[bool] = ContextVar("connector_service", default=False)
 
 CONNECTOR_FIELDS = frozenset(
     {
         "notion_api_key",
         "notion_parent_page_id",
+        "notion_sync_enabled",
         "linear_api_key",
         "linear_team_id",
         "jira_base_url",

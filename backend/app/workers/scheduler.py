@@ -17,13 +17,20 @@ from sqlalchemy import and_, or_, select, text
 
 from app.config import base_settings, get_settings
 from app.database import SessionLocal, engine
+from app.integrations.notion_sync import sync_notion_statuses
 from app.integrations.task_sync import sync_task_statuses
 from app.integrations.webhooks import deliver_webhooks
 from app.logging import configure_logging, get_logger
 from app.models.account import Workspace
 from app.models.transcript import Transcript
 from app.services.extraction import ExtractionPipeline
-from app.tenancy import LEGACY_WORKSPACE, settings_context, workspace_context, workspace_settings
+from app.tenancy import (
+    LEGACY_WORKSPACE,
+    connector_service_context,
+    settings_context,
+    workspace_context,
+    workspace_settings,
+)
 from app.workers.monitor import DriftMonitor
 
 
@@ -44,6 +51,7 @@ async def in_workspaces(operation):
             continue
         token = workspace_context.set(workspace.id)
         config_token = settings_context.set(scoped_settings)
+        service_token = connector_service_context.set(True)
         try:
             async with engine.connect() as lease:
                 key = str(workspace.id)
@@ -63,6 +71,7 @@ async def in_workspaces(operation):
                 "scheduler.workspace_operation_failed", workspace_id=str(workspace.id)
             )
         finally:
+            connector_service_context.reset(service_token)
             settings_context.reset(config_token)
             workspace_context.reset(token)
 
@@ -106,7 +115,7 @@ async def _run_extraction() -> None:
 
 async def _run_integrations() -> None:
     log = get_logger("app.workers.scheduler")
-    for operation in (sync_task_statuses, deliver_webhooks):
+    for operation in (sync_task_statuses, sync_notion_statuses, deliver_webhooks):
         async with SessionLocal() as session:
             try:
                 await operation(session)

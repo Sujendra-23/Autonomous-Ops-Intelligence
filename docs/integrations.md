@@ -209,3 +209,8 @@ When `INGEST_API_KEY` is configured, enter it in **Backend API key (if set)** in
 console sidebar before editing tasks or uploading transcripts. It is kept only in memory
 and cleared on reload. The console and extension accept the backend ingestion key, never
 Google OAuth credentials, provider API keys, or the webhook signing secret.
+
+## Notion completion sync
+
+Notion supports mapped task checkboxes, two-way completion sync, and an optional
+TypeScript webhook receiver. See [Notion setup and permissions](notion-sync.md).
