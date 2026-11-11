@@ -8,10 +8,11 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy import or_, select
+from sqlalchemy import and_, false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.integrations.oauth import OAuthError, jira_connection, linear_authorization
 from app.integrations.webhooks import enqueue_event, task_data
 from app.models.task import Task, TaskActivity
 
@@ -35,6 +36,7 @@ def mapped_status(state: dict, mapping: dict[str, str], *, linear: bool) -> str:
     defaults = (
         {
             "backlog": "open",
+            "triage": "open",
             "unstarted": "open",
             "started": "in_progress",
             "completed": "done",
@@ -56,7 +58,11 @@ class StatusClient:
     async def gql(self, query: str, variables: dict) -> dict:
         response = await self.client.post(
             "https://api.linear.app/graphql",
-            headers={"Authorization": self.settings.linear_api_key.get_secret_value()},
+            headers={
+                "Authorization": await linear_authorization(
+                    self.settings.linear_api_key.get_secret_value()
+                )
+            },
             json={"query": query, "variables": variables},
         )
         response.raise_for_status()
@@ -108,11 +114,12 @@ class StatusClient:
         return task.status
 
     async def jira_request(self, method: str, path: str, **kwargs) -> dict:
+        base, headers, auth = await jira_connection(self.settings)
         response = await self.client.request(
             method,
-            self.settings.jira_base_url.rstrip("/") + path,
-            auth=(self.settings.jira_email, self.settings.jira_api_token.get_secret_value()),
-            headers={"Accept": "application/json"},
+            base + path,
+            auth=auth,
+            headers={"Accept": "application/json", **headers},
             **kwargs,
         )
         response.raise_for_status()
@@ -152,12 +159,24 @@ async def sync_task_statuses(session: AsyncSession, limit: int = 100) -> int:
     if not settings.task_sync_enabled:
         return 0
     updated = 0
+    eligible = [false()]
+    if settings.linear_enabled:
+        eligible.append(Task.linear_issue_id.is_not(None))
+    if settings.jira_enabled:
+        eligible.append(
+            and_(
+                Task.jira_issue_key.is_not(None),
+                Task.jira_issue_url.startswith(
+                    settings.jira_base_url.rstrip("/") + "/browse/", autoescape=True
+                ),
+            )
+        )
     cutoff = datetime.now(UTC) - timedelta(seconds=settings.integration_interval_seconds)
     for _ in range(limit):
         task = await session.scalar(
             select(Task)
             .where(
-                or_(Task.linear_issue_id.is_not(None), Task.jira_issue_key.is_not(None)),
+                or_(*eligible),
                 or_(Task.sync_checked_at.is_(None), Task.sync_checked_at <= cutoff),
             )
             .order_by(Task.sync_checked_at.asc().nullsfirst(), Task.id)
@@ -198,10 +217,10 @@ async def sync_task_statuses(session: AsyncSession, limit: int = 100) -> int:
                 )
             task.sync_pending = False
             task.sync_error = None
-        except (httpx.HTTPError, SyncError, KeyError, ValueError) as exc:
+        except (httpx.HTTPError, SyncError, OAuthError, KeyError, ValueError) as exc:
             task.sync_error = (
                 str(exc)
-                if isinstance(exc, SyncError)
+                if isinstance(exc, SyncError | OAuthError)
                 else "Provider request failed; check credentials and workflow permissions"
             )
         task.sync_checked_at = datetime.now(UTC)

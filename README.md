@@ -1,6 +1,19 @@
 > **Public SaaS preparation:** Account/workspace isolation and production containers are available. See [production-release.md](docs/production-release.md) for identity configuration, database roles, connector setup and release verification. The development setup below uses development authentication; do not expose it publicly. Nothing is hosted automatically.
 
+Provider sign-in is now available in the dashboard and extension. See [connector OAuth setup](docs/connector-oauth.md) for one-time app registration and the automatic connection flow. Manual credential setup below remains available.
+
 # Autonomous Operational Intelligence Layer
+
+AOI works as a **browser extension + web dashboard**. Capture live meeting audio
+in the extension, then review meeting history, transcripts, tasks, decisions,
+risks, and blockers in the dashboard. The extension opens the current meeting
+directly in the dashboard; both use the same backend and workspace. See
+[extension and dashboard setup](docs/extension-dashboard.md).
+
+Company authentication can also use the [Multi-Tenant Identity Access Gateway](docs/identity-gateway.md).
+Each verified company maps to its own PostgreSQL workspace, with separate meeting
+records, member roles, connector settings, and pgvector search. The existing OIDC
+provider flow remains available. Gateway mode is enabled through explicit configuration.
 
 > An **AI Agent for Work** that converts meetings into **structured tasks and
 > decisions with zero manual tagging** — and mirrors them into Notion,
@@ -341,6 +354,10 @@ merge is — higher is more conservative.
 
 ## Live note-taker (browser extension)
 
+Live listening supports **automatic multilingual recognition** and per-meeting
+language preferences. Choose the listening language in the extension before
+capture. [Multilingual setup and provider coverage](docs/multilingual-listening.md).
+
 The batch flow (upload a transcript / video after the fact) is complemented by a
 **Chrome extension that takes notes while the meeting is happening**. It captures
 the active tab's audio, streams it to the backend for real-time transcription,
@@ -549,3 +566,46 @@ See [setup, supported behavior, and limitations](docs/integrations.md).
 and executes through dedicated read-only PostgreSQL roles. Owner names/emails are masked
 unless the caller holds the separate analytics owner permission. Includes a deterministic
 20-question eval and an optional live Claude eval. See [setup and security boundaries](docs/analytics.md).
+
+## Weekly leadership summary
+
+Open **Weekly summary** in the console, or visit `/weekly-summary`, for a
+one-page leadership briefing generated from existing workspace records.
+It shows current open risks, overdue active tasks, and decisions captured in
+the last seven days, excluding superseded decisions. Each section shows up to
+three prioritized highlights alongside full totals, with expandable source
+quotes and extraction confidence. **Print / Save PDF** provides a compact A4
+layout. The read-only `GET /api/intelligence/weekly-summary` endpoint uses the
+existing workspace access controls and makes no LLM calls or external updates.
+
+### Transcript classification and alert ownership
+
+Transcripts default to `internal` and are promoted to `confidential` when supported
+PII is detected. Stored text and external payloads are redacted before extraction
+or publication. See [classification and DLP](docs/classification-dlp.md) for the
+policy, migration behavior and `make eval-dlp` regression evaluation.
+
+`make observability` loads the seven LLM/extraction alerts and Alertmanager DRI
+routes. `make check-alerts` validates all rules and receivers; `make drill-metrics`
+runs an isolated target-outage drill and writes a postmortem. See
+[observability](docs/observability.md) and the [runbook](docs/runbook.md).
+
+## Project roadmaps and speech control
+
+Use **Roadmaps** to turn a written plan, a meeting transcript, or a project's recent
+meetings into an editable sequence of milestones and tasks. Saving can create real,
+project-linked AOI tasks. **Talk to AOI** supports spoken navigation, form dictation,
+and commands such as creating a goal, its milestones, and its tasks; typed commands
+are also available. Apply migration `0010_project_roadmaps` and use the existing AI
+provider configuration. [Setup, supported behavior, and verification](docs/roadmaps-and-speech.md).
+
+## Desktop call recording
+
+AOI Desktop adds macOS and Windows system-audio capture alongside the browser extension.
+Use the global recording shortcut in Teams, Slack huddles, Discord or other desktop calls,
+optionally include your microphone, and keep a local WAV backup. Transcripts and tasks use
+the same backend/workspace. [Builds, setup, permissions and verification](docs/desktop-capture.md).
+
+Transcription now supports per-meeting terminology, final-word flush protections and
+uncertain-passage review. [Quality protections and measured limits](docs/transcription-quality.md).
+Apply migration `0011_transcription_quality` before running the updated backend.

@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +39,13 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __table_args__ = (
         Index("ix_tasks_status_due", "status", "due_date"),
         Index("ix_tasks_owner", "owner"),
+        UniqueConstraint(
+            "workspace_id",
+            "source",
+            "external_scope",
+            "external_id",
+            name="uq_tasks_external_identity",
+        ),
     )
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -56,6 +63,9 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
 
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(16), default="meeting", server_default="meeting")
+    external_scope: Mapped[str | None] = mapped_column(String(64))
+    external_id: Mapped[str | None] = mapped_column(String(128))
     owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
     due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=TaskStatus.OPEN.value)
@@ -93,6 +103,21 @@ class Task(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
 
     def __repr__(self) -> str:
         return f"<Task {self.title!r} status={self.status}>"
+
+
+class TaskImportState(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
+    """Resumable connector imports, isolated to a workspace and destination."""
+
+    __tablename__ = "task_import_states"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "provider", name="uq_task_import_workspace_provider"),
+    )
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope: Mapped[str] = mapped_column(String(64), nullable=False)
+    cursor: Mapped[str | None] = mapped_column(Text)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(String(128))
 
 
 class TaskActivity(TenantMixin, UUIDPrimaryKey, Timestamps, Base):

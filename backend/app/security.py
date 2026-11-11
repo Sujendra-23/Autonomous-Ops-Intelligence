@@ -22,12 +22,24 @@ class SecurityMiddleware:
 
     async def __call__(self, scope, receive, send):
         settings = base_settings()
-        if (
-            scope["type"] not in ("http", "websocket")
-            or not scope["path"].startswith("/api/")
-            or settings.auth_mode != "oidc"
-        ):
+        if scope["type"] not in ("http", "websocket") or not scope["path"].startswith("/api/"):
             return await self.app(scope, receive, send)
+        if settings.auth_mode != "oidc":
+            if not settings.connector_encryption_key.get_secret_value():
+                return await self.app(scope, receive, send)
+            from app.database import SessionLocal
+            from app.models.account import Workspace
+            from app.tenancy import LEGACY_WORKSPACE
+
+            async with SessionLocal() as db:
+                row = await db.get(Workspace, LEGACY_WORKSPACE)
+            config = settings_context.set(
+                workspace_settings(row.connector_ciphertext if row else None)
+            )
+            try:
+                return await self.app(scope, receive, send)
+            finally:
+                settings_context.reset(config)
         headers = {key.decode().lower(): value.decode() for key, value in scope.get("headers", [])}
         if scope["type"] == "http" and scope["method"] == "OPTIONS":
             return await self.app(scope, receive, send)
@@ -95,7 +107,8 @@ class SecurityMiddleware:
                 and scope["method"] == "POST"
                 and any(
                     scope["path"].startswith(path)
-                    for path in ("/api/transcripts", "/api/live/sessions", "/api/intelligence")
+                    for path in ("/api/transcripts", "/api/live/sessions", "/api/intelligence",
+                                 "/api/projects/roadmap/generate", "/api/assistant/command")
                 )
             ):
                 from datetime import UTC, datetime
@@ -172,7 +185,9 @@ class SecurityMiddleware:
             if started:
                 raise
             if scope["type"] == "websocket":
-                await send({"type": "websocket.close", "code": 1008})
+                await send(
+                    {"type": "websocket.close", "code": 1013 if exc.status_code == 409 else 1008}
+                )
             else:
                 body = json.dumps({"detail": exc.detail}).encode()
                 await send(

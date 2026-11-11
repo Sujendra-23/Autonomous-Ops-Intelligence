@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { api } from "../api";
+import { Icon } from "./Icon";
 
 type Mode = "text" | "video";
 type UploadStatus = "idle" | "transcribing" | "extracting" | "done" | "error";
@@ -102,10 +103,10 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
   };
 
   return (
-    <>
+    <div className="workspace-page upload-studio">
       <header><h2>Hand the agent a meeting</h2></header>
 
-      <div className="panel" style={{ borderColor: "var(--accent-2)" }}>
+      <div className="upload-intro"><span className="upload-intro-icon"><Icon name="intelligence"/></span>
         <p className="muted" style={{ marginTop: 0 }}>
           Upload a <strong style={{ color: "var(--text)" }}>video or audio recording</strong> and
           the agent transcribes it with Whisper, then extracts{" "}
@@ -116,15 +117,16 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
       </div>
 
       {/* Mode tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="upload-modes" role="group" aria-label="Transcript source">
         {(["video", "text"] as Mode[]).map((m) => (
           <button
             key={m}
             className={mode === m ? "active" : ""}
-            style={{ flex: 1 }}
+            aria-pressed={mode === m}
+            disabled={busy}
             onClick={() => { setMode(m); setStatus("idle"); setError(null); setFile(null); }}
           >
-            {m === "video" ? "Video / Audio file" : "Paste transcript text"}
+            <Icon name={m === "video" ? "upload" : "summary"}/>{m === "video" ? "Video / Audio file" : "Paste transcript text"}
           </button>
         ))}
       </div>
@@ -132,50 +134,57 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
       <div className="panel">
         {/* Shared metadata */}
         <div className="form-row">
-          <input placeholder="Meeting title" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} />
-          <input placeholder="Project (optional)" value={projectHint} onChange={(e) => setProjectHint(e.target.value)} disabled={busy} />
+          <label htmlFor="upload-title">Meeting title<input id="upload-title" placeholder="Give your meeting a name" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} /></label>
+          <label htmlFor="upload-project">Project <span>(optional)</span><input id="upload-project" placeholder="Add a project" value={projectHint} onChange={(e) => setProjectHint(e.target.value)} disabled={busy} /></label>
         </div>
         <div className="form-row">
-          <input
-            placeholder="Participants, comma-separated (optional)"
+          <label htmlFor="upload-participants">Participants <span>(optional)</span><input
+            id="upload-participants"
+            placeholder="Names, separated by commas"
             value={participants}
             onChange={(e) => setParticipants(e.target.value)}
             disabled={busy}
-          />
+          /></label>
         </div>
 
         {mode === "video" ? (
           <>
             {/* Drop zone */}
             <div
+              className="upload-dropzone"
+              role="button"
+              tabIndex={busy ? -1 : 0}
+              aria-disabled={busy}
+              aria-label="Choose a meeting recording to upload"
+              onKeyDown={(event) => { if (!busy && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); fileRef.current?.click(); } }}
               onClick={() => !busy && fileRef.current?.click()}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={!busy ? handleDrop : undefined}
               style={{
                 border: `2px dashed ${dragging ? "var(--accent)" : status === "done" ? "var(--ok)" : "var(--border)"}`,
-                borderRadius: 8,
-                padding: "28px 24px",
+                borderRadius: 12,
+                padding: "36px 24px",
                 textAlign: "center",
                 cursor: busy ? "default" : "pointer",
-                background: dragging ? "var(--panel-2)" : file || status !== "idle" ? "var(--panel-2)" : undefined,
+                background: "var(--panel-2)",
                 transition: "border-color 0.15s, background 0.15s",
               }}
             >
               {dragging ? (
                 <>
-                  <div style={{ fontSize: 36 }}>⬇️</div>
+                  <span className="upload-drop-icon"><Icon name="upload"/></span>
                   <div style={{ marginTop: 8, fontWeight: 600, color: "var(--accent)" }}>Drop to start transcription</div>
                 </>
               ) : status === "done" ? (
                 <>
-                  <div style={{ fontSize: 32 }}>✅</div>
+                  <span className="upload-drop-icon"><Icon name="check"/></span>
                   <div style={{ marginTop: 8, fontWeight: 600, color: "var(--ok)" }}>Transcription complete</div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Redirecting to tasks…</div>
                 </>
               ) : file && busy ? (
                 <>
-                  <div style={{ fontSize: 28 }}>🎬</div>
+                  <span className="upload-drop-icon"><Icon name="meetings"/></span>
                   <div style={{ marginTop: 8, fontWeight: 600 }}>{file.name}</div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                     {(file.size / 1024 / 1024).toFixed(1)} MB · processing…
@@ -183,7 +192,7 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 36 }}>📹</div>
+                  <span className="upload-drop-icon"><Icon name="upload"/></span>
                   <div style={{ marginTop: 8, fontWeight: 600 }}>
                     {status === "error" ? "Drop another file to retry" : "Drop your meeting recording here"}
                   </div>
@@ -227,10 +236,10 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: 13, fontWeight: 700,
                           background: isDone ? "var(--ok)" : isActive ? "var(--accent)" : "var(--border)",
-                          color: isDone || isActive ? "#0b0d10" : "var(--muted)",
+                          color: isDone || isActive ? "#f7f8ec" : "var(--muted)",
                           transition: "background 0.3s",
                         }}>
-                          {isDone ? "✓" : isActive ? <Spinner /> : i + 1}
+                          {isDone ? <Icon name="check"/> : isActive ? <Spinner /> : i + 1}
                         </div>
                         <div style={{
                           marginTop: 6, fontSize: 11, textAlign: "center",
@@ -270,7 +279,10 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
           </>
         ) : (
           <>
+            <label className="upload-transcript-label" htmlFor="upload-transcript">Meeting transcript</label>
             <textarea
+              id="upload-transcript"
+              disabled={busy}
               placeholder="Paste raw transcript here…"
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -289,7 +301,7 @@ export function TranscriptUpload({ onIngested }: { onIngested: () => void }) {
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -297,7 +309,7 @@ function Spinner() {
   return (
     <span style={{
       display: "inline-block", width: 12, height: 12,
-      border: "2px solid #0b0d10", borderTopColor: "transparent",
+      border: "2px solid currentColor", borderTopColor: "transparent",
       borderRadius: "50%", animation: "spin 0.7s linear infinite",
     }} />
   );

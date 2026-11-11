@@ -29,6 +29,7 @@ class ProjectOut(BaseModel):
     status: str
     notion_page_id: str | None
     linear_project_id: str | None
+    has_roadmap: bool = False
 
 
 class ProjectRollup(ProjectOut):

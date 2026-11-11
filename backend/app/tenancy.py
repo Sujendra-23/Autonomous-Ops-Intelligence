@@ -18,6 +18,10 @@ CONNECTOR_FIELDS = frozenset(
         "jira_email",
         "jira_api_token",
         "jira_project_key",
+        "jira_cloud_id",
+        "teams_team_id",
+        "teams_channel_id",
+        "connector_oauth",
         "slack_bot_token",
         "slack_default_channel",
         "discord_webhook_url",
@@ -46,8 +50,9 @@ def workspace_settings(ciphertext: str | None):
     base = base_settings()
     values = base.model_dump()
     defaults = Settings.model_fields
-    for field in CONNECTOR_FIELDS:
-        values[field] = defaults[field].get_default(call_default_factory=True)
+    if base.auth_mode == "oidc":
+        for field in CONNECTOR_FIELDS:
+            values[field] = defaults[field].get_default(call_default_factory=True)
     if ciphertext:
         decoded = json.loads(
             Fernet(base.connector_encryption_key.get_secret_value().encode()).decrypt(

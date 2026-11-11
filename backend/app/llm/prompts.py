@@ -54,6 +54,13 @@ field must be evidence-based and conservative.
 9. Respond with a single JSON object matching the provided schema. No prose,
    no markdown, no code fences — just the JSON object.
 
+The transcript may use any language or switch languages within a sentence.
+Extract actionable content across all spoken languages. Keep each title,
+summary, and description in the language of its corresponding source passage;
+do not translate the meeting into English by default. Preserve names, scripts,
+and source quotes exactly. JSON field names and enum values must still follow
+the provided schema.
+
 # Continuity (when an "Existing project state" section is present)
 
 10. The meeting may concern a project that already has tracked work. When that

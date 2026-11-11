@@ -1,0 +1,27 @@
+{
+  "fixture": "explicit test recording; no real meeting capture",
+  "model": "gpt-4o-transcribe",
+  "reference": "Priya will review the Kubernetes migration on November fifteenth. The budget is twelve thousand five hundred dollars. Sam owns the rollout checklist. We must not launch before security approval.",
+  "transcript": "Priya will review the Kubernetes migration on November 15th. The budget is $12,500. Sam owns the rollout checklist. We must not launch before security approval.",
+  "word_error_rate": 0.2069,
+  "normalization": "case and punctuation only; numeric/date formatting counts as word edits",
+  "audio_seconds": 12.31,
+  "elapsed_seconds": 17.11,
+  "segments": [
+    {
+      "text": "Priya will review the Kubernetes migration on November 15th. The budget is $12,500. Sam owns the rollout checklist. We must not launch before security approval.",
+      "confidence": 0.9906512086449999,
+      "needs_review": false
+    }
+  ],
+  "limits": "A single synthetic fixture is not evidence of accuracy on real calls or other languages.",
+  "critical_fact_checks": {
+    "name_priya": true,
+    "technical_term_kubernetes": true,
+    "date_november_fifteenth": true,
+    "budget_12500": true,
+    "owner_sam": true,
+    "negative_commitment_preserved": true,
+    "final_word_present": true
+  }
+}

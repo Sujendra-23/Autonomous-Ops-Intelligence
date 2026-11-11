@@ -1,0 +1,29 @@
+# Fully isolated from the application and its databases; no .env or credentials loaded.
+services:
+  backend:
+    image: python:3.13-alpine
+    environment: {PORT: "8000"}
+    command: [python, /capture.py]
+    volumes: ["./capture.py:/capture.py:ro"]
+  alert-receiver:
+    image: python:3.13-alpine
+    command: [python, /capture.py]
+    volumes: ["./capture.py:/capture.py:ro"]
+    ports: ["127.0.0.1::8080"]
+  worker:
+    image: python:3.13-alpine
+    environment: {PORT: "8001"}
+    command: [python, /capture.py]
+    volumes: ["./capture.py:/capture.py:ro"]
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    volumes: ["./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"]
+    depends_on: [alert-receiver]
+    ports: ["127.0.0.1::9093"]
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules.yml:/etc/prometheus/rules.yml:ro
+    depends_on: [backend, alertmanager]
+    ports: ["127.0.0.1::9090"]

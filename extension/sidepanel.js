@@ -3,7 +3,57 @@
 // doc using chrome.runtime messaging).
 
 const $ = (id) => document.getElementById(id);
-const fields = ["backendUrl", "projectHint", "apiKey", "title"];
+const fields = ["backendUrl", "dashboardUrl", "projectHint", "apiKey", "title", "listeningLanguage", "transcriptionTerms"];
+let languageRequest = 0;
+let listeningPreferenceSet = false;
+let automaticListeningHelp = "Automatic recognition keeps the languages you speak. Coverage depends on your transcription provider.";
+function listeningLanguageHelp() {
+  const selected = $("listeningLanguage");
+  $("listeningLanguageHelp").textContent = capturing
+    ? `Listening: ${selected.selectedOptions[0]?.textContent || selected.value}. Change the language before your next capture.`
+    : selected.value === "auto"
+      ? automaticListeningHelp
+      : "Use this for a meeting mainly in one language. Choose Auto-detect for mixed-language speech.";
+}
+async function loadListeningLanguages() {
+  const request = ++languageRequest;
+  try {
+    const base = $("backendUrl").value.trim().replace(/\/+$/, "");
+    const key = $("apiKey").value.trim();
+    const response = await fetch(`${base}/api/live/languages`, {
+      headers: key ? { "X-API-Key": key } : {}, signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("Language options unavailable");
+    const data = await response.json();
+    if (request !== languageRequest || capturing || !Array.isArray(data.items)) return;
+    if (typeof data.auto_note === "string") automaticListeningHelp = data.auto_note;
+    const chosen = listeningPreferenceSet ? $("listeningLanguage").value : data.default || "auto";
+    $("listeningLanguage").replaceChildren(...data.items.map(item => new Option(item.label, item.code)));
+    $("listeningLanguage").value = data.items.some(item => item.code === chosen) ? chosen : "auto";
+    listeningLanguageHelp();
+  } catch {
+    if (request !== languageRequest || capturing) return;
+    $("listeningLanguageHelp").textContent = "Couldn’t load language choices. Check your backend connection. Automatic recognition remains available.";
+  }
+}
+$("listeningLanguage").addEventListener("change", () => { listeningPreferenceSet = true; listeningLanguageHelp(); });
+["backendUrl", "apiKey"].forEach(id => $(id).addEventListener("change", () => void loadListeningLanguages()));
+let currentTranscriptId = null;
+async function openDashboard(transcriptId) {
+  try {
+    const url = dashboardLink($("dashboardUrl").value || "http://localhost:5173", transcriptId);
+    await chrome.tabs.create({ url });
+    $("dashboardStatus").hidden = true;
+  } catch {
+    $("dashboardStatus").hidden = false;
+    $("dashboardStatus").textContent = "Could not open the dashboard. Check Dashboard URL in connection settings and try again.";
+    selectView("connectors");
+    $("connectionSettings").open = true;
+    $("dashboardUrl").focus();
+  }
+}
+$("openDashboard").addEventListener("click", () => openDashboard());
+$("viewMeeting").addEventListener("click", () => openDashboard(currentTranscriptId));
 let capturing = false;
 let finals = []; // finalized transcript segments
 let calendarEvents = [];
@@ -56,6 +106,8 @@ function updateTimer() {
 }
 function finishCapture() {
   capturing = false;
+  $("listeningLanguage").disabled = false;
+  listeningLanguageHelp();
   clearInterval(timerInterval);
   updateTimer();
   $("toggle").disabled = false;
@@ -167,9 +219,19 @@ $("calendarEvent").addEventListener("change", () => {
 // ---- config persistence ----------------------------------------------------
 chrome.storage.local.get(fields).then((saved) => {
   $("backendUrl").value = saved.backendUrl || "http://localhost:8000";
+  $("dashboardUrl").value = saved.dashboardUrl || "http://localhost:5173";
   $("projectHint").value = saved.projectHint || "";
   $("apiKey").value = saved.apiKey || "";
   $("title").value = saved.title || "";
+  $("transcriptionTerms").value = saved.transcriptionTerms || "";
+  listeningPreferenceSet = saved.listeningLanguage === "auto" || (typeof saved.listeningLanguage === "string" && /^[a-z]{2}$/.test(saved.listeningLanguage));
+  if (typeof saved.listeningLanguage === "string" && /^[a-z]{2}$/.test(saved.listeningLanguage)) {
+    const label = new Intl.DisplayNames(["en"], { type: "language" }).of(saved.listeningLanguage) || saved.listeningLanguage;
+    $("listeningLanguage").add(new Option(label, saved.listeningLanguage));
+    $("listeningLanguage").value = saved.listeningLanguage;
+  }
+  void loadListeningLanguages();
+  void refreshConnectors();
 });
 fields.forEach((f) =>
   $(f).addEventListener("change", () => chrome.storage.local.set({ [f]: $(f).value }))
@@ -181,6 +243,7 @@ $("toggle").addEventListener("click", () => (capturing ? stop() : start()));
 async function start() {
   setStatus("Starting…", "connecting");
   $("toggle").disabled = true;
+  $("listeningLanguage").disabled = true;
 
   const config = {
     backendUrl: $("backendUrl").value.trim(),
@@ -188,6 +251,8 @@ async function start() {
     apiKey: $("apiKey").value.trim(),
     title: $("title").value.trim(),
     calendarEventId: $("calendarEvent").value || null,
+    language: $("listeningLanguage").value || "auto",
+    transcriptionTerms: $("transcriptionTerms").value,
   };
   const res = await chrome.runtime.sendMessage({ type: "START", config }).catch((e) => ({
     ok: false,
@@ -195,14 +260,18 @@ async function start() {
   }));
   $("toggle").disabled = false;
   if (!res || !res.ok) {
+    $("listeningLanguage").disabled = false;
     setStatus("Error: " + (res && res.error ? res.error : "failed to start"), "error");
     return;
   }
   finals = [];
+  currentTranscriptId = res.transcriptId || null;
+  $("viewMeeting").hidden = !currentTranscriptId;
   renderTranscript("");
   renderNotes({});
   $("copyStatus").textContent = "";
   capturing = true;
+  listeningLanguageHelp();
   sessionStarted = Date.now();
   updateTimer();
   clearInterval(timerInterval);
@@ -230,6 +299,10 @@ async function stop() {
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type !== "WS_MESSAGE") return;
   const data = msg.data || {};
+  if (data.transcript_id) {
+    currentTranscriptId = data.transcript_id;
+    $("viewMeeting").hidden = false;
+  }
   switch (data.type) {
     case "transcript":
       if (data.is_final) {
@@ -320,9 +393,9 @@ function renderTasks(tasks) {
       const due = t.due_date ? esc(t.due_date.slice(0, 10)) : "no due date";
       const conf = t.confidence != null ? Math.round(t.confidence * 100) + "%" : "";
       return `<div class="card" data-kind="task">
-        <div class="title">${esc(t.title)}<span class="pill">${esc(t.status)}</span><span class="pill">${esc(t.priority)}</span></div>
+        <div class="title" dir="auto">${esc(t.title)}<span class="pill">${esc(t.status)}</span><span class="pill">${esc(t.priority)}</span></div>
         <div class="meta">owner: ${esc(t.owner || "unassigned")} · due: ${due} ${conf ? "· conf " + conf : ""}</div>
-        ${t.source_quote ? `<details><summary>View source quote</summary><blockquote class="quote">“${esc(t.source_quote)}”</blockquote></details>` : ""}
+        ${t.source_quote ? `<details><summary>View source quote</summary><blockquote class="quote" dir="auto">“${esc(t.source_quote)}”</blockquote></details>` : ""}
       </div>`;
     })
     .join("");
@@ -338,9 +411,9 @@ function renderDecisions(decisions) {
     .map((d) => {
       const by = (d.decided_by || []).join(", ");
       return `<div class="card" data-kind="decision">
-        <div class="title">${esc(d.summary)}</div>
+        <div class="title" dir="auto">${esc(d.summary)}</div>
         ${by ? `<div class="meta">decided by: ${esc(by)}</div>` : ""}
-        ${d.source_quote ? `<details><summary>View source quote</summary><blockquote class="quote">“${esc(d.source_quote)}”</blockquote></details>` : ""}
+        ${d.source_quote ? `<details><summary>View source quote</summary><blockquote class="quote" dir="auto">“${esc(d.source_quote)}”</blockquote></details>` : ""}
       </div>`;
     })
     .join("");
@@ -351,13 +424,13 @@ function renderRisksBlockers(risks, blockers) {
   const parts = [];
   risks.forEach((r) => {
     parts.push(`<div class="card" data-kind="risk">
-      <div class="title">${esc(r.title)}<span class="pill">${esc(r.severity)}</span></div>
+      <div class="title" dir="auto">${esc(r.title)}<span class="pill">${esc(r.severity)}</span></div>
       <div class="meta">risk · likelihood ${esc(r.likelihood)}</div>
     </div>`);
   });
   blockers.forEach((b) => {
     parts.push(`<div class="card" data-kind="blocker">
-      <div class="title">${esc(b.summary)}<span class="pill">${esc(b.severity)}</span></div>
+      <div class="title" dir="auto">${esc(b.summary)}<span class="pill">${esc(b.severity)}</span></div>
       <div class="meta">blocked: ${esc(b.blocked_party || "unknown")} · needs: ${esc(b.needs_from || "unknown")}</div>
     </div>`);
   });
@@ -366,7 +439,7 @@ function renderRisksBlockers(risks, blockers) {
     : '<span class="empty">None yet.</span>';
 }
 
-// Configuration status is reported by the backend, not an OAuth connection claim.
+// Provider sign-in runs in a browser tab; credentials stay encrypted on the backend.
 const connectors = [
   { id: "google_calendar", name: "Google Calendar", purpose: "Use meeting titles, attendees, and dates.", keys: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET", "GOOGLE_CALENDAR_REFRESH_TOKEN"], help: "Use credentials and a refresh token from your Google OAuth app. GOOGLE_CALENDAR_ID defaults to primary." },
   { id: "linear", name: "Linear", purpose: "Send extracted tasks to your team’s issue tracker.", keys: ["LINEAR_API_KEY", "LINEAR_TEAM_ID"], help: "Set TASK_SYNC_ENABLED=true to enable recurring task sync." },
@@ -387,38 +460,197 @@ const connectorIcons = {
   teams: '<rect x="3" y="8" width="11" height="11" rx="2"/><path d="M6 11h5m-2.5 0v5M16 9h5v6a3 3 0 0 1-5 2"/><circle cx="17" cy="5" r="2"/>',
   webhooks: '<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="17" r="2.5"/><circle cx="19" cy="17" r="2.5"/><path d="m11 7-5 8m2 2h8m2-2-5-8"/>',
 };
-$("connectorList").innerHTML = connectors.map((item) => `<details class="connector"><summary><span class="connector-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${connectorIcons[item.id]}</svg></span><span class="connector-name">${esc(item.name)}</span><span class="connector-state" id="connector-${item.id}">Not checked</span><span class="disclosure-arrow"></span></summary><p>${esc(item.purpose)}</p><p>Required backend settings:${item.keys.map((key) => `<code>${esc(key)}=…</code>`).join("")}</p><p>${esc(item.help)}</p></details>`).join("");
+$("connectorList").innerHTML = connectors.map((item) => `<details class="connector"><summary><span class="connector-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${connectorIcons[item.id]}</svg></span><span class="connector-name">${esc(item.name)}</span><span class="connector-state" id="connector-${item.id}">Not checked</span><span class="disclosure-arrow"></span></summary><p>${esc(item.purpose)}</p>${item.id === "webhooks" ? `<p>${esc(item.help)}</p><p>Required backend settings:${item.keys.map((key) => `<code>${esc(key)}=…</code>`).join("")}</p>` : `<button type="button" data-connect="${item.id}">Connect ${esc(item.name)}</button><button type="button" class="secondary" data-disconnect="${item.id}" hidden>Disconnect</button><p class="connector-feedback" id="feedback-${item.id}" role="status" aria-live="polite" hidden></p><p class="connector-help" id="help-${item.id}">Sign in and approve access to connect this workspace.</p><form class="connector-destination" data-destination="${item.id}" hidden><label for="destination-${item.id}">Destination</label><select id="destination-${item.id}" required><option value="">Choose a destination</option></select><button type="submit">Use destination</button></form>`}</details>`).join("");
 let connectorRequest = 0;
+let connectorBusy = false;
+let activeConnector = null;
+let connectionPoll = null;
+let authTabId = null;
+let authGeneration = 0;
+function connectorHeaders() {
+  return $("apiKey").value.trim() ? { "X-API-Key": $("apiKey").value.trim() } : {};
+}
+async function connectorAPI(path, init = {}) {
+  const base = $("backendUrl").value.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//.test(base)) throw new Error("Enter your backend URL in Backend connection.");
+  let response;
+  try {
+    response = await fetch(`${base}${path}`, { ...init, headers: { "Content-Type": "application/json", ...connectorHeaders(), ...init.headers }, signal: AbortSignal.timeout(15000) });
+  } catch {
+    $("connectionSettings").open = true;
+    throw new Error(`Cannot reach the AOI backend at ${base}. Start the backend or update Backend connection, then try again.`);
+  }
+  if (!response.ok) {
+    if (response.status === 404) throw new Error("This backend does not have connector sign-in enabled. Update and restart the AOI backend, then try again.");
+    if ([401, 403].includes(response.status)) throw new Error("Your backend rejected this request. Check the API key in Backend connection and use a workspace administrator’s token.");
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `Backend returned HTTP ${response.status}. Check your backend connection and try again.`);
+  }
+  try { return await response.json(); }
+  catch { throw new Error("The Backend URL did not return an AOI API response. Check Backend connection and try again."); }
+}
+function connectorFeedback(provider, message, error = false) {
+  const feedback = $(`feedback-${provider}`);
+  if (!feedback) return;
+  feedback.hidden = !message;
+  feedback.textContent = message;
+  feedback.classList.toggle("is-error", error);
+  feedback.setAttribute("role", error ? "alert" : "status");
+}
+function setConnectorBusy(value) {
+  connectorBusy = value;
+  if (!value && activeConnector) {
+    const button = document.querySelector(`[data-connect="${activeConnector}"]`);
+    if (button?.dataset.idleLabel) button.textContent = button.dataset.idleLabel;
+    activeConnector = null;
+  }
+  document.querySelectorAll("[data-connect], [data-disconnect], .connector-destination button, .connector-destination select").forEach(button => { button.disabled = value; });
+}
+function stopConnectionPoll() {
+  authGeneration++;
+  clearTimeout(connectionPoll);
+  connectionPoll = null;
+  setConnectorBusy(false);
+}
 ["backendUrl", "apiKey"].forEach((id) => $(id).addEventListener("input", () => {
-  connectorRequest += 1;
+  connectorRequest++;
+  stopConnectionPoll();
   connectors.forEach((item) => {
+    connectorFeedback(item.id, "");
     const state = $(`connector-${item.id}`);
     state.textContent = "Not checked";
     state.classList.remove("configured");
+    const connect = document.querySelector(`[data-connect="${item.id}"]`);
+    if (connect) {
+      connect.dataset.idleLabel = `Connect ${item.name}`;
+      connect.textContent = connect.dataset.idleLabel;
+      $(`help-${item.id}`).textContent = "Check this backend’s connection status, then sign in to connect.";
+    }
+    const disconnect = document.querySelector(`[data-disconnect="${item.id}"]`);
+    if (disconnect) disconnect.hidden = true;
+    const form = document.querySelector(`[data-destination="${item.id}"]`);
+    if (form) form.hidden = true;
   });
   $("refreshConnectors").disabled = false;
   $("connectorStatus").textContent = "Backend settings changed. Check status again.";
 }));
-$("refreshConnectors").addEventListener("click", async () => {
+async function refreshConnectors() {
   const request = ++connectorRequest;
   $("refreshConnectors").disabled = true;
-  $("connectorStatus").textContent = "Checking backend configuration…";
+  $("connectorStatus").textContent = "Checking connections…";
   try {
-    const base = $("backendUrl").value.trim().replace(/\/+$/, "");
-    const headers = $("apiKey").value.trim() ? { "X-API-Key": $("apiKey").value.trim() } : {};
-    const response = await fetch(`${base}/api/integrations/status`, { headers, signal: AbortSignal.timeout(15000) });
-    if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`);
-    const data = await response.json();
+    const [data, catalog] = await Promise.all([connectorAPI("/api/integrations/status"), connectorAPI("/api/connectors")]);
     if (request !== connectorRequest) return;
     connectors.forEach((item) => {
       const state = $(`connector-${item.id}`);
-      state.textContent = data[item.id] === true ? "Configured" : data[item.id] === false ? "Set up" : "Status unavailable";
-      state.classList.toggle("configured", data[item.id] === true);
+      const entry = catalog[item.id];
+      const connected = entry ? ["connected", "configured"].includes(entry.status) : data[item.id] === true;
+      const pending = entry?.status === "select_destination";
+      state.textContent = entry?.status === "connected" ? "Connected" : connected ? "Configured" : pending ? "Choose destination" : entry && !entry.oauth_available ? "Setup required" : "Not connected";
+      state.classList.toggle("configured", connected);
+      if (!entry) return;
+      const connect = document.querySelector(`[data-connect="${item.id}"]`);
+      connect.dataset.idleLabel = `${connected || pending ? "Reconnect" : "Connect"} ${item.name}`;
+      if (activeConnector !== item.id) connect.textContent = connect.dataset.idleLabel;
+      document.querySelector(`[data-disconnect="${item.id}"]`).hidden = !connected && !pending;
+      $(`help-${item.id}`).textContent = entry.destination ? `Destination: ${entry.destination}` : entry.oauth_available ? "Sign in and approve access to connect this workspace." : entry.setup_error || "Your administrator needs to configure this provider’s OAuth app on the backend.";
+      const form = document.querySelector(`[data-destination="${item.id}"]`);
+      form.hidden = !pending;
+      const select = $(`destination-${item.id}`);
+      select.replaceChildren(new Option("Choose a destination", ""), ...entry.choices.map(c => new Option(c.label, c.id)));
     });
-    $("connectorStatus").textContent = `Configuration checked. Task sync is ${data.task_sync ? "enabled" : "disabled"}. This checks settings; it does not verify provider access.`;
+    $("connectorStatus").textContent = "Connections checked. Sign in to a tool to connect it to this workspace.";
   } catch (error) {
-    if (request === connectorRequest) $("connectorStatus").textContent = `${error.message}. Open Backend connection, check your backend URL and API key, and retry.`;
+    if (request === connectorRequest) $("connectorStatus").textContent = error.message;
   } finally {
     if (request === connectorRequest) $("refreshConnectors").disabled = false;
   }
+}
+$("refreshConnectors").addEventListener("click", () => void refreshConnectors());
+$("connectorList").addEventListener("click", async (event) => {
+  const connect = event.target.closest("[data-connect]");
+  const disconnect = event.target.closest("[data-disconnect]");
+  if ((!connect && !disconnect) || connectorBusy) return;
+  setConnectorBusy(true);
+  const generation = ++authGeneration;
+  const provider = (connect || disconnect).dataset[connect ? "connect" : "disconnect"];
+  activeConnector = provider;
+  if (connect) {
+    connect.dataset.idleLabel = connect.textContent;
+    connect.textContent = "Opening sign-in…";
+  }
+  connectorFeedback(provider, disconnect ? "Disconnecting…" : "Contacting the backend to open sign-in…");
+  try {
+    if (disconnect) {
+      await connectorAPI(`/api/connectors/${provider}`, { method: "DELETE" });
+      if (generation !== authGeneration) return;
+      await refreshConnectors();
+      connectorFeedback(provider, "Connector disconnected.");
+      $("connectorStatus").textContent = "Connector disconnected.";
+      setConnectorBusy(false);
+      return;
+    }
+    const result = await connectorAPI(`/api/connectors/${provider}/start`, { method: "POST" });
+    if (generation !== authGeneration) return;
+    const tab = await chrome.tabs.create({ url: result.authorization_url });
+    authTabId = tab.id;
+    connect.textContent = "Waiting for sign-in…";
+    connectorFeedback(provider, "Finish signing in in the authentication tab. This connection will update automatically.");
+    $("connectorStatus").textContent = "Finish signing in in the authentication tab. This panel will update automatically.";
+    const deadline = Date.now() + result.expires_in * 1000;
+    async function poll() {
+      if (generation !== authGeneration) return;
+      if (Date.now() >= deadline) { connectorFeedback(provider, "Sign-in timed out. Click Connect to try again.", true); stopConnectionPoll(); $("connectorStatus").textContent = "Sign-in timed out. Click Connect to try again."; return; }
+      try {
+        const status = await connectorAPI(`/api/connectors/attempts/${result.ticket}`);
+        if (generation !== authGeneration) return;
+        if (status.status !== "pending") {
+          if (status.status === "failed") $("connectorStatus").textContent = status.message;
+          else { await refreshConnectors(); $("connectorStatus").textContent = status.message; }
+          connectorFeedback(provider, status.message || "Sign-in complete.", status.status === "failed");
+          const completedTab = authTabId;
+          authTabId = null;
+          stopConnectionPoll();
+          if (completedTab) void chrome.tabs.remove(completedTab).catch(() => {});
+          return;
+        }
+      } catch (error) {
+        if (generation !== authGeneration) return;
+        connectorFeedback(provider, error.message, true);
+        $("connectorStatus").textContent = error.message;
+      }
+      connectionPoll = setTimeout(() => void poll(), 2000);
+    }
+    void poll();
+  } catch (error) {
+    if (generation !== authGeneration) return;
+    connectorFeedback(provider, error.message, true);
+    $("connectorStatus").textContent = error.message;
+    stopConnectionPoll();
+  }
 });
+$("connectorList").addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-destination]");
+  if (!form) return;
+  event.preventDefault();
+  if (connectorBusy) return;
+  const provider = form.dataset.destination;
+  setConnectorBusy(true);
+  connectorFeedback(provider, "Saving destination…");
+  try {
+    await connectorAPI(`/api/connectors/${provider}/destination`, { method: "POST", body: JSON.stringify({ id: $(`destination-${provider}`).value }) });
+    await refreshConnectors();
+    connectorFeedback(provider, "Destination saved.");
+  } catch (error) { connectorFeedback(provider, error.message, true); $("connectorStatus").textContent = error.message; }
+  finally { setConnectorBusy(false); }
+});
+window.addEventListener("focus", () => { if (!connectorBusy) void refreshConnectors(); });
+chrome.tabs.onRemoved.addListener((id) => {
+  if (id === authTabId && connectorBusy) {
+    authTabId = null;
+    connectorFeedback(activeConnector, "Sign-in tab closed. Checking whether the connection completed…");
+    stopConnectionPoll();
+    void refreshConnectors();
+  }
+});
+// Loading saved configuration above discovers sign-ins completed while the panel was closed.

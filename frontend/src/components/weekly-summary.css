@@ -1,0 +1,98 @@
+.weekly-summary { max-width: 1100px; margin-inline: auto; }
+.weekly-toolbar { gap: 24px; }
+.weekly-toolbar p { color: var(--muted); margin: 6px 0 0; }
+.weekly-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.weekly-actions button { min-height: 40px; }
+.weekly-report { padding: 28px 32px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.weekly-report-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+.weekly-report-heading h3 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.weekly-report-heading p { margin: 4px 0 0; color: var(--muted); }
+.weekly-generated { font-size: 12px; text-align: right; }
+.weekly-overview { margin: 24px 0 28px; padding: 20px 0; border-block: 1px solid var(--border); }
+.weekly-verdict { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+.weekly-context { color: var(--muted); margin: 0; font-size: 13px; }
+.weekly-totals { display: flex; gap: 48px; margin: 18px 0 0; }
+.weekly-totals > div { display: flex; align-items: baseline; gap: 12px; }
+.weekly-totals dt { color: var(--muted); font-size: 13px; }
+.weekly-totals dd { margin: 0; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weekly-attention { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+.weekly-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.weekly-section-heading h3 { font-size: 16px; margin: 0; }
+.weekly-section-heading > span { color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.weekly-section-note { color: var(--muted); font-size: 12px; margin: 4px 0 14px; }
+.weekly-items { list-style: none; padding: 0; margin: 0; }
+.weekly-items > li { padding: 14px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.weekly-item-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.weekly-label { font-weight: 600; color: var(--text); text-transform: capitalize; }
+.weekly-tone-high { color: var(--warn); }
+.weekly-tone-critical, .weekly-tone-urgent { color: #ffb4b4; }
+.weekly-items h4 { margin: 6px 0; font-size: 14px; line-height: 1.5; font-weight: 600; }
+.weekly-item-detail { color: var(--muted); font-size: 13px; margin: 0; }
+.weekly-item-detail strong { color: var(--text); font-weight: 500; }
+.weekly-link { border: 0; background: transparent; color: var(--accent); font: inherit; padding: 8px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.weekly-link:hover { color: var(--text); }
+.weekly-empty { margin: 16px 0; color: var(--muted); font-size: 13px; }
+.weekly-decisions { margin-top: 28px; }
+.weekly-decision-owner { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.weekly-evidence { margin-top: 8px; font-size: 12px; }
+.weekly-evidence summary { color: var(--accent); cursor: pointer; width: fit-content; padding-block: 4px; }
+.weekly-evidence summary:hover { text-decoration: underline; text-underline-offset: 4px; }
+.weekly-evidence p { margin: 8px 0; }
+.weekly-evidence blockquote { margin: 10px 0; padding-left: 12px; border-left: 1px solid var(--muted); color: var(--muted); }
+.weekly-evidence code { overflow-wrap: anywhere; }
+.weekly-get-started { padding: 18px 0; }
+.weekly-get-started p { color: var(--muted); }
+.weekly-footer { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 14px; color: var(--muted); font-size: 11px; }
+.weekly-footer p { margin: 0 0 4px; }
+
+@media (max-width: 1000px) {
+  .weekly-totals { gap: 20px; justify-content: space-between; flex-wrap: wrap; }
+  .weekly-totals > div { flex-direction: column; gap: 2px; }
+}
+
+@media (max-width: 700px) {
+  .main .weekly-toolbar { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .weekly-report { padding: 20px; }
+  .weekly-report-heading { flex-direction: column; gap: 8px; }
+  .weekly-generated { text-align: left; }
+  .weekly-attention { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .weekly-totals { gap: 12px 20px; }
+  .weekly-section-heading { flex-wrap: wrap; gap: 4px 12px; }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  body:has(.weekly-summary) { background: white; color: #111; font-size: 9pt; height: auto; }
+  body:has(.weekly-summary) #root { height: auto; }
+  .app:has(.weekly-summary) { display: block; min-height: 0; }
+  .app:has(.weekly-summary) .sidebar, .weekly-summary .weekly-toolbar, .weekly-evidence, .weekly-link, .weekly-get-started { display: none; }
+  .main:has(.weekly-summary) { padding: 0; overflow: visible; }
+  .weekly-summary { max-width: none; }
+  .weekly-report { padding: 0; background: white; border: 0; border-radius: 0; --text: #111; --muted: #444; --border: #ccc; }
+  .weekly-report-heading { flex-direction: row; gap: 16px; }
+  .weekly-report-heading h3 { font-size: 20pt; }
+  .weekly-report-heading p, .weekly-context { font-size: 9pt; }
+  .weekly-generated { text-align: right; }
+  .weekly-overview { margin: 16px 0 20px; padding: 12px 0; }
+  .weekly-verdict { font-size: 12pt; }
+  .weekly-totals { margin-top: 10px; gap: 24px; justify-content: flex-start; flex-wrap: nowrap; }
+  .weekly-totals > div { flex-direction: row; gap: 8px; }
+  .weekly-totals dt { font-size: 9pt; }
+  .weekly-totals dd { font-size: 17pt; }
+  .weekly-attention { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .weekly-section-heading { flex-wrap: nowrap; }
+  .weekly-section-heading h3 { font-size: 11pt; }
+  .weekly-section-heading > span, .weekly-section-note, .weekly-item-meta, .weekly-decision-owner { font-size: 8pt; }
+  .weekly-section-note { margin-bottom: 10px; }
+  .weekly-item-meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .weekly-item-meta span + span, .weekly-item-meta time { margin-left: 8px; }
+  .weekly-decision-owner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .weekly-items > li { padding: 9px 0; break-inside: avoid; }
+  .weekly-items h4 { font-size: 10pt; margin-block: 4px; }
+  .weekly-item-detail { font-size: 9pt; }
+  .weekly-items h4, .weekly-item-detail { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .weekly-label { color: #111; }
+  .weekly-empty { font-size: 9pt; }
+  .weekly-decisions { margin-top: 18px; }
+  .weekly-footer { margin-top: 14px; padding-top: 10px; font-size: 8pt; }
+}

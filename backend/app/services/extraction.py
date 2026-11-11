@@ -28,6 +28,7 @@ from app.integrations.webhooks import enqueue_event, task_data
 from app.llm.client import LLMError, get_llm_client
 from app.llm.embeddings import get_embedding_client
 from app.logging import get_logger
+from app.metrics import record_extraction
 from app.models.blocker import Blocker
 from app.models.decision import Decision
 from app.models.project import Project
@@ -43,6 +44,7 @@ from app.schemas.extraction import (
 from app.services.chunker import chunk_transcript
 from app.services.context import build_prior_context
 from app.services.dedup import find_duplicate
+from app.services.dlp import protect_transcript, redact, redact_payload
 from app.services.project_resolver import get_or_create_project
 
 logger = get_logger("app.services.extraction")
@@ -64,8 +66,9 @@ class ExtractionPipeline:
             logger.warning("extraction.missing_transcript", transcript_id=str(transcript_id))
             return None
 
-        log = logger.bind(transcript_id=str(transcript.id), title=transcript.title)
+        log = logger.bind(transcript_id=str(transcript.id))
         try:
+            protect_transcript(transcript)
             await self._set_status(transcript, "chunking")
             await self._chunk_and_embed(transcript)
 
@@ -91,6 +94,7 @@ class ExtractionPipeline:
                 },
             )
             await self._session.commit()
+            record_extraction("completed")
             log.info(
                 "extraction.completed",
                 tasks=len(result.tasks),
@@ -109,12 +113,14 @@ class ExtractionPipeline:
         except LLMError as exc:
             await self._session.rollback()
             await self._mark_failed(transcript_id, f"LLM error: {exc}")
-            log.error("extraction.llm_error", error=str(exc))
+            record_extraction("failed", "llm_error")
+            log.error("extraction.llm_error", error_type=type(exc).__name__)
             return None
         except Exception as exc:
             await self._session.rollback()
             await self._mark_failed(transcript_id, f"Pipeline error: {exc}")
-            log.exception("extraction.unexpected_error")
+            record_extraction("failed", "pipeline_error")
+            log.error("extraction.unexpected_error", error_type=type(exc).__name__)
             return None
 
     async def extract_incremental(
@@ -141,22 +147,26 @@ class ExtractionPipeline:
         if transcript is None or not transcript.content.strip():
             return None
         try:
+            protect_transcript(transcript)
             prior_context = await self._build_prior_context(transcript)
             result = await self._extract(transcript, prior_context)
             project = await self._resolve_project(transcript, result)
             await self._apply_task_updates(transcript, project, result)
             await self._persist_artefacts(transcript, project, result)
             await self._session.commit()
+            record_extraction("completed", mode="live")
             if dispatch:
                 await self._dispatch(transcript, project, result)
             return result
         except LLMError as exc:
             await self._session.rollback()
-            logger.warning("extraction.incremental_llm_error", error=str(exc))
+            record_extraction("failed", "llm_error", mode="live")
+            logger.warning("extraction.incremental_llm_error", error_type=type(exc).__name__)
             return None
         except Exception:
             await self._session.rollback()
-            logger.exception("extraction.incremental_error")
+            record_extraction("failed", "pipeline_error", mode="live")
+            logger.error("extraction.incremental_error")
             return None
 
     # --------------------------------------------------------------------- #
@@ -200,7 +210,7 @@ class ExtractionPipeline:
         try:
             vectors = await embedder.embed([c.content for c in chunks])
         except Exception as exc:
-            logger.warning("extraction.embedding_failed", error=str(exc))
+            logger.warning("extraction.embedding_failed", error_type=type(exc).__name__)
             vectors = [None] * len(chunks)
 
         for chunk, vec in zip(chunks, vectors, strict=False):
@@ -250,13 +260,14 @@ class ExtractionPipeline:
     ) -> ExtractionResult:
         client = get_llm_client()
         meeting_date = transcript.meeting_date.isoformat() if transcript.meeting_date else None
-        return await client.extract(
-            transcript.content,
-            meeting_title=transcript.title,
+        result = await client.extract(
+            redact(transcript.content),
+            meeting_title=redact(transcript.title),
             meeting_date=meeting_date,
-            participants=transcript.participants,
-            prior_context=prior_context,
+            participants=redact_payload(transcript.participants),
+            prior_context=redact(prior_context) if prior_context else None,
         )
+        return ExtractionResult.model_validate(redact_payload(result.model_dump(mode="json")))
 
     async def _apply_task_updates(
         self,

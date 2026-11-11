@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models.integration import WebhookDelivery
 from app.models.task import Task
+from app.services.dlp import redact_payload
 
 
 def task_data(task: Task) -> dict:
@@ -44,7 +45,7 @@ def enqueue_event(session: AsyncSession, event_type: str, data: dict) -> None:
                 "type": event_type,
                 "version": 1,
                 "occurred_at": now.isoformat(),
-                "data": data,
+                "data": redact_payload(data),
             },
             status="pending",
             attempts=0,
@@ -91,7 +92,9 @@ async def deliver_webhooks(session: AsyncSession, limit: int = 50) -> int:
             row.last_error = "Destination changed; restore configuration before retrying"
             await session.commit()
             continue
-        body = json.dumps(row.payload, sort_keys=True, separators=(",", ":")).encode()
+        body = json.dumps(
+            redact_payload(row.payload), sort_keys=True, separators=(",", ":")
+        ).encode()
         row.attempts += 1
         try:
             async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:

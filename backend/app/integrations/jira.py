@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-import base64
-
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import get_settings
 from app.integrations.base import DispatchResult, TaskMirror
+from app.integrations.oauth import jira_connection
 from app.logging import get_logger
 from app.models.project import Project
 from app.models.task import Task
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.integrations.jira")
 
@@ -39,7 +39,7 @@ class JiraAdapter(TaskMirror):
         payload = {
             "fields": {
                 "project": {"key": self._project},
-                "summary": task.title[:255],
+                "summary": redact(task.title)[:255],
                 "description": _adf(task, project),
                 "issuetype": {"name": "Task"},
                 "priority": {"name": priority.get(task.priority, "Medium")},
@@ -50,7 +50,7 @@ class JiraAdapter(TaskMirror):
 
         try:
             data = await self._post("/rest/api/3/issue", payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("jira.create_failed", error=str(exc))
             return DispatchResult(self.name, False, detail=str(exc))
 
@@ -63,16 +63,17 @@ class JiraAdapter(TaskMirror):
 
     @retry(reraise=True, stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
     async def _post(self, path: str, payload: dict) -> dict:
-        creds = base64.b64encode(f"{self._email}:{self._token}".encode()).decode()
+        base, headers, auth = await jira_connection(get_settings())
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
-                f"{self._base}{path}",
+                f"{base}{path}",
+                auth=auth,
                 headers={
-                    "Authorization": f"Basic {creds}",
+                    **headers,
                     "Accept": "application/json",
                     "Content-Type": "application/json",
                 },
-                json=payload,
+                json=redact_payload(payload),
             )
             response.raise_for_status()
             return response.json()
@@ -84,7 +85,7 @@ def _adf(task: Task, project: Project | None) -> dict:
     if task.description:
         paragraphs.append(_p(task.description))
     if task.source_quote:
-        paragraphs.append(_p(f"Source quote: \"{task.source_quote.strip()}\""))
+        paragraphs.append(_p(f'Source quote: "{task.source_quote.strip()}"'))
     if task.owner:
         paragraphs.append(_p(f"Inferred owner: {task.owner}"))
     if project:
@@ -96,5 +97,5 @@ def _adf(task: Task, project: Project | None) -> dict:
 def _p(text: str) -> dict:
     return {
         "type": "paragraph",
-        "content": [{"type": "text", "text": text[:2000]}],
+        "content": [{"type": "text", "text": redact(text)[:2000]}],
     }

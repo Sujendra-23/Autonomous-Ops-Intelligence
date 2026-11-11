@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
-import { api, setApiKey } from "./api";
+import { api } from "./api";
 import { Dashboard } from "./components/Dashboard";
 import { TranscriptUpload } from "./components/TranscriptUpload";
 import { Tasks } from "./components/Tasks";
 import { Decisions } from "./components/Decisions";
 import { Intelligence } from "./components/Intelligence";
+import { WeeklySummary } from "./components/WeeklySummary";
+import { Meetings } from "./components/Meetings";
+import { ExtensionSetup } from "./components/ExtensionSetup";
+import { readRoute, type View } from "./navigation";
+import { WorkspaceShell } from "./components/WorkspaceShell";
 
-import { authConfigured, identity, restoreIdentity } from "./auth";
+import { authConfigured, gatewayAuth, identity, restoreIdentity } from "./auth";
+import { CompanySignIn } from "./components/CompanySignIn";
 import { WorkspaceSettings } from "./components/WorkspaceSettings";
-
-type View = "dashboard" | "upload" | "tasks" | "decisions" | "intelligence" | "settings";
+import { Roadmaps } from "./components/Roadmaps";
+import { Pricing } from "./components/Pricing";
 
 export function App() {
   const [ready, setReady] = useState(!authConfigured);
@@ -22,67 +28,41 @@ export function App() {
     return () => window.removeEventListener("aoi-session-expired", expire);
   }, []);
   if (!ready) return <main className="main"><p>Opening your workspace…</p></main>;
-  if (!signedIn) return <main className="main"><h1>Your meeting intelligence studio</h1><p>Sign in to access your private workspace, notes and connectors.</p>{authError && <p role="alert">{authError}</p>}<button onClick={() => identity?.signinRedirect()}>Sign in / Create account</button></main>;
+  if (!signedIn && window.location.pathname === "/pricing") return <main className="main"><Pricing onBack={() => window.location.assign("/")} /></main>;
+  if (!signedIn && gatewayAuth) return <CompanySignIn onSignedIn={() => setSignedIn(true)} />;
+  if (!signedIn) return <main className="main"><h1>Your meeting intelligence studio</h1><p>Sign in to access your private workspace, notes and connectors.</p>{authError && <p role="alert">{authError}</p>}<button onClick={() => identity?.signinRedirect({ state: { returnTo: window.location.pathname } })}>Sign in / Create account</button><p><a href="/pricing">View pricing</a></p></main>;
   return <WorkspaceApp />;
 }
 
 function WorkspaceApp() {
-  const [view, setView] = useState<View>("dashboard");
+  const [route, setRoute] = useState(readRoute);
+  const { view } = route;
+  useEffect(() => {
+    const onPopState = () => setRoute(readRoute());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+  function navigate(next: View, meetingId?: string) {
+    const path = next === "dashboard" ? "/" : `/${next}${next === "meetings" && meetingId ? `/${encodeURIComponent(meetingId)}` : ""}`;
+    if (window.location.pathname !== path) window.history.pushState({}, "", path);
+    setRoute({ view: next, meetingId });
+    window.scrollTo(0, 0);
+  }
   const liveCount = useLiveMeetings();
 
-  return (
-    <div className="app">
-      <aside className="sidebar">
-        <h1>Ops AI Agent</h1>
-        <div className="sidebar-tag">AI for Work</div>
-        {liveCount > 0 && (
-          <div className="live-badge" title="A meeting is being transcribed live">
-            <span className="live-dot" />
-            {liveCount} live meeting{liveCount > 1 ? "s" : ""}
-          </div>
-        )}
-        <nav>
-          <NavBtn id="dashboard" active={view} onClick={setView}>
-            Dashboard
-          </NavBtn>
-          <NavBtn id="upload" active={view} onClick={setView}>
-            Upload transcript
-          </NavBtn>
-          <NavBtn id="tasks" active={view} onClick={setView}>
-            Tasks
-          </NavBtn>
-          <NavBtn id="decisions" active={view} onClick={setView}>
-            Decisions
-          </NavBtn>
-          <NavBtn id="intelligence" active={view} onClick={setView}>
-            Intelligence
-          </NavBtn>
-          <NavBtn id="settings" active={view} onClick={setView}>Workspace & connectors</NavBtn>
-        </nav>
-        {authConfigured && <button onClick={() => identity?.signoutRedirect()}>Sign out</button>}
-        {!authConfigured && <div className="api-key-control">
-          <label htmlFor="console-api-key">Backend API key (if set)</label>
-          <input
-            id="console-api-key"
-            type="password"
-            autoComplete="off"
-            placeholder="Optional"
-            onChange={(event) => setApiKey(event.target.value)}
-            aria-describedby="console-api-key-help"
-          />
-          <p id="console-api-key-help">Used for edits and uploads. Cleared when you reload.</p>
-        </div>}
-      </aside>
-      <main className="main">
-        {view === "settings" && <WorkspaceSettings />}
-        {view === "dashboard" && <Dashboard />}
-        {view === "upload" && <TranscriptUpload onIngested={() => setView("tasks")} />}
-        {view === "tasks" && <Tasks />}
-        {view === "decisions" && <Decisions />}
-        {view === "intelligence" && <Intelligence />}
-      </main>
-    </div>
-  );
+  return <WorkspaceShell view={view} liveCount={liveCount} onNavigate={navigate}>
+    {view === "settings" && <WorkspaceSettings />}
+    {view === "pricing" && <Pricing />}
+    {view === "roadmaps" && <Roadmaps />}
+    {view === "dashboard" && <Dashboard onNavigate={navigate} />}
+    {view === "meetings" && <Meetings meetingId={route.meetingId} onNavigate={navigate} />}
+    {view === "extension" && <ExtensionSetup onNavigate={navigate} />}
+    {view === "weekly-summary" && <WeeklySummary onNavigate={navigate} />}
+    {view === "upload" && <TranscriptUpload onIngested={() => navigate("tasks")} />}
+    {view === "tasks" && <Tasks onNavigate={navigate} />}
+    {view === "decisions" && <Decisions />}
+    {view === "intelligence" && <Intelligence />}
+  </WorkspaceShell>;
 }
 
 // Poll for transcripts currently being recorded so the console shows a live
@@ -107,22 +87,4 @@ function useLiveMeetings(): number {
     };
   }, []);
   return count;
-}
-
-function NavBtn({
-  id,
-  active,
-  onClick,
-  children,
-}: {
-  id: View;
-  active: View;
-  onClick: (v: View) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button className={id === active ? "active" : ""} onClick={() => onClick(id)}>
-      {children}
-    </button>
-  );
 }

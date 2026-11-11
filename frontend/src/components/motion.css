@@ -1,0 +1,16 @@
+.workspace-topbar { position: sticky; top: 0; z-index: 20; }
+.back-to-top { position: fixed; right: 24px; bottom: max(24px, env(safe-area-inset-bottom)); display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #62625a; border-radius: 12px; background: var(--forest); color: var(--citrus); cursor: pointer; z-index: 25; animation: return-control 180ms var(--ease); }
+.back-to-top:hover { background: #41413b; }
+.back-to-top .ui-icon { width: 19px; height: 19px; transform: rotate(-90deg); }
+.sidebar nav button .ui-icon { transition: transform 180ms var(--ease); }
+.sidebar nav button:hover .ui-icon { transform: translateX(2px); }
+.capture-button .ui-icon, .task-connect-link .ui-icon { transition: transform 180ms var(--ease); }
+.capture-button:hover .ui-icon, .task-connect-link:hover .ui-icon { transform: translateX(3px); }
+input, select, textarea { transition: border-color 150ms, background-color 150ms; }
+input:focus, select:focus, textarea:focus { border-color: #62625a; }
+@keyframes return-control { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 620px) { .back-to-top { right: 18px; width: 38px; height: 38px; } }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar nav button:hover .ui-icon, .capture-button:hover .ui-icon, .task-connect-link:hover .ui-icon { transform: none; }
+  .task-editor, .back-to-top { animation: none; }
+}

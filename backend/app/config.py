@@ -24,11 +24,32 @@ class Settings(BaseSettings):
     # ---- App ----
     environment: Literal["development", "staging", "production"] = "development"
     auth_mode: Literal["development", "oidc"] = "development"
-    auth_issuer: str = ""
+    auth_provider: Literal["oidc", "gateway"] = "oidc"
+    identity_gateway_url: str = ""
+    auth_issuer: str = Field(default="", max_length=256)
     auth_audience: str = ""
     auth_jwks_url: str = ""
     connector_allowed_webhook_hosts: str = ""
     connector_encryption_key: SecretStr = SecretStr("")
+    # OAuth app registrations belong to the deployment, grants to each workspace.
+    connector_oauth_redirect_base: str = "http://localhost:8000"
+    connector_oauth: SecretStr = SecretStr("{}")
+    slack_client_id: str = ""
+    slack_client_secret: SecretStr = SecretStr("")
+    notion_client_id: str = ""
+    notion_client_secret: SecretStr = SecretStr("")
+    linear_client_id: str = ""
+    linear_client_secret: SecretStr = SecretStr("")
+    jira_client_id: str = ""
+    jira_client_secret: SecretStr = SecretStr("")
+    discord_client_id: str = ""
+    discord_client_secret: SecretStr = SecretStr("")
+    teams_client_id: str = ""
+    teams_client_secret: SecretStr = SecretStr("")
+    teams_tenant_id: str = "organizations"
+    jira_cloud_id: str = ""
+    teams_team_id: str = ""
+    teams_channel_id: str = ""
     platform_paid_operations_per_day: int = Field(default=1000, ge=1)
     paid_operations_per_day: int = Field(default=100, ge=1)
     live_session_max_seconds: int = Field(default=7200, ge=60, le=14400)
@@ -37,6 +58,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     ingest_api_key: SecretStr = SecretStr("")
+    metrics_token: SecretStr = SecretStr("")
     # Analytics credentials are independent of ingestion and fail closed when unset.
     intelligence_api_key: SecretStr = SecretStr("")
     intelligence_owner_api_key: SecretStr = SecretStr("")
@@ -156,13 +178,32 @@ class Settings(BaseSettings):
                 raise ValueError("Status maps require valid AOI statuses and nonempty IDs")
             if len(set(mapping.values())) != len(mapping):
                 raise ValueError("Each provider status ID must map to only one AOI status")
+        if self.auth_provider == "gateway" and self.auth_mode != "oidc":
+            raise ValueError("Gateway company isolation requires AUTH_MODE=oidc")
         if self.environment != "development" and self.auth_mode != "oidc":
             raise ValueError("Staging and production require AUTH_MODE=oidc")
         if self.auth_mode == "oidc":
             if not self.auth_issuer.startswith("https://") or not self.auth_audience:
                 raise ValueError("OIDC requires an HTTPS issuer and audience")
-            if not self.auth_jwks_url.startswith("https://"):
+            local_gateway = self.auth_provider == "gateway" and self.environment == "development"
+            if not self.auth_jwks_url.startswith("https://") and not (
+                local_gateway and self.auth_jwks_url.startswith("http://")
+            ):
                 raise ValueError("OIDC requires an HTTPS JWKS URL")
+            if self.auth_provider == "gateway":
+                from urllib.parse import urlsplit
+
+                gateway = urlsplit(self.identity_gateway_url)
+                if (
+                    gateway.scheme not in (("http", "https") if local_gateway else ("https",))
+                    or not gateway.hostname
+                    or gateway.username
+                    or gateway.password
+                    or gateway.query
+                    or gateway.fragment
+                    or gateway.path not in ("", "/")
+                ):
+                    raise ValueError("IDENTITY_GATEWAY_URL must be a trusted gateway origin")
             from cryptography.fernet import Fernet
 
             Fernet(self.connector_encryption_key.get_secret_value().encode())
@@ -180,8 +221,17 @@ class Settings(BaseSettings):
     # (the WebSocket still runs but produces no transcript). "openai" uses the
     # Realtime transcription API and reuses OPENAI_API_KEY above.
     stt_provider: Literal["deepgram", "openai", "none"] = "none"
+    live_transcription_language: str = "auto"
     deepgram_api_key: SecretStr = SecretStr("")
     openai_realtime_model: str = "gpt-4o-transcribe"
+
+    @field_validator("live_transcription_language")
+    @classmethod
+    def valid_listening_language(cls, value: str) -> str:
+        from app.services.transcription_languages import normalize_language
+
+        return normalize_language(value)
+
     # Extraction cadence during a live meeting (see services/live_session.py).
     live_min_chars: int = Field(default=180, ge=20)
     live_min_interval_seconds: float = Field(default=8.0, ge=1.0)
@@ -221,7 +271,11 @@ class Settings(BaseSettings):
     @property
     def jira_enabled(self) -> bool:
         return bool(
-            self.jira_base_url and self.jira_api_token.get_secret_value() and self.jira_email
+            self.jira_base_url
+            and (
+                (self.jira_api_token.get_secret_value() and self.jira_email)
+                or (self.jira_cloud_id and self.jira_project_key)
+            )
         )
 
     @property
@@ -234,7 +288,10 @@ class Settings(BaseSettings):
 
     @property
     def teams_enabled(self) -> bool:
-        return bool(self.teams_webhook_url.get_secret_value())
+        return bool(
+            self.teams_webhook_url.get_secret_value()
+            or (self.teams_team_id and self.teams_channel_id)
+        )
 
     @property
     def cors_origin_list(self) -> list[str]:

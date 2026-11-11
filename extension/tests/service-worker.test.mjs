@@ -27,9 +27,9 @@ function harness({ url = 'https://www.youtube.com/watch?v=test', captureError } 
       return 'stream';
     } },
   };
-  const context = vm.createContext({ chrome, console, fetch: async () => {
-    calls.push(['fetch']);
-    return { ok: true, json: async () => ({ id: 'session', ws_path: '/api/live/ws/session', sample_rate: 24000, stt_enabled: true }) };
+  const context = vm.createContext({ chrome, console, fetch: async (url, options) => {
+    calls.push(['fetch', { url, options }]);
+    return { ok: true, json: async () => ({ transcript_id: 'session', ws_path: '/api/live/ws/session', sample_rate: 24000, stt_enabled: true }) };
   } });
   vm.runInContext(source, context);
   return { context, listeners, calls };
@@ -81,4 +81,13 @@ test('workspace tokens stay out of WebSocket URLs and travel in the authenticati
   assert.equal(message.wsUrl, 'wss://studio.example/api/live/ws/session');
   assert.equal(message.authToken, 'aoi_test-workspace-token');
   assert.ok(!message.wsUrl.includes('aoi_'));
+});
+
+test('listening language is sent per meeting and defaults to automatic recognition', async () => {
+  const { context, calls } = harness();
+  const first = await context.startCapture({ language: 'ne' });
+  assert.equal(first.transcriptId, 'session');
+  assert.equal(JSON.parse(calls.find(([name]) => name === 'fetch')[1].options.body).language, 'ne');
+  await context.startCapture({});
+  assert.equal(JSON.parse(calls.filter(([name]) => name === 'fetch')[1][1].options.body).language, 'auto');
 });

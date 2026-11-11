@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>AOI Desktop</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#main" aria-label="AOI Desktop home"
+        ><svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M5 20V12m5 13V7m6 21V4m6 18V10m5 9v-6" /></svg
+        ><strong>aoi.</strong><span>Desktop</span></a
+      ><button id="dashboard" class="text-button">
+        Open workspace <span aria-hidden="true">↗</span>
+      </button>
+    </header>
+    <main id="main">
+      <section class="intro">
+        <h1>Stay in the call.<br /><em>We’ll catch the rest.</em></h1>
+        <p>
+          Capture calls in Teams, Slack, Discord, and the other apps you use.
+          Your next steps land in one workspace.
+        </p>
+      </section>
+      <div id="status" class="status">
+        <span id="status-dot"></span
+        ><span id="status-label" role="status">Ready to record</span
+        ><time id="timer" aria-label="Recording duration">00:00</time>
+      </div>
+      <form id="recording-form">
+        <fieldset id="recording-fields">
+          <div class="two-fields">
+            <label for="platform"
+              >Call app<select id="platform">
+                <option value="teams">Microsoft Teams</option>
+                <option value="slack">Slack huddle</option>
+                <option value="discord">Discord call</option>
+                <option value="other">Another app</option>
+              </select></label
+            ><label for="title"
+              >Meeting title<input
+                id="title"
+                maxlength="512"
+                value="Desktop meeting"
+                required
+            /></label>
+          </div>
+          <label for="project"
+            >Project (optional)<input
+              id="project"
+              maxlength="256"
+              placeholder="Connect this call to your project"
+          /></label>
+          <div class="two-fields">
+            <label for="language"
+              >Listening language<select id="language">
+                <option value="auto">Auto-detect / mixed languages</option>
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="ne">Nepali</option>
+                <option value="es">Spanish</option>
+                <option value="ta">Tamil</option>
+              </select></label
+            ><label class="check"
+              ><input id="microphone" type="checkbox" checked />Include my
+              microphone</label
+            >
+          </div>
+          <label class="check"
+            ><input id="local-audio" type="checkbox" checked />Keep a local WAV
+            recording</label
+          >
+        </fieldset>
+      </form>
+      <label for="vocabulary"
+        >Names & technical terms (optional)<input
+          id="vocabulary"
+          maxlength="4000"
+          placeholder="e.g. Priya, Kubernetes, AOI"
+        /><small
+          >Comma-separated names, products and acronyms the speakers may
+          use.</small
+        ></label
+      >
+
+      <div id="audio-quality" hidden>
+        <meter
+          id="audio-level"
+          min="0"
+          max="1"
+          value="0"
+          aria-label="Audio input level"
+        ></meter
+        ><span id="audio-quality-label">Listening for audio…</span>
+      </div>
+      <p class="capture-scope">
+        Captures system audio from all apps, including notifications. Use
+        headphones to keep speaker audio out of your microphone. Video is
+        discarded; audio is recorded.
+      </p>
+      <p id="detail" class="detail" aria-live="polite">
+        Ready when your call starts.
+      </p>
+      <p id="error" class="error" role="alert" hidden></p>
+      <section id="live-preview" class="preview" hidden>
+        <div class="section-heading">
+          <h2>As the conversation unfolds</h2>
+          <span id="note-count">Live transcript</span>
+        </div>
+        <p id="transcript-review" class="review-note" hidden>
+          Some words were flagged for review. Check the recording for names,
+          dates and other important details.
+        </p>
+        <p id="transcript" dir="auto">
+          Speech will appear here when the backend is transcribing.
+        </p>
+      </section>
+      <section id="saved" class="saved" hidden>
+        <h2>Your conversation, captured.</h2>
+        <p id="saved-detail"></p>
+        <div>
+          <button id="view-meeting" class="ghost">View meeting notes</button
+          ><button id="show-recordings" class="text-button">
+            Show recordings
+          </button>
+        </div>
+      </section>
+      <details id="settings">
+        <summary>
+          Connection & shortcut settings<svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </summary>
+        <form id="settings-form">
+          <fieldset id="settings-fields">
+            <label for="backend-url"
+              >Backend URL<input
+                id="backend-url"
+                type="url"
+                value="http://localhost:8000"
+                required /></label
+            ><label for="dashboard-url"
+              >Dashboard URL<input
+                id="dashboard-url"
+                type="url"
+                value="http://localhost:5173"
+                required
+            /></label>
+            <div class="two-fields">
+              <label for="auth-mode"
+                >Authentication<select id="auth-mode">
+                  <option value="api-key">Backend API key</option>
+                  <option value="bearer">Workspace access token</option>
+                </select></label
+              ><label for="workspace-id"
+                >Workspace ID (if required)<input
+                  id="workspace-id"
+                  placeholder="Your workspace UUID"
+              /></label>
+            </div>
+            <label for="auth-token"
+              >API key or access token<input
+                id="auth-token"
+                type="password"
+                autocomplete="off"
+                placeholder="Optional for local development"
+              /><small id="token-hint"
+                >Stored encrypted using your operating system.</small
+              ></label
+            ><label class="check"
+              ><input id="clear-token" type="checkbox" />Clear saved
+              credential</label
+            ><label for="shortcut"
+              >Global recording shortcut<input
+                id="shortcut"
+                value="CommandOrControl+Shift+Space"
+                required
+              /><small
+                >Works while another app has focus. Change it if another app
+                uses it.</small
+              ></label
+            >
+            <p class="settings-hint">
+              Save changes before checking the connection.
+            </p>
+            <div class="settings-actions">
+              <button type="submit" class="primary">Save settings</button
+              ><button type="button" id="check-connection" class="ghost">
+                Check saved connection
+              </button>
+            </div>
+          </fieldset>
+        </form>
+      </details>
+      <details id="permissions">
+        <summary>
+          Audio permissions & recording files<svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </summary>
+        <p id="permission-copy">
+          Allow system audio recording and microphone access when your operating
+          system asks. On macOS, use the packaged app so permissions belong to
+          AOI Desktop.
+        </p>
+        <p id="permission-state"></p>
+        <button id="open-permissions" class="ghost">
+          Open recording permissions
+        </button>
+        <p>
+          Local recordings stay in AOI’s application data folder until you
+          remove them. Live audio is sent to the configured backend for
+          transcription and notes.
+        </p>
+        <p id="recording-folder" class="file-path"></p>
+        <button id="open-recordings" class="text-button">
+          Open recordings folder
+        </button>
+      </details>
+      <footer>
+        <span id="platform-note">Desktop capture · macOS 14.2+</span
+        ><span>Present in the conversation.</span>
+      </footer>
+    </main>
+    <div class="capture-actions">
+      <button id="toggle" class="primary">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="5" /></svg
+        ><span>Start recording</span>
+      </button>
+      <p>Or press <kbd id="shortcut-label">⌘ ⇧ Space</kbd> from any app.</p>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

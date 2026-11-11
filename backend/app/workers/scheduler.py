@@ -17,9 +17,11 @@ from sqlalchemy import and_, or_, select, text
 
 from app.config import base_settings, get_settings
 from app.database import SessionLocal, engine
+from app.integrations.task_import import import_connected_tasks
 from app.integrations.task_sync import sync_task_statuses
 from app.integrations.webhooks import deliver_webhooks
 from app.logging import configure_logging, get_logger
+from app.metrics import start_worker_metrics
 from app.models.account import Workspace
 from app.models.transcript import Transcript
 from app.services.extraction import ExtractionPipeline
@@ -29,7 +31,17 @@ from app.workers.monitor import DriftMonitor
 
 async def in_workspaces(operation):
     if base_settings().auth_mode != "oidc":
-        return await operation()
+        if not base_settings().connector_encryption_key.get_secret_value():
+            return await operation()
+        async with SessionLocal() as db:
+            legacy = await db.get(Workspace, LEGACY_WORKSPACE)
+        token = settings_context.set(
+            workspace_settings(legacy.connector_ciphertext if legacy else None)
+        )
+        try:
+            return await operation()
+        finally:
+            settings_context.reset(token)
     async with SessionLocal() as db:
         workspaces = (
             await db.scalars(select(Workspace).where(Workspace.id != LEGACY_WORKSPACE))
@@ -106,7 +118,7 @@ async def _run_extraction() -> None:
 
 async def _run_integrations() -> None:
     log = get_logger("app.workers.scheduler")
-    for operation in (sync_task_statuses, deliver_webhooks):
+    for operation in (import_connected_tasks, sync_task_statuses, deliver_webhooks):
         async with SessionLocal() as session:
             try:
                 await operation(session)
@@ -117,6 +129,7 @@ async def _run_integrations() -> None:
 
 async def main() -> None:
     configure_logging()
+    metrics_server = start_worker_metrics()
     log = get_logger("app.workers.scheduler")
     settings = get_settings()
     interval = min(settings.monitor_interval_seconds, settings.integration_interval_seconds)
@@ -144,6 +157,9 @@ async def main() -> None:
         except TimeoutError:
             continue
     log.info("scheduler.stopped")
+    if metrics_server is not None:
+        metrics_server.shutdown()
+        metrics_server.server_close()
 
 
 if __name__ == "__main__":

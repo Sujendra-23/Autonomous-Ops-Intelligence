@@ -53,8 +53,14 @@ async def me(db: AsyncSession = Depends(get_session)):
         "account_id": str(p.account_id),
         "workspace_id": str(p.workspace_id),
         "role": p.role,
+        "identity_provider": base_settings().auth_provider,
         "workspaces": [{"id": str(r.id), "name": r.name, "role": r.role} for r in rows],
     }
+
+
+def local_membership_management():
+    if base_settings().auth_provider == "gateway":
+        raise HTTPException(409, "Manage companies and member roles in the Identity Access Gateway")
 
 
 class WorkspaceCreate(BaseModel):
@@ -63,11 +69,23 @@ class WorkspaceCreate(BaseModel):
 
 @router.post("/workspaces", status_code=201)
 async def create_workspace(payload: WorkspaceCreate, db: AsyncSession = Depends(get_session)):
+    local_membership_management()
     p = principal()
     workspace = Workspace(name=payload.name.strip())
     db.add(workspace)
     await db.flush()
     db.add(Membership(account_id=p.account_id, workspace_id=workspace.id, role="owner"))
+    await db.commit()
+    return {"id": str(workspace.id), "name": workspace.name}
+
+
+@router.patch("/workspace")
+async def rename_workspace(payload: WorkspaceCreate, db: AsyncSession = Depends(get_session)):
+    p = administrator()
+    workspace = await db.get(Workspace, p.workspace_id)
+    if workspace is None:
+        raise HTTPException(404, "Workspace not found")
+    workspace.name = payload.name.strip()
     await db.commit()
     return {"id": str(workspace.id), "name": workspace.name}
 
@@ -88,6 +106,7 @@ async def members(db: AsyncSession = Depends(get_session)):
 
 @router.put("/members")
 async def add_member(payload: MemberCreate, db: AsyncSession = Depends(get_session)):
+    local_membership_management()
     p = administrator()
     if p.role != "owner" and payload.role == "admin":
         raise HTTPException(403, "Only owners can grant administrator access")
@@ -110,6 +129,7 @@ async def add_member(payload: MemberCreate, db: AsyncSession = Depends(get_sessi
 
 @router.delete("/members/{account_id}")
 async def remove_member(account_id: uuid.UUID, db: AsyncSession = Depends(get_session)):
+    local_membership_management()
     p = administrator()
     member = await db.get(Membership, (account_id, p.workspace_id))
     if member is None:
@@ -128,6 +148,8 @@ class TokenCreate(BaseModel):
 
 @router.post("/tokens", status_code=201)
 async def create_token(payload: TokenCreate, db: AsyncSession = Depends(get_session)):
+    if base_settings().auth_provider == "gateway":
+        raise HTTPException(409, "Use a current gateway session token in the extension")
     p = principal()
     token = "aoi_" + secrets.token_urlsafe(32)
     row = AccessToken(
@@ -186,6 +208,13 @@ async def update_connectors(payload: ConnectorUpdate, db: AsyncSession = Depends
         raise HTTPException(422, "Connector configuration is too large")
     if set(payload.values) - CONNECTOR_FIELDS:
         raise HTTPException(422, "Unsupported connector field")
+    if set(payload.values) & {
+        "connector_oauth",
+        "jira_cloud_id",
+        "teams_team_id",
+        "teams_channel_id",
+    }:
+        raise HTTPException(422, "OAuth grants must be managed through connector sign-in")
     row = await db.get(Workspace, p.workspace_id, with_for_update=True)
     if row is None:
         raise HTTPException(404, "Workspace not found")

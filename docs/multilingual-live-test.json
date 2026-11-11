@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4o-transcribe",
+  "mode": "auto",
+  "synthetic_audio_seconds": 9.87,
+  "transcript": "Hello team, we will share the report tomorrow. Hola equipo, vamos a revisar el plan mañana. नमस्ते दोस्तों, मैं कल रिपोर्ट भेजूँगा.",
+  "checks": {
+    "english": true,
+    "spanish": true,
+    "devanagari": true
+  }
+}

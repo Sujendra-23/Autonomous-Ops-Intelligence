@@ -1,0 +1,31 @@
+# Apply migrations with the owner before enabling this overlay. Runtime never migrates.
+# Combine docker-compose.yml + compose.identity.yml + this file.
+services:
+  backend:
+    environment:
+      AUTH_MODE: oidc
+      AUTH_PROVIDER: gateway
+      AUTH_ISSUER: https://gateway.local
+      AUTH_AUDIENCE: identity-gateway
+      AUTH_JWKS_URL: http://identity-gateway:8080/.well-known/jwks.json
+      IDENTITY_GATEWAY_URL: http://identity-gateway:8080
+      DATABASE_URL: ${AOI_RUNTIME_DATABASE_URL:?Set a restricted AOI database URL}
+      CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:?Set a retained Fernet key}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      identity-gateway: { condition: service_healthy }
+  worker:
+    environment:
+      AUTH_MODE: oidc
+      AUTH_PROVIDER: gateway
+      AUTH_ISSUER: https://gateway.local
+      AUTH_AUDIENCE: identity-gateway
+      AUTH_JWKS_URL: http://identity-gateway:8080/.well-known/jwks.json
+      IDENTITY_GATEWAY_URL: http://identity-gateway:8080
+      DATABASE_URL: ${AOI_RUNTIME_DATABASE_URL:?Set a restricted AOI database URL}
+      CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:?Set a retained Fernet key}
+  frontend:
+    environment:
+      VITE_AUTH_PROVIDER: gateway
+      VITE_API_URL: ""
+      AOI_PROXY_TARGET: http://backend:8000

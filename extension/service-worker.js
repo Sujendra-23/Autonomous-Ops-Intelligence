@@ -78,9 +78,14 @@ async function startCapture(config) {
       title: config.title || tab.title || "Live meeting",
       project_hint: config.projectHint || null,
       calendar_event_id: config.calendarEventId || null,
+      language: config.language || "auto",
+      vocabulary: (config.transcriptionTerms || "").split(/[,\n]/).map(term=>term.trim()).filter(Boolean),
     }),
   });
-  if (!resp.ok) throw new Error(`Backend session create failed (HTTP ${resp.status}).`);
+  if (!resp.ok) {
+    if (resp.status === 422) throw new Error("This listening language is not supported. Choose Auto-detect or reload language options.");
+    throw new Error(`Backend session create failed (HTTP ${resp.status}).`);
+  }
   const data = await resp.json();
 
   const wsBase = base.replace(/^http/, "ws");

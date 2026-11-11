@@ -1,5 +1,6 @@
 .env
 .env.local
+.env.identity
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -24,7 +25,11 @@ backend/alembic/versions/*.pyc
 *.sqlite
 *.db
 .rocketride/
+.impeccable/review/
 
 .env.production
 .env.production.*
 !.env.production.example
+
+# Copied into desktop packages from the existing licensed frontend fonts.
+desktop/ui/fonts/

@@ -23,7 +23,9 @@ from tenacity import (
 from app.config import get_settings
 from app.llm.prompts import SYSTEM_PROMPT, build_user_prompt
 from app.logging import get_logger
+from app.metrics import track_llm_call
 from app.schemas.extraction import ExtractionResult
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.llm")
 
@@ -34,6 +36,10 @@ class LLMError(RuntimeError):
 
 class LLMClient(ABC):
     @abstractmethod
+    async def plan(self, system: str, prompt: str, *, operation: str = "roadmap") -> str:
+        """Return bounded JSON planning output; callers validate its schema."""
+
+    @abstractmethod
     async def extract(
         self,
         transcript_text: str,
@@ -43,8 +49,7 @@ class LLMClient(ABC):
         participants: list[str] | None = None,
         project_hint: str | None = None,
         prior_context: str | None = None,
-    ) -> ExtractionResult:
-        ...
+    ) -> ExtractionResult: ...
 
 
 # --------------------------------------------------------------------------- #
@@ -60,6 +65,31 @@ class OpenAIClient(LLMClient):
             raise LLMError("OPENAI_API_KEY is not configured")
         self._client = openai.AsyncOpenAI(api_key=key)
         self._model = settings.openai_model
+
+    async def plan(self, system: str, prompt: str, *, operation: str = "roadmap") -> str:
+        with track_llm_call("openai", self._model, operation) as call:
+            try:
+                response = await self._client.with_options(
+                    timeout=60, max_retries=1
+                ).chat.completions.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": redact(prompt)},
+                    ],
+                    response_format={"type": "json_object"},
+                    max_tokens=6000,
+                )
+            except openai.OpenAIError as exc:
+                raise LLMError("Roadmap generation is unavailable. Please try again.") from exc
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
+            )
+            if not response.choices or response.choices[0].finish_reason != "stop":
+                call.outcome = "invalid_output"
+                raise LLMError("The roadmap was incomplete. Please try a shorter plan.")
+            return response.choices[0].message.content or ""
 
     @retry(
         reraise=True,
@@ -87,21 +117,31 @@ class OpenAIClient(LLMClient):
             project_hint=project_hint,
             prior_context=prior_context,
         )
-        try:
-            response = await self._client.chat.completions.create(
-                model=self._model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1,
-            )
-        except openai.OpenAIError as exc:
-            raise LLMError(f"OpenAI call failed: {exc}") from exc
+        user_prompt = redact(user_prompt)
+        with track_llm_call("openai", self._model, "extract") as call:
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                )
+            except openai.OpenAIError as exc:
+                raise LLMError(f"OpenAI call failed: {exc}") from exc
 
-        raw = response.choices[0].message.content or ""
-        return _parse_extraction(raw, provider="openai")
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
+            )
+            raw = response.choices[0].message.content or ""
+            try:
+                return _parse_extraction(raw, provider="openai")
+            except LLMError:
+                call.outcome = "invalid_output"
+                raise
 
 
 # --------------------------------------------------------------------------- #
@@ -117,6 +157,28 @@ class AnthropicClient(LLMClient):
             raise LLMError("ANTHROPIC_API_KEY is not configured")
         self._client = anthropic.AsyncAnthropic(api_key=key)
         self._model = settings.anthropic_model
+
+    async def plan(self, system: str, prompt: str, *, operation: str = "roadmap") -> str:
+        with track_llm_call("anthropic", self._model, operation) as call:
+            try:
+                response = await self._client.with_options(
+                    timeout=60, max_retries=1
+                ).messages.create(
+                    model=self._model,
+                    system=system,
+                    max_tokens=6000,
+                    messages=[{"role": "user", "content": redact(prompt)}],
+                )
+            except anthropic.AnthropicError as exc:
+                raise LLMError("Roadmap generation is unavailable. Please try again.") from exc
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
+            )
+            if response.stop_reason != "end_turn":
+                call.outcome = "invalid_output"
+                raise LLMError("The roadmap was incomplete. Please try a shorter plan.")
+            return "".join(block.text for block in response.content if hasattr(block, "text"))
 
     @retry(
         reraise=True,
@@ -144,19 +206,29 @@ class AnthropicClient(LLMClient):
             project_hint=project_hint,
             prior_context=prior_context,
         )
-        try:
-            response = await self._client.messages.create(
-                model=self._model,
-                system=SYSTEM_PROMPT,
-                max_tokens=4096,
-                temperature=0.1,
-                messages=[{"role": "user", "content": user_prompt}],
-            )
-        except anthropic.AnthropicError as exc:
-            raise LLMError(f"Anthropic call failed: {exc}") from exc
+        user_prompt = redact(user_prompt)
+        with track_llm_call("anthropic", self._model, "extract") as call:
+            try:
+                response = await self._client.messages.create(
+                    model=self._model,
+                    system=SYSTEM_PROMPT,
+                    max_tokens=4096,
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": user_prompt}],
+                )
+            except anthropic.AnthropicError as exc:
+                raise LLMError(f"Anthropic call failed: {exc}") from exc
 
-        raw = "".join(block.text for block in response.content if hasattr(block, "text"))
-        return _parse_extraction(raw, provider="anthropic")
+            usage = getattr(response, "usage", None)
+            call.record_usage(
+                getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
+            )
+            raw = "".join(block.text for block in response.content if hasattr(block, "text"))
+            try:
+                return _parse_extraction(raw, provider="anthropic")
+            except LLMError:
+                call.outcome = "invalid_output"
+                raise
 
 
 # --------------------------------------------------------------------------- #
@@ -181,15 +253,13 @@ def _parse_extraction(raw: str, *, provider: str) -> ExtractionResult:
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        logger.error("llm.parse_failed", provider=provider, raw=raw[:500])
+        logger.error("llm.parse_failed", provider=provider)
         raise LLMError(f"{provider} returned invalid JSON: {exc}") from exc
 
     try:
-        return ExtractionResult.model_validate(data)
-    except Exception as exc:  # noqa: BLE001 — pydantic raises various subclasses
-        logger.error(
-            "llm.schema_violation", provider=provider, data=data, error=str(exc)
-        )
+        return ExtractionResult.model_validate(redact_payload(data))
+    except Exception as exc:
+        logger.error("llm.schema_violation", provider=provider, error_type=type(exc).__name__)
         raise LLMError(f"{provider} output did not match schema: {exc}") from exc
 
 

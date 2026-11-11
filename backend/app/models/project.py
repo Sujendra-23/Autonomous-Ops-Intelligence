@@ -5,8 +5,8 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -32,24 +32,26 @@ class Project(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    roadmap: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    roadmap_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    @property
+    def has_roadmap(self) -> bool:
+        return self.roadmap is not None
 
     # External system identifiers — populated by integration adapters
     notion_page_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     linear_project_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
-    transcripts: Mapped[list["Transcript"]] = relationship(
+    transcripts: Mapped[list[Transcript]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    tasks: Mapped[list["Task"]] = relationship(
+    tasks: Mapped[list[Task]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    decisions: Mapped[list[Decision]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-    decisions: Mapped[list["Decision"]] = relationship(
-        back_populates="project", cascade="all, delete-orphan"
-    )
-    risks: Mapped[list["Risk"]] = relationship(
-        back_populates="project", cascade="all, delete-orphan"
-    )
-    blockers: Mapped[list["Blocker"]] = relationship(
+    risks: Mapped[list[Risk]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    blockers: Mapped[list[Blocker]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 

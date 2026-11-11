@@ -1,7 +1,7 @@
 name: Release checks
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
   pull_request:
 permissions:
   contents: read
@@ -43,6 +43,9 @@ jobs:
           PY
       - run: python -m pytest -q
         working-directory: backend
+      - run: python -m evals.run_dlp
+        working-directory: backend
+      - run: python scripts/check_alerts.py
       - run: pip-audit -r backend/requirements.txt
   frontend:
     runs-on: ubuntu-latest
@@ -66,3 +69,25 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build -t aoi-backend ./backend
       - run: docker build -t aoi-frontend ./frontend
+
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: desktop
+      - run: npm test
+        working-directory: desktop
+      - run: npm run test:ui
+        working-directory: desktop
+      - run: npm audit --audit-level=moderate
+        working-directory: desktop

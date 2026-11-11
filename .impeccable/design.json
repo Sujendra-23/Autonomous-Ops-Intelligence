@@ -1,0 +1,267 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-11T22:37:22.860939+00:00",
+  "title": "Design System: AOI",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Cream"
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Paper"
+      },
+      "panel-2": {
+        "role": "neutral",
+        "displayName": "Inset Cream"
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Soft Divider"
+      },
+      "text": {
+        "role": "primary",
+        "displayName": "Charcoal Ink"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink"
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ink Accent"
+      },
+      "accent-2": {
+        "role": "secondary",
+        "displayName": "Plum"
+      },
+      "lavender": {
+        "role": "primary",
+        "displayName": "Soft Lavender"
+      },
+      "forest": {
+        "role": "primary",
+        "displayName": "Charcoal Compatibility Alias"
+      },
+      "citrus": {
+        "role": "primary",
+        "displayName": "Lavender Compatibility Alias"
+      },
+      "forest-muted": {
+        "role": "neutral",
+        "displayName": "Sidebar Muted"
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Ochre"
+      },
+      "crit": {
+        "role": "tertiary",
+        "displayName": "Brick"
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Deep Green"
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Plum Focus"
+      },
+      "button-hover": {
+        "role": "primary",
+        "displayName": "Charcoal Hover"
+      },
+      "lavender-hover": {
+        "role": "primary",
+        "displayName": "Lavender Hover"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Editorial Display",
+        "purpose": "Regular EB Garamond welcome and large introductions."
+      },
+      "display-accent": {
+        "displayName": "Editorial Italic",
+        "purpose": "Same-size italic EB Garamond emphasis within display headings."
+      },
+      "headline": {
+        "displayName": "Page Headline",
+        "purpose": "EB Garamond workspace page headings with local compact variants."
+      },
+      "title": {
+        "displayName": "Section Title",
+        "purpose": "Compact Figtree ledger and rail headings."
+      },
+      "body": {
+        "displayName": "Interface Body",
+        "purpose": "Figtree operational text, forms, and reading."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Figtree controls, statuses, and captions."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Waveform, drawer, and small spatial transitions."
+      },
+      {
+        "name": "control-transition",
+        "value": "180ms",
+        "purpose": "Control background, ink, and border states."
+      },
+      {
+        "name": "field-transition",
+        "value": "150ms",
+        "purpose": "Field borders and backgrounds."
+      },
+      {
+        "name": "drawer-transition",
+        "value": "220ms",
+        "purpose": "Mobile drawer; disabled under reduced motion."
+      },
+      {
+        "name": "editor-transition",
+        "value": "230ms",
+        "purpose": "Task editor appearance; disabled under reduced motion."
+      },
+      {
+        "name": "capture-signal",
+        "value": "1400ms, 3 iterations",
+        "purpose": "Finite 27-bar waveform; disabled under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1650px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1250px"
+      },
+      {
+        "name": "pricing-stack",
+        "value": "1100px"
+      },
+      {
+        "name": "rail-stack",
+        "value": "1050px"
+      },
+      {
+        "name": "task-controls",
+        "value": "1000px"
+      },
+      {
+        "name": "drawer",
+        "value": "800px"
+      },
+      {
+        "name": "single-column",
+        "value": "620px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ordinary ink action with a pill silhouette.",
+      "html": "<button class=\"ds-primary\">Set up the extension</button>",
+      "css": ".ds-primary { font-family:Figtree,sans-serif; display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:10px 19px; background:var(--text, #1a1a1a); color:var(--bg, #ffffeb); border:1px solid var(--text, #1a1a1a); border-radius:999px; font-size:13px; font-weight:500; cursor:pointer; transition:background 180ms; } .ds-primary:hover { background:#393932; } .ds-primary:focus-visible { outline:2px solid var(--focus, #80509a); outline-offset:4px; } .ds-primary:disabled { opacity:.5; cursor:not-allowed; }"
+    },
+    {
+      "name": "Lavender Upload Button",
+      "kind": "button",
+      "refersTo": "button-lavender",
+      "description": "Outlined lavender action for the welcome.",
+      "html": "<button class=\"ds-lavender\">Upload transcript</button>",
+      "css": ".ds-lavender { font-family:Figtree,sans-serif; min-height:44px; padding:10px 20px; background:var(--lavender, #f0d7ff); color:var(--text, #1a1a1a); border:1.5px solid var(--text, #1a1a1a); border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:background 180ms; } .ds-lavender:hover { background:#e6c6f8; } .ds-lavender:focus-visible { outline:2px solid var(--focus, #80509a); outline-offset:4px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet outlined pill action.",
+      "html": "<button class=\"ds-ghost\">Connect your tools</button>",
+      "css": ".ds-ghost { font-family:Figtree,sans-serif; min-height:38px; padding:9px 14px; background:transparent; color:var(--text, #1a1a1a); border:1px solid #b7b7a7; border-radius:999px; font-size:12px; cursor:pointer; transition:background 180ms; } .ds-ghost:hover { background:#eeeee1; } .ds-ghost:focus-visible { outline:2px solid var(--focus, #80509a); outline-offset:4px; }"
+    },
+    {
+      "name": "Workspace Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled inset field with clear focus.",
+      "html": "<label class=\"ds-label\" for=\"ds-workspace\">Workspace name</label><input class=\"ds-input\" id=\"ds-workspace\" placeholder=\"Your workspace\">",
+      "css": ".ds-label { font-family:Figtree,sans-serif; display:block; margin-bottom:6px; color:var(--text, #1a1a1a); font-size:12px; } .ds-input { font-family:Figtree,sans-serif; max-width:100%; padding:8px 10px; background:var(--panel-2, #f0f0e2); color:var(--text, #1a1a1a); border:1px solid var(--border, #deded0); border-radius:6px; font-size:14px; line-height:1.55; caret-color:var(--accent, #1a1a1a); transition:border-color 150ms; } .ds-input::placeholder { color:var(--muted, #62625a); } .ds-input:hover,.ds-input:focus { border-color:#62625a; } .ds-input:focus-visible { outline:2px solid var(--focus, #80509a); outline-offset:4px; }"
+    },
+    {
+      "name": "Active Navigation",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Lavender selection against charcoal navigation.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Workspace\"><button class=\"ds-nav-active\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg>Dashboard<span class=\"ds-active-dot\"></span></button></nav>",
+      "css": ".ds-nav { background:var(--forest, #1a1a1a); padding:18px; } .ds-nav-active { font-family:Figtree,sans-serif; display:flex; align-items:center; gap:12px; width:100%; min-height:44px; padding:12px; border:0; border-radius:8px; background:var(--lavender, #f0d7ff); color:var(--text, #1a1a1a); font-size:13px; font-weight:750; text-align:left; cursor:pointer; transition:background 180ms; } .ds-nav-active svg { width:17px; height:17px; } .ds-active-dot { width:5px; height:5px; border-radius:50%; margin-left:auto; background:var(--text, #1a1a1a); } .ds-nav-active:hover { background:var(--lavender, #f0d7ff); } .ds-nav-active:focus-visible { outline:2px solid var(--focus, #80509a); outline-offset:4px; }"
+    },
+    {
+      "name": "Completed Status",
+      "kind": "chip",
+      "refersTo": "status-completed",
+      "description": "Explicit completion text with quiet cream treatment.",
+      "html": "<span class=\"ds-status\">Completed</span>",
+      "css": ".ds-status { font-family:Figtree,sans-serif; display:inline-block; padding:4px 7px; border-radius:5px; background:var(--bg, #ffffeb); color:var(--muted, #62625a); font-size:12px; }"
+    },
+    {
+      "name": "Meeting Ledger",
+      "kind": "card",
+      "refersTo": "ledger",
+      "description": "Flat paper work container with inset cream footer.",
+      "html": "<section class=\"ds-ledger\"><h3 class=\"ds-ledger-title\">Recent meetings</h3><div class=\"ds-ledger-row\">Your workspace meetings</div><footer class=\"ds-ledger-footer\">Extension captures &amp; uploads, together</footer></section>",
+      "css": ".ds-ledger { font-family:Figtree,sans-serif; overflow:hidden; padding:22px 24px 0; border:1px solid var(--border, #deded0); border-radius:14px; color:var(--text, #1a1a1a); background:var(--panel, #fffef6); } .ds-ledger-title { font-size:14px; font-weight:700; letter-spacing:-.02em; margin:0 0 18px; } .ds-ledger-row { padding:20px 0; border-top:1px solid var(--border, #deded0); font-size:12px; } .ds-ledger-footer { margin:0 -24px; padding:14px 24px; color:var(--muted, #62625a); background:#f4f4e8; font-size:12px; }"
+    },
+    {
+      "name": "Capture Strip",
+      "kind": "custom",
+      "refersTo": "capture",
+      "description": "Compact ink strip with a cream 27-bar waveform and finite motion.",
+      "html": "<section class=\"ds-capture\"><div class=\"ds-visual\" aria-hidden=\"true\"><div class=\"ds-signal\"><i style=\"height:5.00px\"></i><i style=\"height:22.47px\"></i><i style=\"height:28.40px\"></i><i style=\"height:19.95px\"></i><i style=\"height:5.35px\"></i><i style=\"height:16.24px\"></i><i style=\"height:16.78px\"></i><i style=\"height:10.23px\"></i><i style=\"height:5.12px\"></i><i style=\"height:5.90px\"></i><i style=\"height:10.67px\"></i><i style=\"height:11.67px\"></i><i style=\"height:5.77px\"></i><i style=\"height:18.01px\"></i><i style=\"height:25.28px\"></i><i style=\"height:19.84px\"></i><i style=\"height:6.78px\"></i><i style=\"height:23.94px\"></i><i style=\"height:29.79px\"></i><i style=\"height:20.45px\"></i><i style=\"height:7.06px\"></i><i style=\"height:20.50px\"></i><i style=\"height:22.00px\"></i><i style=\"height:13.51px\"></i><i style=\"height:6.05px\"></i><i style=\"height:9.13px\"></i><i style=\"height:5.80px\"></i></div></div><div class=\"ds-capture-copy\"><h3>Be there. We’ll take it from here.</h3><p>Live audio. Clear notes. Every next step, captured.</p></div><button class=\"ds-capture-button\">Set up the extension<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></button></section>",
+      "css": ".ds-capture { font-family:Figtree,sans-serif; display:flex; align-items:center; flex-wrap:wrap; gap:22px; padding:17px 22px; background:var(--text, #1a1a1a); color:var(--bg, #ffffeb); border-radius:14px; overflow:hidden; } .ds-visual { display:grid; place-items:center; flex:0 0 152px; min-height:50px; border:1px solid #74746a; border-radius:999px; background:var(--bg, #ffffeb); color:var(--text, #1a1a1a); } .ds-signal { display:flex; align-items:center; justify-content:center; gap:3px; height:48px; padding:0 14px; overflow:hidden; } .ds-signal i { display:block; width:2px; flex-shrink:0; border-radius:2px; background:currentColor; transform-origin:center; animation:ds-settle 1400ms cubic-bezier(.16,1,.3,1) 3; } .ds-signal i:nth-child(3n) { animation-delay:150ms; } .ds-capture-copy { flex:1; min-width:180px; } .ds-capture h3 { margin:0 0 3px; font-size:16px; font-weight:500; line-height:1.4; letter-spacing:-.015em; } .ds-capture p { color:#c6c6b9; font-size:12px; margin:0; line-height:1.6; } .ds-capture-button { display:flex; align-items:center; gap:10px; border:1px solid #6a6a60; background:transparent; color:var(--bg, #ffffeb); padding:10px 14px; min-height:40px; border-radius:999px; font-family:Figtree,sans-serif; font-size:12px; cursor:pointer; transition:background 180ms,color 180ms; } .ds-capture-button svg { width:16px; height:16px; } .ds-capture-button:hover { background:var(--lavender, #f0d7ff); color:var(--text, #1a1a1a); border-color:var(--lavender, #f0d7ff); } .ds-capture-button:focus-visible { outline:2px solid var(--focus, #80509a); outline-offset:4px; } @keyframes ds-settle { 0%,100% { transform:scaleY(.85); } 50% { transform:scaleY(.4); } } @media(prefers-reduced-motion:reduce) { .ds-signal i { animation:none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Wispr Flow-inspired workspace",
+    "overview": "The user confirmed a restyle of the existing app. Cream, charcoal, lavender, and editorial EB Garamond headings replace the earlier forest/citrus system. Figtree keeps operational content compact and readable. Flat paper surfaces and fine dividers support dense meeting and task records.",
+    "keyCharacteristics": [
+      "Cream canvas, charcoal navigation, and lavender selection.",
+      "Regular and italic serif display with Figtree controls and data.",
+      "Flat ledgers, visible focus, and finite 27-bar waveform motion."
+    ],
+    "rules": [
+      {
+        "name": "The Compatibility Rule",
+        "body": "Forest and citrus remain code aliases for charcoal and lavender; they do not restore the former palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Reading Rule",
+        "body": "Keep serif expression in headings and metric values; keep operational detail in Figtree.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do use the cream, ink, and lavender system across app surfaces.",
+      "Do preserve keyboard focus, readable states, labeled controls, and reduced motion.",
+      "Do design loading, empty, offline, and labeled examples with the same care as populated views."
+    ],
+    "donts": [
+      "Don’t restore the superseded forest/citrus palette through alias names.",
+      "Don’t style dense data, navigation, or form labels in serif.",
+      "Don’t present example records as live data or imply unavailable checkout and contact actions work."
+    ]
+  }
+}

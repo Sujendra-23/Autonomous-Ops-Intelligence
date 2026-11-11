@@ -1,0 +1,30 @@
+{
+  "name": "aoi-desktop",
+  "productName": "AOI Desktop",
+  "version": "0.1.0",
+  "description": "Desktop meeting capture for AOI",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "node scripts/prepare.cjs && node scripts/run.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node scripts/prepare.cjs && node tests/desktop-ui.mjs",
+    "package:mac": "node scripts/package.cjs darwin",
+    "package:win": "node scripts/package.cjs win32"
+  },
+  "dependencies": {
+    "ws": "8.22.2"
+  },
+  "devDependencies": {
+    "electron": "45.3.0",
+    "@electron/packager": "20.3.0",
+    "playwright": "1.63.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.8",
+    "glob": "^14.0.5"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

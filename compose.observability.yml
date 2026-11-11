@@ -1,0 +1,29 @@
+# Overlay: docker compose -f docker-compose.yml -f compose.observability.yml --profile observability up -d
+services:
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v2.55.1
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/rules.yml:/etc/prometheus/rules.yml:ro
+    depends_on: [backend, worker, alertmanager]
+    restart: unless-stopped
+  alertmanager:
+    profiles: [observability]
+    image: prom/alertmanager:v0.28.1
+    ports: ["127.0.0.1:9093:9093"]
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - aoi_alertmanager_data:/alertmanager
+    depends_on: [alert-receiver]
+    restart: unless-stopped
+  alert-receiver:
+    profiles: [observability]
+    image: python:3.13-alpine
+    command: [python, /capture.py]
+    ports: ["127.0.0.1:9080:8080"]
+    volumes: ["./observability/capture.py:/capture.py:ro"]
+    restart: unless-stopped
+volumes:
+  aoi_alertmanager_data:

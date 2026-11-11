@@ -1,9 +1,13 @@
 # Discord and Microsoft Teams connectors
 
+Provider sign-in is now available in the dashboard and extension. See [connector OAuth setup](connector-oauth.md) for one-time app registration and the automatic connection flow. Manual credential setup below remains available.
+
 These outbound connectors publish meeting summaries after AOI processes a
 transcript. Summaries include extracted tasks, decisions, risks, and blockers.
 They do not import chat history or join meetings. Both can run alongside Slack
-and Notion, and each is disabled until its webhook URL is configured.
+and Notion. The manual instructions below use webhook URLs; the provider sign-in
+flow configures Discord’s webhook automatically and can use Microsoft Graph for
+Teams without a Workflow webhook.
 
 ## Discord
 

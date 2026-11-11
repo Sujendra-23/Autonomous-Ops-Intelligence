@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,8 +18,16 @@ class Account(UUIDPrimaryKey, Timestamps, Base):
 
 class Workspace(UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "workspaces"
+    __table_args__ = (
+        UniqueConstraint(
+            "identity_issuer", "identity_tenant_id", name="uq_workspace_gateway_tenant"
+        ),
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     connector_ciphertext: Mapped[str | None] = mapped_column(Text)
+    identity_issuer: Mapped[str | None] = mapped_column(String(256))
+    identity_tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    identity_tenant_slug: Mapped[str | None] = mapped_column(String(63))
 
 
 class Membership(Base):

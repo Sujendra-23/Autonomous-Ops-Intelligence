@@ -1,10 +1,11 @@
 :root {
+  color-scheme: dark;
   --bg: #0b0d10;
   --panel: #131720;
   --panel-2: #1a1f2b;
   --border: #232a39;
   --text: #e7eaf0;
-  --muted: #8a93a6;
+  --muted: #a0a9bb;
   --accent: #6ea8fe;
   --accent-2: #a78bfa;
   --warn: #f5a524;
@@ -15,6 +16,13 @@
 * {
   box-sizing: border-box;
 }
+
+::selection { background: #294976; color: #fff; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+input, textarea { caret-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+* { scrollbar-color: #46516a var(--panel); scrollbar-width: thin; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 html,
 body,
@@ -318,6 +326,37 @@ th {
 .workspace-settings input, .workspace-settings select { display: block; width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; }
 .workspace-settings button { margin: 8px 12px 8px 0; padding: 10px 16px; }
 .workspace-settings code { overflow-wrap: anywhere; }
+.workspace-settings input, .workspace-settings select { background: var(--panel); color: var(--text); border: 1px solid var(--border); font: inherit; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.section-heading h3 { margin-bottom: 12px; }
+.connector-rows { list-style: none; padding: 0; }
+.connector-rows > li { border-bottom: 1px solid var(--border); padding: 20px 0; }
+.connector-row { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.connector-copy { min-width: 0; }
+.connector-copy h4 { margin: 0 0 6px; font-size: 16px; }
+.connector-copy p { margin: 0 0 10px; color: var(--muted); }
+.connection-state { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.connection-state.connected { color: #72d8b0; }
+.connector-actions { display: flex; flex-wrap: wrap; justify-content: end; flex-shrink: 0; }
+.connector-actions button { margin: 4px 0 4px 8px; }
+.workspace-settings button.secondary, .pricing button.secondary { background: var(--panel-2); color: var(--text); }
+.connector-hint { margin: 12px 0 0; font-size: 13px; }
+.connection-error { color: #ffb4b4; }
+.workspace-settings .destination-form { margin: 18px 0 0; padding: 0; border: 0; }
+.pricing { max-width: 1060px; }
+.pricing h1 { margin-bottom: 8px; font-size: 32px; }
+.pricing-intro { font-size: 18px; margin-top: 0; }
+.pricing-notice { max-width: 72ch; color: var(--muted); margin: 24px 0 36px; }
+.pricing-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.pricing-plan { min-width: 0; border-top: 1px solid var(--border); padding-top: 24px; }
+.pricing-plan h2 { font-size: 22px; margin: 0 0 8px; }
+.plan-price { font-size: 30px; line-height: 1.3; font-weight: 600; margin: 28px 0 4px; }
+.plan-period { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+.pricing-plan ul { padding-inline-start: 20px; }
+.pricing-plan li { margin-bottom: 12px; }
+.plan-availability { font-size: 13px; color: var(--muted); margin-top: 24px; }
+.pricing > .muted { margin-top: 40px; }
+.pricing button { padding: 10px 16px; border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
 .workspace-settings button { background: var(--accent); color: #0b0d10; border: 0; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
 .workspace-settings button:hover { filter: brightness(1.1); }
 .workspace-settings button:disabled { opacity: .5; cursor: wait; }
@@ -325,9 +364,13 @@ th {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 ::selection { background: #6ea8fe; color: #0b0d10; }
 @media (max-width: 700px) {
+  .connector-row { align-items: start; flex-direction: column; gap: 12px; }
+  .connector-actions { justify-content: start; }
+  .connector-actions button { margin-left: 0; margin-right: 8px; }
+  .pricing-plans { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .app { grid-template-columns: minmax(0, 1fr); }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--border); padding: 18px; }
-  .sidebar nav { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sidebar nav { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .sidebar nav button { width: auto; }
   .main { padding: 24px 18px; min-width: 0; }
   .workspace-settings form { padding: 18px; }

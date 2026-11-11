@@ -1,5 +1,7 @@
 # Calendar, task sync, and webhooks
 
+Provider sign-in is now available in the dashboard and extension. See [connector OAuth setup](connector-oauth.md) for one-time app registration and the automatic connection flow. Manual credential setup below remains available.
+
 These integrations are opt-in and configured on the backend. This is a single-workspace,
 single-calendar deployment, not a multi-user OAuth account system. Outlook, CRM connectors,
 and recording imports are not implemented in this change.
@@ -60,16 +62,52 @@ API usage:
 
 ## Linear and Jira status sync
 
-Existing extraction creates issues. To synchronize their status in both directions:
+AOI can be your standalone task tracker. **Tasks → New task** creates a task with a title,
+optional description, owner, due date and priority. Native task creation, editing, filtering,
+and completion need neither an LLM key nor a connector. Meeting extraction adds tasks to the
+same list. Native tasks stay in AOI unless a separate integration explicitly exports them.
+
+### Import existing Jira and Linear work
+
+Connecting Jira or Linear also imports issues that already exist in the selected **Jira
+project** or **Linear team**. Manual credentials require `JIRA_PROJECT_KEY` or `LINEAR_TEAM_ID`
+as well as valid read access. Other connectors (Notion, Slack, Teams and Discord) keep their
+existing notes/notification roles; they are not treated as issue trackers.
+
+- The worker imports up to two pages of 100 issues per provider per pass. Saved cursors resume
+  larger backfills; the Tasks page shows when more pages remain. A completed pass restarts to
+  pick up changes. Large backfills and provider outages can take longer than one interval.
+- **Tasks → Sync now** triggers an import immediately. It shares a workspace/provider lock
+  with the worker, so simultaneous imports do not create copies.
+- Imports include title, description, assignee, due date, priority, status and source link.
+  Project/team filters and company workspace boundaries apply to every import.
+- Stable provider IDs prevent repeated imports from duplicating tasks. Existing meeting tasks
+  already mirrored to the same Jira site or Linear issue are updated in place, retaining their
+  transcript evidence. Identically named native tasks are not merged by guessing.
+- Pending local status edits win until successfully pushed. Imported metadata is authoritative;
+  edit linked titles, owners and due dates in their source tool. Remote deletion does not delete
+  the local record. Disconnecting stops imports; previously imported work is retained.
+- No LLM is used for imports. Importing a task never creates another issue or publishes a
+  meeting summary. A provider failure leaves existing and native tasks intact and is shown
+  in Tasks. Expired Jira cursors restart the next pass safely.
+
+API: `POST /api/tasks` creates a native task; `GET /api/tasks` supports `source`, `status`, `q`,
+`overdue`, `limit` and `offset`; `GET /api/tasks/sync` reports connector import state;
+`POST /api/tasks/sync` runs a bounded import. Writes use the existing authentication and
+workspace membership controls. Apply migration `0009_unified_tasks` before using them.
+
+### Two-way status updates
+
+To push local status changes to linked Jira/Linear issues:
 
 ```ini
 TASK_SYNC_ENABLED=true
 INTEGRATION_INTERVAL_SECONDS=60
 ```
 
-Keep the existing Linear or Jira credentials configured. No historical tickets are imported:
-only tasks with an existing `linear_issue_id` or `jira_issue_key` are synchronized. A task
-already mirrored to one provider is not duplicated into the other when configuration changes.
+OAuth destination selection enables status sync automatically. For manual connector setup,
+enable it explicitly. Without it, connector issues are imported for review and their status
+controls are read-only in the UI. Native tasks remain fully editable.
 
 The worker checks up to 100 due tasks per pass, including completed tasks so reopening an
 issue is reflected locally. It synchronizes before scheduled drift scans. Under normal load,

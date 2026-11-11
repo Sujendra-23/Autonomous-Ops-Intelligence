@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:browser": "node tests/roadmaps-voice.test.mjs"
   },
   "dependencies": {
     "oidc-client-ts": "^3.5.0",
@@ -17,6 +18,7 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "playwright": "1.63.0",
     "typescript": "^5.6.2",
     "vite": "^8.3.3"
   }

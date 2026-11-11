@@ -30,12 +30,12 @@ _jwks_until = 0.0
 _jwks_lock = asyncio.Lock()
 
 
-async def verify_identity(token: str) -> str:
+async def verify_claims(token: str, algorithms: tuple[str, ...] = ("RS256", "ES256")) -> dict:
     global _jwks, _jwks_until
     settings = base_settings()
     try:
         header = jwt.get_unverified_header(token)
-        if header.get("alg") not in ("RS256", "ES256") or not header.get("kid"):
+        if header.get("alg") not in algorithms or not header.get("kid"):
             raise ValueError("Unsupported signing key")
         # Unknown keys cannot cause unbounded network calls; refresh at most once per minute.
         async with _jwks_lock:
@@ -61,9 +61,13 @@ async def verify_identity(token: str) -> str:
         subject = claims["sub"]
         if not isinstance(subject, str) or not subject or len(subject) > 512:
             raise ValueError("Invalid subject")
-        return subject
+        return claims
     except (jwt.PyJWTError, ValueError, KeyError, TypeError, httpx.HTTPError):
         raise HTTPException(401, "Invalid or expired access token") from None
+
+
+async def verify_identity(token: str) -> str:
+    return (await verify_claims(token))["sub"]
 
 
 async def authenticate(token: str, workspace_header: str | None = None) -> Principal:
@@ -71,6 +75,12 @@ async def authenticate(token: str, workspace_header: str | None = None) -> Princ
         requested = uuid.UUID(workspace_header) if workspace_header else None
     except ValueError:
         raise HTTPException(400, "Invalid workspace ID") from None
+    if base_settings().auth_provider == "gateway":
+        from app.identity_gateway import authenticate_gateway
+
+        if token.startswith("aoi_"):
+            raise HTTPException(401, "Use a current gateway session token for this company")
+        return await authenticate_gateway(token, requested)
     async with SessionLocal() as db:
         if token.startswith("aoi_"):
             access = await db.scalar(

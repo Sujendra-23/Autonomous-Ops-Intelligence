@@ -7,8 +7,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.services.dlp import Sensitivity
+
 
 class TranscriptCreate(BaseModel):
+    sensitivity_label: Sensitivity = "internal"
     calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
     title: str = Field(..., min_length=1, max_length=512)
     content: str = Field(..., min_length=20, max_length=500000)
@@ -36,6 +39,10 @@ class TranscriptSummary(BaseModel):
     title: str
     status: str
     source: str
+    transcription_language: str = "auto"
+    sensitivity_label: Sensitivity
+    dlp_findings: dict[str, int]
+    dlp_policy_version: str
     project_id: uuid.UUID | None
     meeting_date: datetime | None
     processed_at: datetime | None
@@ -92,7 +99,14 @@ class ExtractedBlockerOut(BaseModel):
     status: str
 
 
+class TranscriptSegment(BaseModel):
+    text: str
+    confidence: float | None = None
+    needs_review: bool = False
+
+
 class TranscriptDetail(TranscriptSummary):
+    segments: list[TranscriptSegment] = Field(default_factory=list)
     calendar_context: dict | None = None
     content: str
     participants: list[str] | None

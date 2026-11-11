@@ -24,7 +24,9 @@ import asyncio
 import contextlib
 import json
 import uuid
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
@@ -41,15 +43,47 @@ from app.models.decision import Decision
 from app.models.risk import Risk
 from app.models.task import Task
 from app.models.transcript import Transcript
+from app.services.dlp import Sensitivity, protect_transcript, redact
 from app.services.extraction import ExtractionPipeline
 from app.services.live_session import LiveSession
 from app.services.live_stt import configured_sample_rate, get_transcriber
+from app.services.transcription_languages import LANGUAGES, ListeningLanguage
 
 logger = get_logger("app.api.live")
 router = APIRouter()
+_desktop_capture_locks: dict[uuid.UUID, asyncio.Lock] = {}
+
+
+@asynccontextmanager
+async def desktop_capture_lock(transcript_id: uuid.UUID, enabled: bool):
+    """Serialize desktop reconnects in single-process development mode.
+
+    OIDC deployments use the existing Redis lease in SecurityMiddleware.
+    A reconnect must seed from the previous connection's final committed words.
+    """
+    if not enabled:
+        yield True
+        return
+    lock = _desktop_capture_locks.setdefault(transcript_id, asyncio.Lock())
+    if lock.locked():
+        yield False
+        return
+    await lock.acquire()
+    try:
+        yield True
+    finally:
+        lock.release()
+        _desktop_capture_locks.pop(transcript_id, None)
 
 
 class LiveSessionCreate(BaseModel):
+    source: Literal["live", "desktop"] = "live"
+    capture_app: Literal["teams", "slack", "discord", "other"] | None = None
+    vocabulary: list[Annotated[str, Field(min_length=1, max_length=80)]] = Field(
+        default_factory=list, max_length=50
+    )
+    language: ListeningLanguage | None = None
+    sensitivity_label: Sensitivity = "internal"
     calendar_event_id: str | None = Field(None, min_length=1, max_length=1024)
     title: str = Field(default="Live meeting", max_length=512)
     project_hint: str | None = Field(None, max_length=256)
@@ -61,6 +95,23 @@ class LiveSessionOut(BaseModel):
     ws_path: str
     stt_enabled: bool
     sample_rate: int
+    language: str
+
+
+@router.get("/languages")
+async def listening_languages() -> dict:
+    provider = get_settings().stt_provider
+    return {
+        "default": get_settings().live_transcription_language,
+        "auto_note": (
+            "Auto mode uses the Nova-3 multilingual language set. "
+            "For Nepali or Urdu, select the language explicitly."
+            if provider == "deepgram"
+            else "Automatic recognition keeps the languages you speak. "
+            "Accuracy varies by language and audio quality."
+        ),
+        "items": [{"code": code, "label": label} for code, label in LANGUAGES.items()],
+    }
 
 
 @router.post(
@@ -78,15 +129,23 @@ async def create_live_session(
     transcript = Transcript(
         title=context.get("title") or payload.title.strip() or "Live meeting",
         content="",
-        source="live",
+        transcription_language=payload.language or get_settings().live_transcription_language,
+        sensitivity_label=payload.sensitivity_label,
+        source=payload.source,
         participants=payload.participants
         if payload.participants is not None
         else context.get("participants"),
         meeting_date=context.get("meeting_date", datetime.now(UTC)),
-        calendar_context=context.get("calendar_context"),
+        calendar_context={
+            **(context.get("calendar_context") or {}),
+            "desktop_app": payload.capture_app,
+            "transcription_vocabulary": payload.vocabulary,
+        },
         project_id=project.id if project else None,
         status="live",
+        transcription_segments=[],
     )
+    protect_transcript(transcript)
     session.add(transcript)
     await session.commit()
     await session.refresh(transcript)
@@ -95,6 +154,7 @@ async def create_live_session(
         ws_path=f"/api/live/ws/{transcript.id}",
         stt_enabled=get_settings().stt_enabled,
         sample_rate=configured_sample_rate(),
+        language=transcript.transcription_language,
     )
 
 
@@ -125,155 +185,187 @@ async def live_ws(websocket: WebSocket, transcript_id: uuid.UUID) -> None:
             await websocket.close(code=1008)
             return
 
-    async with SessionLocal() as db, get_transcriber() as transcriber:
-        transcript = await db.get(Transcript, transcript_id)
-        if transcript is None:
-            await _safe_send(websocket, {"type": "error", "detail": "unknown session"})
-            await _safe_close(websocket)
+    async with desktop_capture_lock(
+        transcript_id, settings.auth_mode != "oidc" and allowed.source == "desktop"
+    ) as acquired:
+        if not acquired:
+            await websocket.close(code=1013)
             return
-
-        live = LiveSession(
-            min_chars=settings.live_min_chars,
-            min_interval_s=settings.live_min_interval_seconds,
-            max_interval_s=settings.live_max_interval_seconds,
-        )
-        # Resume from whatever was already transcribed (handles reconnects:
-        # the extension reopens the same session WebSocket after a drop).
-        if transcript.content:
-            live.seed(transcript.content)
-        pipeline = ExtractionPipeline(db)
-        loop = asyncio.get_event_loop()
-        stop = asyncio.Event()
-        finalized = False
-
-        await _safe_send(
-            websocket,
-            {
-                "type": "ready",
-                "transcript_id": str(transcript_id),
-                "stt_enabled": settings.stt_enabled,
-            },
-        )
-
-        async def run_extraction(*, dispatch: bool) -> None:
-            transcript.content = live.full_text()
-            await db.commit()
-            if not transcript.content:
+        vocabulary = (allowed.calendar_context or {}).get("transcription_vocabulary", [])
+        async with (
+            SessionLocal() as db,
+            get_transcriber(allowed.transcription_language, vocabulary=vocabulary) as transcriber,
+        ):
+            transcript = await db.get(Transcript, transcript_id)
+            if transcript is None:
+                await _safe_send(websocket, {"type": "error", "detail": "unknown session"})
+                await _safe_close(websocket)
                 return
-            if dispatch:
-                await pipeline.process(transcript_id)
-            else:
-                await pipeline.extract_incremental(transcript_id, dispatch=False)
-            await _safe_send(websocket, {"type": "notes", **await _snapshot(db, transcript_id)})
 
-        async def consume() -> None:
-            try:
-                async for ev in transcriber.events():
-                    if ev.is_final:
-                        live.add_final(ev.text)
-                        transcript.content = live.full_text()
-                        await db.commit()
-                    else:
-                        live.set_interim(ev.text)
+            live = LiveSession(
+                min_chars=settings.live_min_chars,
+                min_interval_s=settings.live_min_interval_seconds,
+                max_interval_s=settings.live_max_interval_seconds,
+            )
+            # Resume from whatever was already transcribed (handles reconnects:
+            # the extension reopens the same session WebSocket after a drop).
+            if transcript.content:
+                live.seed(transcript.content)
+            pipeline = ExtractionPipeline(db)
+            loop = asyncio.get_event_loop()
+            stop = asyncio.Event()
+            finalized = False
+
+            await _safe_send(
+                websocket,
+                {
+                    "type": "ready",
+                    "transcript_id": str(transcript_id),
+                    "stt_enabled": settings.stt_enabled,
+                    "language": transcript.transcription_language,
+                },
+            )
+
+            async def run_extraction(*, dispatch: bool) -> None:
+                transcript.content = live.full_text()
+                protect_transcript(transcript)
+                await db.commit()
+                if not transcript.content:
+                    return
+                if dispatch:
+                    await pipeline.process(transcript_id)
+                else:
+                    await pipeline.extract_incremental(transcript_id, dispatch=False)
+                await _safe_send(websocket, {"type": "notes", **await _snapshot(db, transcript_id)})
+
+            async def consume() -> None:
+                try:
+                    async for ev in transcriber.events():
+                        if ev.is_final:
+                            live.add_final(ev.text)
+                            transcript.content = live.full_text()
+                            transcript.transcription_segments = [
+                                *(transcript.transcription_segments or []),
+                                {
+                                    "text": ev.text,
+                                    "confidence": ev.confidence,
+                                    "needs_review": ev.needs_review,
+                                },
+                            ]
+                            protect_transcript(transcript)
+                            await db.commit()
+                        else:
+                            live.set_interim(ev.text)
+                        await _safe_send(
+                            websocket,
+                            {
+                                "type": "transcript",
+                                "text": redact(ev.text),
+                                "is_final": ev.is_final,
+                                "confidence": ev.confidence,
+                                "needs_review": ev.needs_review,
+                            },
+                        )
+                        if ev.is_final and live.should_extract(loop.time()):
+                            await run_extraction(dispatch=False)
+                            live.mark_extracted(loop.time())
+                except WebSocketDisconnect:
+                    stop.set()
+                except Exception:
+                    logger.exception("live.consume_error", transcript_id=str(transcript_id))
                     await _safe_send(
                         websocket,
-                        {"type": "transcript", "text": ev.text, "is_final": ev.is_final},
+                        {
+                            "type": "error",
+                            "detail": (
+                                "Transcription failed. Check the provider settings and retry."
+                            ),
+                        },
                     )
-                    if ev.is_final and live.should_extract(loop.time()):
-                        await run_extraction(dispatch=False)
-                        live.mark_extracted(loop.time())
-            except WebSocketDisconnect:
-                stop.set()
-            except Exception:
-                logger.exception("live.consume_error", transcript_id=str(transcript_id))
-                await _safe_send(
-                    websocket,
-                    {
-                        "type": "error",
-                        "detail": "Transcription failed. Check the provider settings and retry.",
-                    },
-                )
 
-        async def receive_loop() -> None:
-            nonlocal finalized
-            age = (datetime.now(UTC) - transcript.created_at).total_seconds()
-            deadline = loop.time() + max(0, settings.live_session_max_seconds - age)
-            audio_bytes = 0
-            try:
-                while True:
-                    remaining = deadline - loop.time()
-                    if remaining <= 0:
-                        finalized = True
-                        break
-                    try:
-                        message = await asyncio.wait_for(websocket.receive(), timeout=remaining)
-                    except TimeoutError:
-                        finalized = True
-                        break
-                    if message.get("type") == "websocket.disconnect":
-                        break
-                    data = message.get("bytes")
-                    if data is not None:
-                        audio_bytes += len(data)
-                        if (
-                            len(data) > 65536
-                            or audio_bytes
-                            > settings.live_session_max_seconds * configured_sample_rate() * 2
-                        ):
-                            await websocket.close(code=1008)
+            async def receive_loop() -> None:
+                nonlocal finalized
+                age = (datetime.now(UTC) - transcript.created_at).total_seconds()
+                deadline = loop.time() + max(0, settings.live_session_max_seconds - age)
+                audio_bytes = 0
+                try:
+                    while True:
+                        remaining = deadline - loop.time()
+                        if remaining <= 0:
+                            finalized = True
                             break
-                        await transcriber.send_audio(data)
-                        continue
-                    text = message.get("text")
-                    if text is not None:
-                        with contextlib.suppress(ValueError):
-                            if len(text) < 1024 and json.loads(text).get("type") == "finalize":
-                                finalized = True
+                        try:
+                            message = await asyncio.wait_for(websocket.receive(), timeout=remaining)
+                        except TimeoutError:
+                            finalized = True
+                            break
+                        if message.get("type") == "websocket.disconnect":
+                            break
+                        data = message.get("bytes")
+                        if data is not None:
+                            audio_bytes += len(data)
+                            if (
+                                len(data) > 65536
+                                or audio_bytes
+                                > settings.live_session_max_seconds * configured_sample_rate() * 2
+                            ):
+                                await websocket.close(code=1008)
                                 break
+                            await transcriber.send_audio(data)
+                            continue
+                        text = message.get("text")
+                        if text is not None:
+                            with contextlib.suppress(ValueError):
+                                if len(text) < 1024 and json.loads(text).get("type") == "finalize":
+                                    finalized = True
+                                    break
+                finally:
+                    stop.set()
+
+            recv_task = asyncio.create_task(receive_loop())
+            cons_task = asyncio.create_task(consume())
+            try:
+                await recv_task
+            except WebSocketDisconnect:
+                pass
             finally:
                 stop.set()
+                # Keep consuming final provider events after the client stops sending.
+                # Otherwise the last utterance can be lost before final extraction.
+                try:
+                    await transcriber.finish()
+                except Exception:
+                    logger.warning(
+                        "live.final_audio_flush_failed", transcript_id=str(transcript_id)
+                    )
+                    await transcriber.close()
+                    await _safe_send(
+                        websocket,
+                        {
+                            "type": "error",
+                            "detail": "Final audio could not be fully transcribed.",
+                        },
+                    )
+                await cons_task
 
-        recv_task = asyncio.create_task(receive_loop())
-        cons_task = asyncio.create_task(consume())
-        try:
-            await recv_task
-        except WebSocketDisconnect:
-            pass
-        finally:
-            stop.set()
-            # Keep consuming final provider events after the client stops sending.
-            # Otherwise the last utterance can be lost before final extraction.
-            try:
-                await transcriber.finish()
-            except Exception:
-                logger.warning("live.final_audio_flush_failed", transcript_id=str(transcript_id))
-                await transcriber.close()
-                await _safe_send(
-                    websocket,
-                    {
-                        "type": "error",
-                        "detail": "Final audio could not be fully transcribed.",
-                    },
-                )
-            await cons_task
+            if not finalized and (settings.auth_mode == "oidc" or transcript.source == "desktop"):
+                transcript.content = live.full_text()
+                protect_transcript(transcript)
+                await db.commit()
+                await _safe_close(websocket)
+                return
 
-        if not finalized and settings.auth_mode == "oidc":
-            transcript.content = live.full_text()
-            await db.commit()
-            await _safe_close(websocket)
-            return
+            with contextlib.suppress(Exception):
+                if live.full_text():
+                    await run_extraction(dispatch=True)
+                await _safe_send(websocket, {"type": "done", "transcript_id": str(transcript_id)})
 
-        with contextlib.suppress(Exception):
-            if live.full_text():
-                await run_extraction(dispatch=True)
-            await _safe_send(websocket, {"type": "done", "transcript_id": str(transcript_id)})
+            fresh = await db.get(Transcript, transcript_id)
+            if fresh is not None and fresh.status == "live":
+                fresh.status = "completed"
+                await db.commit()
 
-        fresh = await db.get(Transcript, transcript_id)
-        if fresh is not None and fresh.status == "live":
-            fresh.status = "completed"
-            await db.commit()
-
-    await _safe_close(websocket)
+        await _safe_close(websocket)
 
 
 # --------------------------------------------------------------------------- #

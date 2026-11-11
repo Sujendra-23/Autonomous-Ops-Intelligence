@@ -1,5 +1,15 @@
 # AOI Live Note-Taker (Chrome extension)
 
+The extension is the capture surface for AOI’s companion web dashboard.
+Use **Open dashboard** to open the workspace, or **View meeting in dashboard**
+after starting capture to open that meeting’s notes and transcript. Configure
+**Dashboard URL** in Backend connection (default `http://localhost:5173`).
+The link stays available after finalization. Both surfaces must use the same
+backend and workspace; credentials are not passed in dashboard links. See
+[extension and dashboard setup](../docs/extension-dashboard.md).
+
+Provider sign-in is now available in the dashboard and extension. See [connector OAuth setup](../docs/connector-oauth.md) for one-time app registration and the automatic connection flow. Manual credential setup below remains available.
+
 Captures the **active tab's audio** during any web meeting (Google Meet, Zoom
 web, Teams web, a webinar, a recorded video…), streams it to your Autonomous
 Operational Intelligence backend for real-time transcription, and shows
@@ -57,6 +67,14 @@ If `INGEST_API_KEY` is set on the backend, put the same value in the panel's
 3. Pin the extension and click it to open the side panel.
 
 ## Use it
+
+Choose **Listening language** before starting. **Auto-detect / mixed languages**
+is the default; choose a specific language such as Nepali, Hindi, or Spanish for
+a meeting mainly in that language. Your preference is saved locally and on the
+meeting so a reconnect uses the same setting. Stop the capture before changing
+the language. The transcript keeps the spoken languages rather than translating
+everything to English. Available recognition and mixed-language coverage depend
+on the backend STT provider. See [multilingual listening](../docs/multilingual-listening.md).
 
 1. Open/focus the meeting tab (it must be the **active** tab when you start).
 2. In the side panel set the **Backend URL** (default `http://localhost:8000`),

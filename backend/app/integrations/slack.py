@@ -11,10 +11,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import get_settings
 from app.integrations.base import DispatchResult, Notifier
+from app.integrations.oauth import access_token
 from app.logging import get_logger
 from app.models.project import Project
 from app.models.transcript import Transcript
 from app.schemas.extraction import ExtractionResult
+from app.services.dlp import redact, redact_payload
 
 logger = get_logger("app.integrations.slack")
 
@@ -55,13 +57,13 @@ class SlackAdapter(Notifier):
             response = await client.post(
                 _SLACK_POST,
                 headers={
-                    "Authorization": f"Bearer {self._token}",
+                    "Authorization": f"Bearer {await access_token('slack') or self._token}",
                     "Content-Type": "application/json; charset=utf-8",
                 },
                 json={
                     "channel": self._channel,
-                    "text": fallback,
-                    "blocks": blocks,
+                    "text": redact(fallback),
+                    "blocks": redact_payload(blocks),
                 },
             )
             response.raise_for_status()
@@ -79,10 +81,10 @@ class SlackAdapter(Notifier):
             response = await client.post(
                 _SLACK_POST,
                 headers={
-                    "Authorization": f"Bearer {self._token}",
+                    "Authorization": f"Bearer {await access_token('slack') or self._token}",
                     "Content-Type": "application/json; charset=utf-8",
                 },
-                json={"channel": self._channel, "text": text},
+                json={"channel": self._channel, "text": redact(text)},
             )
             response.raise_for_status()
             body = response.json()

@@ -1,0 +1,204 @@
+.voice-assistant {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 26;
+}
+.voice-launcher {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: auto;
+  min-height: 44px;
+  padding: 11px 18px;
+  border: 1px solid var(--text);
+  border-radius: 999px;
+  background: var(--lavender);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.voice-launcher:hover {
+  background: #e6c6f8;
+}
+.voice-launcher.is-listening {
+  background: var(--text);
+  color: var(--bg);
+}
+.voice-panel {
+  position: fixed;
+  right: 24px;
+  top: 88px;
+  width: min(430px, calc(100vw - 36px));
+  max-height: min(740px, calc(100dvh - 110px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  margin-bottom: 12px;
+  background: var(--panel);
+  border: 1px solid #c8bed0;
+  border-radius: 16px;
+}
+.voice-panel-heading,
+.voice-panel-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.voice-panel-heading {
+  justify-content: space-between;
+}
+.voice-panel-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.voice-description {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 15px 0 20px;
+}
+.voice-modes {
+  display: flex;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 9px;
+  background: var(--panel-2);
+  margin-bottom: 20px;
+}
+.voice-modes button {
+  flex: 1;
+  padding: 10px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.voice-modes button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+}
+.voice-panel label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.voice-panel textarea {
+  display: block;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 12px;
+  background: var(--bg);
+  margin: 9px 0 14px;
+  resize: vertical;
+}
+.voice-command-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.voice-command-actions button {
+  font-size: 12px;
+  min-height: 40px;
+}
+.voice-listening {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--text);
+  border-radius: 999px;
+  background: var(--lavender);
+  color: var(--text);
+  cursor: pointer;
+}
+.voice-notice {
+  margin: 18px 0 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.voice-error {
+  color: var(--crit);
+  background: #f8e8e0;
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.voice-support {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.voice-preferences {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.voice-preferences summary {
+  cursor: pointer;
+}
+.voice-preferences label {
+  margin-top: 15px;
+}
+.voice-preferences select {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.voice-preferences .voice-read-aloud {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 400;
+}
+.voice-read-aloud input {
+  width: 15px;
+  height: 15px;
+}
+.voice-preferences p {
+  line-height: 1.8;
+}
+@media (max-width: 620px) {
+  .voice-panel {
+    position: fixed;
+    right: 24px;
+    top: 88px;
+    padding: 20px;
+  }
+  .voice-panel textarea {
+    font-size: 16px;
+  }
+  .voice-launcher {
+    min-height: 44px;
+  }
+}
+@media print {
+  .voice-assistant {
+    display: none;
+  }
+}
+.voice-panel textarea {
+  min-height: 115px;
+}
+
+@media (max-width: 1100px) {
+  .voice-launcher {
+    min-height: 36px;
+    width: 36px;
+    padding: 9px;
+    justify-content: center;
+  }
+  .voice-launcher > span {
+    display: none;
+  }
+  .voice-launcher .ui-icon {
+    width: 16px;
+    height: 16px;
+  }
+}

@@ -64,3 +64,16 @@ seed:
 
 clean:
 	docker compose down -v
+
+.PHONY: observability check-alerts eval-dlp drill-metrics
+observability:
+	docker compose -f docker-compose.yml -f compose.observability.yml --profile observability up -d
+
+check-alerts:
+	python3 scripts/check_alerts.py
+
+eval-dlp:
+	cd backend && python3 -m evals.run_dlp
+
+drill-metrics:
+	python3 scripts/drill_metrics_target.py

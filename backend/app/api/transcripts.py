@@ -30,6 +30,7 @@ from app.schemas.transcript import (
     TranscriptList,
     TranscriptSummary,
 )
+from app.services.dlp import Sensitivity
 from app.services.extraction import ExtractionPipeline
 from app.services.project_resolver import get_or_create_project
 from app.services.transcriber import MAX_BYTES, TranscriptionError, transcribe_path
@@ -51,6 +52,7 @@ async def upload_video(
     title: str = Form(""),
     project_hint: str = Form(""),
     participants: str = Form("", description="Comma-separated participant names"),
+    sensitivity_label: Sensitivity = Form("internal"),
     session: AsyncSession = Depends(get_session),
 ) -> TranscriptDetail:
     filename = file.filename or "upload.mp4"
@@ -85,6 +87,7 @@ async def upload_video(
     transcript = Transcript(
         title=resolved_title,
         content=transcript_text,
+        sensitivity_label=sensitivity_label,
         source="video_upload",
         participants=participant_list,
         project_id=project.id if project else None,
@@ -116,6 +119,7 @@ async def ingest_transcript(
     transcript = Transcript(
         title=context.get("title") or payload.title,
         content=payload.content,
+        sensitivity_label=payload.sensitivity_label,
         source=payload.source,
         meeting_date=payload.meeting_date or context.get("meeting_date"),
         participants=payload.participants
@@ -263,11 +267,16 @@ async def _to_detail(session: AsyncSession, transcript: Transcript) -> Transcrip
         title=transcript.title,
         status=transcript.status,
         source=transcript.source,
+        transcription_language=transcript.transcription_language,
+        sensitivity_label=transcript.sensitivity_label,
+        dlp_findings=transcript.dlp_findings,
+        dlp_policy_version=transcript.dlp_policy_version,
         project_id=transcript.project_id,
         meeting_date=transcript.meeting_date,
         processed_at=transcript.processed_at,
         created_at=transcript.created_at,
         content=transcript.content,
+        segments=transcript.transcription_segments or [],
         participants=transcript.participants,
         calendar_context=transcript.calendar_context,
         error=transcript.error,

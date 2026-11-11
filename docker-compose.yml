@@ -82,7 +82,8 @@ services:
     working_dir: /app
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}
+      VITE_API_URL: ""
+      AOI_PROXY_TARGET: http://backend:8000
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:

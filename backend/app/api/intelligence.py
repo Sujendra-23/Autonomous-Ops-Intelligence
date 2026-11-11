@@ -20,7 +20,9 @@ from app.models.project import Project
 from app.models.risk import Risk
 from app.models.task import Task
 from app.models.transcript import Transcript
+from app.schemas.weekly_summary import WeeklySummary
 from app.services.search import semantic_search
+from app.services.weekly_summary import build_weekly_summary
 from app.workers.monitor import DriftMonitor
 
 router = APIRouter()
@@ -59,6 +61,11 @@ class SearchHitOut(BaseModel):
     transcript_title: str
     content: str
     score: float
+
+
+@router.get("/weekly-summary", response_model=WeeklySummary)
+async def weekly_summary(session: AsyncSession = Depends(get_session)) -> WeeklySummary:
+    return await build_weekly_summary(session)
 
 
 @router.get("/dashboard", response_model=DashboardCounts)

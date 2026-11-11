@@ -29,3 +29,5 @@ PyJWT[crypto]==2.15.1
 cryptography==50.0.2
 
 starlette==1.7.0
+
+prometheus-client==0.21.1

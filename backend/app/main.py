@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app import __version__
 from app.api import (
     account,
+    assistant,
+    connectors,
     decisions,
+    gateway_auth,
     integrations,
     intelligence,
     live,
     projects,
+    roadmaps,
     tasks,
     transcripts,
 )
@@ -120,6 +126,20 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
 
 
+@app.get("/metrics", include_in_schema=False)
+async def metrics(request: Request) -> Response:
+    settings = get_settings()
+    expected = settings.metrics_token.get_secret_value()
+    if not expected and (settings.auth_mode == "oidc" or settings.environment != "development"):
+        return Response(status_code=404)
+    if expected:
+        bearer = request.headers.get("authorization", "")
+        supplied = bearer[7:] if bearer.startswith("Bearer ") else ""
+        if not supplied or not secrets.compare_digest(supplied, expected):
+            return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return Response(generate_latest(), headers={"Content-Type": CONTENT_TYPE_LATEST})
+
+
 @app.get("/", tags=["meta"])
 async def root() -> dict[str, str]:
     return {
@@ -130,6 +150,8 @@ async def root() -> dict[str, str]:
 
 
 app.include_router(transcripts.router, prefix="/api/transcripts", tags=["transcripts"])
+app.include_router(roadmaps.router, prefix="/api/projects", tags=["roadmaps"])
+app.include_router(assistant.router, prefix="/api/assistant", tags=["assistant"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(decisions.router, prefix="/api/decisions", tags=["decisions"])
@@ -138,6 +160,9 @@ app.include_router(live.router, prefix="/api/live", tags=["live"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 
 app.include_router(account.router, prefix="/api/account", tags=["account"])
+app.include_router(connectors.router, prefix="/api/connectors", tags=["connectors"])
+app.include_router(connectors.callback_router, prefix="/oauth/connectors", tags=["connectors"])
+app.include_router(gateway_auth.router, prefix="/auth/gateway", tags=["company sign-in"])
 
 
 @app.get("/ready", tags=["meta"])

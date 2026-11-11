@@ -10,6 +10,10 @@ header { padding:22px 20px 18px; display:flex; align-items:center; gap:10px; }
 .brand-copy { flex:1; min-width:0; }
 h1 { font-size:16px; font-weight:750; letter-spacing:-.03em; margin:0; }
 .sub { margin-top:2px; font-size:11px; color:var(--muted); }
+.dashboard-toolbar { margin:0 20px 16px; padding:10px 0; border-block:1px solid var(--line); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; color:var(--muted); font-size:12px; }
+.dashboard-toolbar button { padding:5px 0; color:var(--accent); background:transparent; border:0; white-space:nowrap; font-size:12px; font-weight:650; }
+.dashboard-toolbar button:hover { color:var(--text); }
+@media (max-width:340px) { .dashboard-toolbar { flex-wrap:wrap; gap:2px; } }
 button,input,select { font:inherit; }
 button { cursor:pointer; transition:background 160ms,color 160ms,border-color 160ms; }
 button:disabled { opacity:.5; cursor:default; }
@@ -21,6 +25,11 @@ button:active:not(:disabled) { transform:translateY(1px); }
 .meeting-title-field { display:flex; align-items:center; gap:12px; padding:4px 0 16px; }
 .meeting-title-field label { font-size:11px; white-space:nowrap; margin:0; }
 .meeting-title-field input { padding:5px 0; background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0; font-size:13px; font-weight:650; }
+.listening-language-field { display:flex; align-items:center; gap:12px; margin:0 0 6px; }
+.listening-language-field label { margin:0; white-space:nowrap; font-size:12px; }
+.listening-language-field select { padding:8px 9px; font-size:12px; min-width:0; }
+.language-help { font-size:12px; line-height:1.65; color:var(--muted); margin:0 0 16px; }
+@media (max-width:340px) { .listening-language-field { align-items:start; flex-direction:column; gap:6px; } }
 label { display:block; font-size:11px; color:var(--muted); margin:12px 0 5px; }
 input,select { width:100%; min-width:0; padding:11px 12px; color:var(--text); background:#1b2329; border:1px solid var(--line); border-radius:8px; caret-color:var(--accent); }
 input::placeholder { color:var(--muted); font-weight:400; }
@@ -118,10 +127,10 @@ h3 { font-size:13px; font-weight:650; margin:0; }
 .connector summary { display:flex; align-items:center; gap:10px; }
 .connector-icon { display:grid; place-items:center; width:32px; height:32px; border:1px solid #3e4d4c; background:#283532; color:#b9d8cb; border-radius:9px; flex-shrink:0; }
 .connector-icon svg { width:17px; height:17px; }
-.connector-name { flex:1; font-size:12px; font-weight:600; }
+.connector-name { flex:1; font-size:14px; font-weight:600; }
 .connector-state { color:var(--muted); font-size:11px; }
 .connector-state.configured { color:var(--good); }
-.connector p { font-size:11px; color:var(--muted); margin:9px 0; }
+.connector p { font-size:14px; color:var(--muted); margin:9px 0; }
 .connector code { display:block; color:#c5dece; font-size:11px; overflow-wrap:anywhere; margin-top:5px; }
 .connector[open] { padding-bottom:18px; }
 .connector[open] summary { margin-bottom:14px; }
@@ -134,3 +143,18 @@ footer { display:flex; align-items:center; justify-content:space-between; paddin
 @media(max-width:330px) { header { padding:18px 16px; } .sub { font-size:11px; } .capture-section { padding:0 16px 16px; } .view { padding:20px 16px; } .panel-nav { padding:0 16px; gap:17px; } .row { flex-direction:column; gap:0; } .timer { font-size:44px; } h2 { font-size:20px; } .signal-bars { gap:2px; } }
 @media(prefers-reduced-motion:reduce) { .signal-bars i { animation:none !important; transition:background 150ms; } .disclosure-arrow { transition:none; } button:active:not(:disabled) { transform:none; } }
 body.page-hidden .signal-bars i { animation-play-state:paused !important; }
+
+.connector button { margin: 8px 8px 8px 0; }
+.connector-destination label { display: block; margin-top: 12px; }
+.connector-destination select { width: 100%; margin: 8px 0; }
+.connector-state { max-width: 110px; text-align: right; }
+.connector-help { overflow-wrap: anywhere; }
+
+.connector button:not(.secondary) { background:var(--accent); color:#142019; border:0; border-radius:8px; padding:10px 14px; min-height:44px; font-size:14px; font-weight:600; }
+.connector button:not(.secondary):hover { filter:brightness(1.08); }
+.connector button.secondary { width:auto; min-height:44px; font-size:14px; }
+#connectors > .calendar-help { font-size:13px; }
+.connector-destination select { font-size:16px; }
+
+.connector-feedback { padding: 10px 12px; border-left: 3px solid var(--accent, #b2d7a3); background: rgba(178, 215, 163, .08); overflow-wrap: anywhere; }
+.connector-feedback.is-error { color: #ffb4a9; border-color: #ffb4a9; background: rgba(255, 180, 169, .08); }

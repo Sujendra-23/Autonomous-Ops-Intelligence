@@ -10,7 +10,7 @@ from app.models.decision import Decision
 from app.models.integration import WebhookDelivery
 from app.models.project import Project
 from app.models.risk import Risk
-from app.models.task import Task, TaskActivity
+from app.models.task import Task, TaskActivity, TaskImportState
 from app.models.transcript import Transcript, TranscriptChunk
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "Risk",
     "Task",
     "TaskActivity",
+    "TaskImportState",
     "Transcript",
     "TranscriptChunk",
     "WebhookDelivery",
