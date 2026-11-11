@@ -1,5 +1,5 @@
 import { UserManager, WebStorageStateStore } from "oidc-client-ts";
-import { setBearerToken } from "./api";
+import { setApiKey, setBearerToken, setWorkspace } from "./api";
 
 const authority = import.meta.env.VITE_AUTH_AUTHORITY as string | undefined;
 const clientId = import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined;
@@ -17,8 +17,12 @@ export const identity = !gatewayAuth && authority && clientId ? new UserManager(
 }) : null;
 
 identity?.events.addUserLoaded(user => setBearerToken(user.access_token));
-identity?.events.addAccessTokenExpired(() => { setBearerToken(""); window.dispatchEvent(new Event("aoi-session-expired")); });
-identity?.events.addUserUnloaded(() => { setBearerToken(""); window.dispatchEvent(new Event("aoi-session-expired")); });
+identity?.events.addAccessTokenExpired(() => { clearWorkspaceSession(); window.dispatchEvent(new Event("aoi-session-expired")); });
+identity?.events.addUserUnloaded(() => { clearWorkspaceSession(); window.dispatchEvent(new Event("aoi-session-expired")); });
+
+function clearWorkspaceSession() {
+  setBearerToken(""); setWorkspace(""); setApiKey("");
+}
 
 export async function restoreIdentity() {
   if (gatewayAuth) return restoreGateway();
@@ -27,11 +31,12 @@ export async function restoreIdentity() {
     ? await identity.signinRedirectCallback() : await identity.getUser();
   if (window.location.pathname === "/auth/callback") {
     const returnTo = (user?.state as { returnTo?: unknown } | undefined)?.returnTo;
-    const safePath = typeof returnTo === "string" && /^\/(?:meetings(?:\/[a-zA-Z0-9%-]+)?|dashboard|extension|weekly-summary|upload|tasks|decisions|intelligence|settings|pricing)?$/.test(returnTo);
+    const safePath = typeof returnTo === "string" && /^\/(?:meetings(?:\/[a-zA-Z0-9%-]+)?|dashboard|roadmaps|extension|weekly-summary|upload|tasks|decisions|intelligence|settings|pricing)?$/.test(returnTo);
     window.history.replaceState({}, "", safePath ? returnTo : "/");
   }
   if (!user || user.expired) return false;
   setBearerToken(user.access_token);
+  if (window.location.pathname === "/login") window.history.replaceState({}, "", "/");
   return true;
 }
 
@@ -39,6 +44,7 @@ type GatewaySession = { access_token: string; expires_at: number; company_slug: 
 let gatewayToken = "";
 let refreshPromise: Promise<boolean> | null = null;
 let refreshTimer: ReturnType<typeof setTimeout>;
+let gatewayExpiry = 0;
 
 async function companySession(path: string, payload: object): Promise<GatewaySession> {
   const response = await fetch(`/auth/gateway/${path}`, {
@@ -56,10 +62,15 @@ function acceptGateway(session: GatewaySession) {
   gatewayToken = session.access_token;
   setBearerToken(gatewayToken);
   window.sessionStorage.setItem("aoi-company", session.company_slug);
+  gatewayExpiry = session.expires_at;
+  scheduleRefresh();
+}
+
+function scheduleRefresh() {
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => {
     void restoreGateway().then(ok => { if (!ok) window.dispatchEvent(new Event("aoi-session-expired")); });
-  }, Math.max(1000, (session.expires_at * 1000 - Date.now()) - 30000));
+  }, Math.max(1000, (gatewayExpiry * 1000 - Date.now()) - 30000));
 }
 
 export async function gatewaySignIn(company_slug: string, email: string, password: string) {
@@ -72,7 +83,7 @@ async function restoreGateway(): Promise<boolean> {
   if (!company_slug) return false;
   const restore = async () => {
     try { acceptGateway(await companySession("session", { company_slug })); return true; }
-    catch { gatewayToken = ""; setBearerToken(""); clearTimeout(refreshTimer); return false; }
+    catch { gatewayToken = ""; clearWorkspaceSession(); clearTimeout(refreshTimer); return false; }
   };
   // Refresh tokens are single-use. Serialize refreshes across React effects and
   // same-origin tabs so a legitimate duplicate cannot revoke the session family.
@@ -83,14 +94,34 @@ async function restoreGateway(): Promise<boolean> {
   return refreshPromise;
 }
 
-export async function signOut() {
-  if (!gatewayAuth) { await identity?.signoutRedirect(); return; }
-  clearTimeout(refreshTimer);
-  const company_slug = window.sessionStorage.getItem("aoi-company");
-  if (company_slug) await companySession("logout", { company_slug });
-  gatewayToken = ""; setBearerToken("");
-  window.sessionStorage.removeItem("aoi-company");
-  window.dispatchEvent(new Event("aoi-session-expired"));
+let logoutPromise: Promise<void> | null = null;
+export function signOut(): Promise<void> {
+  if (logoutPromise) return logoutPromise;
+  logoutPromise = (async () => {
+    if (!gatewayAuth) {
+      if (!identity) throw new Error("Account login is not configured.");
+      await identity.signoutRedirect();
+      return;
+    }
+    clearTimeout(refreshTimer);
+    // Let an in-flight rotating refresh finish before revoking its newest cookie.
+    await refreshPromise;
+    clearTimeout(refreshTimer);
+    const company_slug = window.sessionStorage.getItem("aoi-company");
+    if (company_slug) {
+      const logout = () => companySession("logout", { company_slug });
+      if (navigator.locks) await navigator.locks.request(`aoi-session-${company_slug}`, logout);
+      else await logout();
+    }
+    gatewayToken = "";
+    clearWorkspaceSession();
+    window.sessionStorage.removeItem("aoi-company");
+    window.dispatchEvent(new Event("aoi-signed-out"));
+  })().catch(error => {
+    if (gatewayAuth && gatewayToken) scheduleRefresh();
+    throw error;
+  }).finally(() => { logoutPromise = null; });
+  return logoutPromise;
 }
 
 export async function copyGatewaySession() {

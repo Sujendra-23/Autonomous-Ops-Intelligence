@@ -625,3 +625,24 @@ button.ghost { border-radius: 999px; border-color: #b7b7a7; }
 
 .desktop-capture-setup{padding:26px}.capture-platforms{font-size:11px;color:#69477d;background:#eee3f4;padding:5px 8px;border-radius:5px}.desktop-capture-setup>.muted{font-size:13px}.browser-capture-setup{margin-top:26px;padding:22px 26px}.browser-capture-setup>summary{display:flex;justify-content:space-between;gap:16px;cursor:pointer;font-size:14px;font-weight:600;list-style:none}.browser-capture-setup .setup-steps{margin-top:28px}.desktop-capture-setup details{font-size:12px;color:var(--muted)}.desktop-capture-setup details summary{cursor:pointer;color:var(--text)}.desktop-capture-setup kbd{font-family:inherit;font-weight:600;color:var(--text)}
 @media(max-width:620px){.desktop-capture-setup,.browser-capture-setup{padding:20px!important}.capture-platforms{white-space:nowrap}.desktop-capture-setup .section-heading{align-items:flex-start;flex-wrap:wrap}}
+
+.account-control { position: relative; flex-shrink: 0; }
+.account-trigger { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--text); background: var(--bg); cursor: pointer; font-size: 12px; }
+.account-trigger:hover, .account-trigger[aria-expanded="true"] { background: var(--panel); border-color: var(--muted); }
+.account-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--lavender); font-weight: 600; }
+.account-trigger > .ui-icon { width: 13px; height: 13px; }
+.account-panel { position: absolute; right: 0; top: calc(100% + 10px); z-index: 35; width: min(286px, calc(100vw - 36px)); padding: 18px; border: 1px solid var(--border); border-radius: 12px; color: var(--text); background: var(--panel); }
+.account-panel > strong { display: block; overflow-wrap: anywhere; font-size: 14px; }
+.account-panel p { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 6px 0 14px; }
+.account-panel button, .account-panel a { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 10px; border: 0; border-radius: 6px; color: var(--text); background: transparent; font: inherit; font-size: 13px; text-align: left; text-decoration: none; cursor: pointer; }
+.account-panel button:hover, .account-panel a:hover { background: var(--panel-2); }
+.account-panel .ui-icon, .sidebar-session-link .ui-icon, .sidebar .sign-out .ui-icon { width: 17px; height: 17px; flex-shrink: 0; }
+.account-panel p.account-error { color: var(--crit); margin-bottom: 0; }
+.sidebar .sign-out, .sidebar-session-link { display: flex; align-items: center; gap: 10px; min-height: 44px; width: 100%; margin-top: 14px; color: var(--forest-muted); font-size: 13px; text-decoration: none; padding: 10px; border-radius: 8px; }
+.sidebar-session-link:hover, .sidebar .sign-out:hover { color: var(--bg); background: #1a1a1a; }
+.local-workspace-link { display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; min-height: 44px; padding: 12px; }
+.local-workspace-link .ui-icon { width: 18px; height: 18px; }
+@media (max-width: 620px) {
+  .account-trigger-label, .account-trigger > .ui-icon { display: none; }
+  .account-trigger { padding: 4px; min-width: 40px; }
+}

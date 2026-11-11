@@ -91,3 +91,27 @@ synthetic English OpenAI evaluation preserved its critical names, date, amount, 
 and negative commitment. Raw WER was 0.2069 with case/punctuation normalization because
 numeric/date formatting counts as word edits. This is not a real-call, multilingual
 or noisy-room accuracy benchmark.
+
+## Account access and scroll flow
+
+Account in the workspace header opens Workspace settings and Logout for authenticated
+sessions, or Login for local development. The sidebar provides the same session entry.
+The `/login` route uses the configured gateway or OIDC provider. Without configured
+authentication it explains that account login is unavailable and offers a return to
+the local workspace; it does not accept pretend credentials. Configuration remains
+explicit and does not provision company accounts or a database.
+
+Gateway logout waits for an in-flight session refresh, requests server revocation,
+then clears the in-memory bearer, workspace selection and API key, removes the saved
+company marker, and returns to login. Failed revocation offers retry. Talk to AOI's
+explicit logout command uses the same sign-out action. Gateway tokens and passwords
+are not saved in web storage; the existing OIDC session-storage behavior is unchanged.
+
+A slim header line follows page position, and newly reached work sections unfold
+once per view, including sections loaded later. Content is visible by default.
+Reduced motion hides the line and cancels section movement; Back to top remains
+available. Isolated Chromium checks with mocked identity and API responses cover
+desktop/mobile account flows, logout recovery, company-session credential cleanup,
+local mode, command-handler logout and motion behavior. They do not establish live
+gateway/OIDC, database isolation, microphone accuracy or scroll smoothness benchmarks.
+See docs/account-access-and-motion.md for setup and verification details.

@@ -609,3 +609,7 @@ the same backend/workspace. [Builds, setup, permissions and verification](docs/d
 Transcription now supports per-meeting terminology, final-word flush protections and
 uncertain-passage review. [Quality protections and measured limits](docs/transcription-quality.md).
 Apply migration `0011_transcription_quality` before running the updated backend.
+
+Account access is in the top-right **Account** control and sidebar. See
+[login, logout and scroll movement](docs/account-access-and-motion.md) for setup
+and the distinction between local workspace mode and company sign-in.

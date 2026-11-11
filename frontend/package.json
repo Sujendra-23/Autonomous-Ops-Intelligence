@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:browser": "node tests/roadmaps-voice.test.mjs"
+    "test:browser": "node tests/roadmaps-voice.test.mjs",
+    "test:account-motion": "node tests/auth-motion.test.mjs"
   },
   "dependencies": {
     "oidc-client-ts": "^3.5.0",

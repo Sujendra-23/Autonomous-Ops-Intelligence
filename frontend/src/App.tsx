@@ -11,8 +11,8 @@ import { ExtensionSetup } from "./components/ExtensionSetup";
 import { readRoute, type View } from "./navigation";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 
-import { authConfigured, gatewayAuth, identity, restoreIdentity } from "./auth";
-import { CompanySignIn } from "./components/CompanySignIn";
+import { authConfigured, restoreIdentity } from "./auth";
+import { SignIn } from "./components/SignIn";
 import { WorkspaceSettings } from "./components/WorkspaceSettings";
 import { Roadmaps } from "./components/Roadmaps";
 import { Pricing } from "./components/Pricing";
@@ -23,14 +23,26 @@ export function App() {
   const [authError, setAuthError] = useState("");
   useEffect(() => {
     const expire = () => setSignedIn(false);
+    const loggedOut = () => {
+      window.history.replaceState({}, "", "/login");
+      window.scrollTo(0, 0);
+      setSignedIn(false);
+    };
     window.addEventListener("aoi-session-expired", expire);
-    if (authConfigured) restoreIdentity().then(setSignedIn).catch(() => setAuthError("Sign-in could not be completed. Please try again.")).finally(() => setReady(true));
-    return () => window.removeEventListener("aoi-session-expired", expire);
+    window.addEventListener("aoi-signed-out", loggedOut);
+    if (authConfigured) restoreIdentity().then(ok => { if (ok && window.location.pathname === "/login") window.history.replaceState({}, "", "/"); setSignedIn(ok); }).catch(() => setAuthError("Sign-in could not be completed. Please try again.")).finally(() => setReady(true));
+    return () => {
+      window.removeEventListener("aoi-session-expired", expire);
+      window.removeEventListener("aoi-signed-out", loggedOut);
+    };
   }, []);
   if (!ready) return <main className="main"><p>Opening your workspace…</p></main>;
   if (!signedIn && window.location.pathname === "/pricing") return <main className="main"><Pricing onBack={() => window.location.assign("/")} /></main>;
-  if (!signedIn && gatewayAuth) return <CompanySignIn onSignedIn={() => setSignedIn(true)} />;
-  if (!signedIn) return <main className="main"><h1>Your meeting intelligence studio</h1><p>Sign in to access your private workspace, notes and connectors.</p>{authError && <p role="alert">{authError}</p>}<button onClick={() => identity?.signinRedirect({ state: { returnTo: window.location.pathname } })}>Sign in / Create account</button><p><a href="/pricing">View pricing</a></p></main>;
+  if (!signedIn || (!authConfigured && window.location.pathname === "/login")) return <SignIn error={authError} onSignedIn={() => {
+    if (window.location.pathname === "/login") window.history.replaceState({}, "", "/");
+    window.scrollTo(0, 0);
+    setSignedIn(true);
+  }} />;
   return <WorkspaceApp />;
 }
 

@@ -1,3 +1,4 @@
+import { authConfigured, signOut } from "../auth";
 import { useEffect, useRef, useState } from "react";
 import { request } from "../api";
 import type { Navigate, View } from "../navigation";
@@ -130,6 +131,18 @@ export function VoiceAssistant({
     const controller = new AbortController();
     running.current = controller;
     try {
+      const simple = utterance.trim().toLowerCase().replace(/[.!?]+$/g, "");
+      if (/^(?:please )?(?:log out|logout|sign out)(?: of (?:aoi|my account))?$/.test(simple)) {
+        if (!authConfigured) { reply("This local workspace has no account session to log out of."); return; }
+        try { await signOut(); }
+        catch { throw new Error("This action could not log out. Check your connection and try again."); }
+        return;
+      }
+      if (/^(?:please )?(?:open|show) (?:my |the )?account$/.test(simple)) {
+        document.querySelector<HTMLButtonElement>(".account-trigger")?.click();
+        reply("Opened your account controls.");
+        return;
+      }
       const match = utterance
         .trim()
         .toLowerCase()

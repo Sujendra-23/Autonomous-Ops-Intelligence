@@ -5,6 +5,7 @@ import type { Navigate, View } from "../navigation";
 import { BrandMark, Icon, type IconName } from "./Icon";
 import { VoiceAssistant } from "./VoiceAssistant";
 import { WorkspaceMotion } from "./WorkspaceMotion";
+import { AccountMenu } from "./AccountMenu";
 
 const primaryNav: { id: View; label: string; icon: IconName }[] = [
   { id: "dashboard", label: "Dashboard", icon: "overview" },
@@ -31,6 +32,14 @@ export function WorkspaceShell({ view, liveCount, onNavigate, children }: {
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signOutError, setSignOutError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+  async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true); setSignOutError("");
+    try { await signOut(); }
+    catch { setSignOutError("Could not log out. Check the connection and retry."); }
+    finally { setLoggingOut(false); }
+  }
   const [companyName, setCompanyName] = useState("Your workspace");
   useEffect(() => {
     if (!authConfigured) return;
@@ -82,14 +91,16 @@ export function WorkspaceShell({ view, liveCount, onNavigate, children }: {
       <div className="sidebar-bottom">
         <div className="extension-invitation"><span className="invitation-signal" aria-hidden="true"><i/><i/><i/><i/><i/></span><p>Stay in the conversation.<br/><strong>We’ll catch the next steps.</strong></p><button onClick={() => navigate("extension")}>Set up recording<Icon name="arrow"/></button></div>
         {!authConfigured && <details className="api-key-control"><summary><Icon name="settings"/>Backend connection</summary><label htmlFor="console-api-key">Backend API key (if set)</label><input id="console-api-key" type="password" autoComplete="off" placeholder="Optional" onChange={event => setApiKey(event.target.value)} aria-describedby="console-api-key-help"/><p id="console-api-key-help">Used for edits and uploads. Cleared when you reload.</p></details>}
-        {authConfigured && <><button className="sign-out" onClick={() => void signOut().catch(() => setSignOutError("Could not sign out. Check the connection and retry."))}>Sign out</button>{signOutError && <p className="sidebar-auth-error" role="alert">{signOutError}</p>}</>}
+        {authConfigured && <><button className="sign-out" disabled={loggingOut} onClick={() => void logout()}><Icon name="logout"/>{loggingOut ? "Logging out…" : "Logout"}</button>{signOutError && <p className="sidebar-auth-error" role="alert">{signOutError}</p>}</>}
+        {!authConfigured && <a className="sidebar-session-link" href="/login"><Icon name="login" />Login</a>}
         <div className="sidebar-footnote"><span className="sidebar-presence-dot"/>Desktop + web<span>AOI</span></div>
       </div>
     </aside>
     <div className="studio-content" ref={contentRef}>
       <div className="workspace-topbar">
+        <div className="workspace-scroll-progress" aria-hidden="true"><i/></div>
         <div className="topbar-location"><button className="mobile-menu icon-action" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(value => !value)}><Icon name={menuOpen ? "close" : "menu"}/></button><span>Workspace</span><Icon name="chevron"/><strong>{labels[view]}</strong></div>
-        <div className="topbar-actions"><time>{date}</time><button className="topbar-search" aria-label="Find an answer" onClick={() => navigate("intelligence")}><Icon name="search"/><span>Find an answer</span><Icon name="arrow"/></button><button className="topbar-upload primary" aria-label="New transcript" onClick={() => navigate("upload")}><Icon name="plus"/><span>New transcript</span></button><VoiceAssistant view={view} onNavigate={onNavigate}/><button className="topbar-avatar" aria-label="Open workspace settings" onClick={() => navigate("settings")}>{companyName.charAt(0).toUpperCase()}</button></div>
+        <div className="topbar-actions"><time>{date}</time><button className="topbar-search" aria-label="Find an answer" onClick={() => navigate("intelligence")}><Icon name="search"/><span>Find an answer</span><Icon name="arrow"/></button><button className="topbar-upload primary" aria-label="New transcript" onClick={() => navigate("upload")}><Icon name="plus"/><span>New transcript</span></button><VoiceAssistant view={view} onNavigate={onNavigate}/><AccountMenu workspaceName={companyName} onNavigate={navigate} onLogout={() => void logout()} busy={loggingOut} error={signOutError}/></div>
       </div>
       <main className="main" id="workspace-main" tabIndex={-1}>{children}</main>
       <WorkspaceMotion view={view}/>
