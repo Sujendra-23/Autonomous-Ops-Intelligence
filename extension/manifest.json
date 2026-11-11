@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "AOI Live Note-Taker",
-  "version": "0.1.1",
+  "name": "AOI extension",
+  "version": "0.1.2",
   "minimum_chrome_version": "116",
   "description": "Live structured meeting notes \u2014 streams the active tab's audio to your Autonomous Operational Intelligence backend and shows tasks/decisions as they're spoken.",
   "permissions": [
@@ -24,7 +24,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "AOI Live Note-Taker",
+    "default_title": "AOI extension",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"

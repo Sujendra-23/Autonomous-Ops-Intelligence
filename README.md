@@ -4,7 +4,7 @@ Provider sign-in is now available in the dashboard and extension. See [connector
 
 # Autonomous Operational Intelligence Layer
 
-AOI works as a **browser extension + web dashboard**. Capture live meeting audio
+AOI works as **AOI extension + web dashboard**. Capture live meeting audio
 in the extension, then review meeting history, transcripts, tasks, decisions,
 risks, and blockers in the dashboard. The extension opens the current meeting
 directly in the dashboard; both use the same backend and workspace. See
@@ -352,7 +352,7 @@ merge is — higher is more conservative.
 
 ---
 
-## Live note-taker (browser extension)
+## AOI extension (browser capture)
 
 Live listening supports **automatic multilingual recognition** and per-meeting
 language preferences. Choose the listening language in the extension before

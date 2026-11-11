@@ -1,4 +1,4 @@
-# AOI Live Note-Taker (Chrome extension)
+# AOI extension (Chrome)
 
 The extension is the capture surface for AOI’s companion web dashboard.
 Use **Open dashboard** to open the workspace, or **View meeting in dashboard**
@@ -64,7 +64,7 @@ If `INGEST_API_KEY` is set on the backend, put the same value in the panel's
 
 1. Open `chrome://extensions`, enable **Developer mode**.
 2. **Load unpacked** → select this `extension/` folder.
-3. Pin the extension and click it to open the side panel.
+3. Pin **AOI extension** and click it to open the side panel.
 
 ## Use it
 

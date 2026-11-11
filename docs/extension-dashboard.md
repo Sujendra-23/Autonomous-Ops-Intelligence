@@ -1,8 +1,8 @@
-# Extension and dashboard
+# AOI extension and dashboard
 
 AOI has two connected surfaces backed by the same API and workspace records:
 
-- **Chrome extension:** capture the active meeting tab’s audio, view live notes,
+- **AOI extension (Chrome):** capture the active meeting tab’s audio, view live notes,
   and stop and finalize the meeting.
 - **Web dashboard:** review recent meetings, browse paginated meeting history,
   read transcripts and source evidence, manage tasks, review decisions, inspect
@@ -20,7 +20,7 @@ AOI has two connected surfaces backed by the same API and workspace records:
    `http://localhost:8000` and **Dashboard URL** to `http://localhost:5173`.
    Add the backend API key when required. For account-authenticated deployments,
    create an extension token in the dashboard’s **Workspace & connectors** view.
-4. Open a meeting or video tab, click the AOI toolbar icon, and choose
+4. Open a meeting or video tab, click the AOI extension toolbar icon, and choose
    **Start capturing**. **View meeting in dashboard** opens the session at
    `/meetings/{transcript_id}`. It works during capture and after finalization.
 

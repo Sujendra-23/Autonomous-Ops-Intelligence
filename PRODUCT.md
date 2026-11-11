@@ -19,7 +19,7 @@ The existing React/Vite dashboard includes meeting history, transcript detail, e
 The user selected PostgreSQL with pgvector as the primary database and requested integration with their Multi-Tenant Identity Access Gateway. Company sign-in uses verified gateway identity and live-session checks; a company maps to one isolated workspace shared by its users. Connector configuration and meeting records remain company-specific. Gateway companies/members are managed by that service; AOI handles its workspace name and tools. Company setup is configuration-driven and not enabled by silently replacing development credentials.
 
 ## Brand Commitments
-The user requested a Wispr Flow-inspired visual direction and confirmed “Restyle the existing app.” Use a cream canvas, charcoal navigation, lavender accents, Figtree interface text, and editorial EB Garamond headings while preserving the existing operational workflows. This replaces the earlier forest/citrus direction. The extension remains a separate capture surface.
+The user requested a Wispr Flow-inspired visual direction and confirmed “Restyle the existing app.” Use a cream canvas, charcoal navigation, lavender accents, Figtree interface text, and editorial EB Garamond headings while preserving the existing operational workflows. This replaces the earlier forest/citrus direction. The extension remains a separate capture surface, named **AOI extension** as confirmed by the user.
 
 ## Pricing
 User-confirmed: Pro costs $50 per company per month for 10–20 members. Team is for larger companies with custom monthly pricing based on company size, arranged through a conversation. Checkout, final feature entitlements, and usage allowances are not implemented or confirmed. A sales contact has not yet been supplied.

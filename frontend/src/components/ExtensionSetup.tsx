@@ -11,7 +11,7 @@ export function ExtensionSetup({ onNavigate }: { onNavigate: Navigate }) {
           </h2>
           <p className="muted">
             Record desktop calls with AOI Desktop, or capture a meeting tab with
-            the browser extension.
+            AOI extension.
           </p>
         </div>
       </header>
@@ -104,11 +104,11 @@ export function ExtensionSetup({ onNavigate }: { onNavigate: Navigate }) {
         </summary>
         <ol className="setup-steps">
           <li>
-            <h4>Load the Chrome extension</h4>
+            <h4>Load AOI extension</h4>
             <p>
               Open <code>chrome://extensions</code>, turn on Developer mode,
               choose <strong>Load unpacked</strong>, and select this project’s{" "}
-              <code>extension/</code> folder. Pin AOI to your toolbar.
+              <code>extension/</code> folder. Pin AOI extension to your toolbar.
             </p>
           </li>
           <li>
@@ -123,7 +123,8 @@ export function ExtensionSetup({ onNavigate }: { onNavigate: Navigate }) {
           <li>
             <h4>Start on your meeting tab</h4>
             <p>
-              Open the meeting or video, click the AOI toolbar icon, and choose{" "}
+              Open the meeting or video, click the AOI extension toolbar icon,
+              and choose{" "}
               <strong>Start capturing</strong>. The extension captures that
               tab’s audio. Choose <strong>Stop &amp; finalize</strong> when
               you’re done.
