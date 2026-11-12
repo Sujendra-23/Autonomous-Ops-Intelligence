@@ -12,13 +12,37 @@ action. Underlined Upcoming, Huddles and Meeting notes controls keep scheduled r
 drop-in conversations and captured transcripts easy to find. Huddles changes the
 primary action to Start huddle. Divided room rows show the title, time or drop-in
 guidance, known participant presence, Join and Copy link. Empty views explain the next
-action; Meeting notes retains the existing history and transcript-upload path.
+action; Meeting notes retains the history and transcript-upload path.
 
 The view persists at `/meetings?tab=upcoming|huddles|captured`; `captured` is the
 unchanged route value behind Meeting notes. Home's All notes and transcript-detail
 back action open Meeting notes. A huddle room's All meetings returns to Huddles;
 other rooms return to Upcoming. Local Talk to AOI navigation understands meeting
 notes, transcripts and huddles. These entrypoint refinements preserve existing paths.
+
+## Meeting library and follow-up
+
+Meeting notes adds labeled title/transcript search, status and time filters above the
+divided list. Apply with Search notes; Clear filters restores the library. Status
+offers Completed, Live and Failed; time offers all time or the last 7, 30 or 90 days.
+Show filtered totals and Previous/Next pages of 20 records. Empty filtered results
+suggest changing the query or period; errors retain an explicit Refresh notes path.
+Queries are bounded and wildcard characters are literal; records remain workspace-scoped.
+
+Transcript detail keeps Recap & follow-up collapsed until requested. Within the fine
+divider treatment, a format selector and labeled Figtree textarea prepare a plain-text
+recap or follow-up from saved tasks, decisions, risks and blockers. Copy and Download
+use the current edited format; Download transcript preserves the full saved transcript.
+Keep independent edits when switching formats until detail unmounts; leaving the view
+discards them. Clipboard denial explains manual copying. State that nothing is sent
+automatically and ask users to review details and recipients. This is deterministic
+formatting of saved outcomes, not new AI abstractive summarization or public sharing.
+
+On narrow screens, search spans the filter grid; status/time remain side by side and
+actions wrap. Inputs and draft text use (16px) at the existing (620px) breakpoint.
+Reuse the incumbent palette, controls and divider surfaces without new global tokens.
+The official vendor comparison and product inferences are in
+docs/market-research-2026-11.md; the comparison does not establish customer demand.
 
 ## Scheduling
 
@@ -91,3 +115,17 @@ huddle/prejoin return without opening devices. Its captures are
 `simple-huddles-{desktop,mobile}.png`. The scoped final correction review returned
 SHIP for Home's notes/totals order; it did not re-review call media behavior. The
 real API/PostgreSQL/LiveKit evidence above was not rerun for this UI refinement.
+
+The SSO/library extension passed a scoped final correction review after fixing the
+sole finding: edits now survive recap/follow-up format switching. This disposition
+covers that scope, not the whole product. Latest captures are
+`.impeccable/review/meeting-library-{desktop,mobile}.png` and
+`meeting-follow-up-{desktop,mobile}.png`. `test:meeting-library` exercised mocked
+records in Chromium at (1440px) and (390px): search/reset, exact full-transcript
+download, independent edited drafts across formats, copy/download, denied-clipboard
+recovery, no overflow and no page errors. The frontend build and existing browser,
+account/motion and simple-UI suites passed; the expected lazy CallRoom chunk warning
+remains. Twenty-four backend checks with a separate real PostgreSQL database covered
+filters, count/pagination, literal wildcards, query bounds, company scope and existing
+JWT verification. A read-only filtered request to the main local API returned 200.
+No live identity provider, full production stack or real customer demand was verified.

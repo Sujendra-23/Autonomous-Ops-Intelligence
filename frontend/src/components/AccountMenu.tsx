@@ -57,7 +57,7 @@ export function AccountMenu({
         <span className="account-avatar" aria-hidden="true">
           {workspaceName.charAt(0).toUpperCase()}
         </span>
-        <span className="account-trigger-label">Account</span>
+        <span className="account-trigger-label">{authConfigured ? "Account" : "Local workspace"}</span>
         <Icon name="down" />
       </button>
       {open && (

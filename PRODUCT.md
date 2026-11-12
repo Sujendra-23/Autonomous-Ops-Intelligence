@@ -29,7 +29,8 @@ User-confirmed: Pro costs $50 per company per month for 10–20 members. Team is
 Home, Meetings, Tasks, Roadmaps and Recording apps are the primary workspace entries.
 Reports groups Decisions, Search & insights and Weekly summary; Settings and the
 session entry remain at the bottom of navigation. Account includes Plans & pricing.
-The header keeps the current location, Search, Talk to AOI and Account. Workspace
+The header keeps the current location, Search, Talk to AOI, a visible Login/Logout
+action and Account (Local workspace when authentication is not configured). Workspace
 identity is a label; settings remain an explicitly named action. Existing route paths
 and features are retained.
 
@@ -110,28 +111,58 @@ or noisy-room accuracy benchmark.
 
 ## Account access and scroll flow
 
-Account in the workspace header opens Workspace settings, Plans & pricing and Logout
-for authenticated sessions, or Login for local development. The sidebar provides
-Settings and the same session entry.
-The `/login` route uses the configured gateway or OIDC provider. Without configured
-authentication it explains that account login is unavailable and offers a return to
-the local workspace; it does not accept pretend credentials. Configuration remains
-explicit and does not provision company accounts or a database.
+Logout is directly visible in the authenticated workspace header. Account and the
+sidebar retain the same sign-out action; Account also opens Workspace settings and
+Plans & pricing. Local development shows Login in the header and sidebar and labels
+the account control Local workspace. `/login` explains that there is no account
+session and offers a return to the local workspace; it does not accept pretend
+credentials.
+
+Configured OIDC deployments offer Continue with SSO using Authorization Code with
+PKCE, a provider label and configurable API scopes. Callback exchanges are serialized
+for single-use codes and restore only allowed return routes. One trusted issuer is
+supported per deployment; an identity broker can federate upstream providers. The
+existing gateway password mode remains separate. SSO does not provision company
+accounts, merge workspaces by email domain, implement SAML/SCIM or configure a live
+provider automatically. Provider registration and deployment values remain required;
+see docs/sso.md.
 
 Gateway logout waits for an in-flight session refresh, requests server revocation,
 then clears the in-memory bearer, workspace selection and API key, removes the saved
 company marker, and returns to login. Failed revocation offers retry. Talk to AOI's
-explicit logout command uses the same sign-out action. Gateway tokens and passwords
-are not saved in web storage; the existing OIDC session-storage behavior is unchanged.
+explicit logout command uses the same sign-out action. OIDC logout uses the provider's
+end-session endpoint when available, otherwise clears the AOI session locally; the
+upstream session can remain active. Gateway tokens and passwords stay out of web
+storage; OIDC uses sessionStorage and has no automatic silent renewal.
 
 A slim header line follows page position, and newly reached work sections unfold
 once per view, including sections loaded later. Content is visible by default.
 Reduced motion hides the line and cancels section movement; Back to top remains
 available. Isolated Chromium checks with mocked identity and API responses cover
 desktop/mobile account flows, logout recovery, company-session credential cleanup,
-local mode, command-handler logout and motion behavior. They do not establish live
-gateway/OIDC, database isolation, microphone accuracy or scroll smoothness benchmarks.
+local mode, command-handler logout and motion behavior. A separate synthetic-provider
+suite covers OIDC discovery, PKCE exchange, callback/return restoration, reload,
+provider/local logout and forged-state rejection. These do not establish live
+gateway/identity-provider activation, microphone accuracy or scroll smoothness benchmarks.
 See docs/account-access-and-motion.md for setup and verification details.
+
+## Meeting library and follow-up
+
+Meeting notes searches titles and transcript text within the current workspace, with
+Completed/Live/Failed status, 7/30/90-day filters and server-backed pages of 20 notes.
+Clear filters restores the full library. Search treats wildcard characters literally.
+
+Transcript detail contains a collapsed Recap & follow-up section. It prepares editable
+plain-text recaps and follow-up drafts from saved tasks, decisions, risks and blockers,
+with copy/download actions and a full transcript download. Each format retains its
+own edits while switching until the detail view is unmounted; drafts are not saved
+across navigation. These outputs do not add AI abstractive summarization, automatic
+sending or public sharing. Review details and recipients before sharing.
+
+The vendor capability comparison and bounded implementation rationale are in
+docs/market-research-2026-11.md; they do not establish customer demand. Verification
+combines mocked-record browser checks with PostgreSQL filter, pagination, query-bound,
+literal-wildcard and company-scoping tests. No pricing changes were made.
 
 ## In-app meetings and huddles
 

@@ -1,0 +1,95 @@
+// Mocked records; tests real browser filters, copy, editable drafts and file downloads.
+import { chromium } from "playwright";
+import assert from "node:assert/strict";
+import { mkdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const origin = process.env.AOI_TEST_URL || "http://127.0.0.1:5173";
+const output = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.impeccable/review");
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ headless: true });
+const id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const record = { id, title: "Example portal planning", source: "upload", status: "completed", created_at: new Date().toISOString(), meeting_date: null, project_id: null, sensitivity_label: "internal", content: "Example transcript: Sam will review the prototype.\n" + "Full transcript content. ".repeat(2000), participants: ["Sam"], tasks: [{ id: "t1", title: "Review the prototype", owner: "Sam", due_date: "2026-11-20T18:00:00Z", status: "open", priority: "high", source_quote: "Sam will review the prototype.", confidence: .9 }], decisions: [{ id: "d1", summary: "Ship after the prototype review", rationale: null, decided_by: ["Sam"], source_quote: null }], risks: [], blockers: [], segments: [] };
+try {
+  for (const [name, width, height] of [["desktop",1440,1000],["mobile",390,844]]) {
+    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: "reduce", permissions: ["clipboard-read", "clipboard-write"] });
+    const page = await context.newPage();
+    page.setDefaultTimeout(10000);
+    const errors = []; let lastSearch;
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route("**/api/**", route => {
+      const url = new URL(route.request().url());
+      let data = {};
+      if (url.pathname === "/api/transcripts") {
+        lastSearch = url.searchParams;
+        const matches = !url.searchParams.get("q") || url.searchParams.get("q") === "prototype";
+        data = { items: matches ? [record] : [], total: matches ? 1 : 0 };
+      } else if (url.pathname === `/api/transcripts/${id}`) data = record;
+      else if (url.pathname.endsWith("/status")) data = { calls_enabled: true, calendar_enabled: false };
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(data) });
+    });
+    await page.goto(`${origin}/meetings?tab=captured`);
+    await page.getByRole("button", { name: /Example portal planning/ }).waitFor();
+    await page.getByLabel("Search notes", { exact: true }).fill("prototype");
+    await page.getByLabel("Status", { exact: true }).selectOption("completed");
+    await page.getByLabel("When", { exact: true }).selectOption("30");
+    const request = page.waitForResponse(response => response.url().includes("q=prototype"));
+    await page.getByRole("button", { name: "Search notes", exact: true }).click();
+    await request;
+    assert.equal(lastSearch.get("status"), "completed");
+    assert.equal(lastSearch.get("days"), "30");
+    await page.screenshot({ path: path.join(output, `meeting-library-${name}.png`), fullPage: true });
+    await page.getByLabel("Search notes", { exact: true }).fill("missing");
+    await page.getByRole("button", { name: "Search notes", exact: true }).click();
+    await page.getByRole("heading", { name: "No notes match these filters.", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Clear filters", exact: true }).click();
+    await page.getByRole("button", { name: /Example portal planning/ }).waitFor();
+    assert.equal(await page.getByLabel("Status", { exact: true }).inputValue(), "");
+    assert.equal(await page.getByLabel("When", { exact: true }).inputValue(), "");
+    await page.getByRole("button", { name: /Example portal planning/ }).click();
+    await page.getByRole("heading", { name: record.title, exact: true }).waitFor();
+    await page.locator(".meeting-exports > summary").click();
+    const recap = await page.getByLabel("Meeting recap", { exact: true }).inputValue();
+    assert(recap.includes("Review the prototype — Sam"));
+    assert(recap.includes("Ship after the prototype review"));
+    await page.getByRole("button", { name: "Copy recap", exact: true }).click();
+    await page.getByText("Meeting recap copied.", { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), recap);
+    const fullTranscript = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download transcript", exact: true }).click();
+    const transcriptDownload = await fullTranscript;
+    assert.equal(await readFile(await transcriptDownload.path(), "utf8"), record.content);
+    await page.getByLabel("Prepare", { exact: true }).selectOption("follow-up");
+    const draft = page.getByLabel("Follow-up draft", { exact: true });
+    assert((await draft.inputValue()).startsWith("Subject: Follow-up:"));
+    await draft.fill((await draft.inputValue()) + "\nExample manual correction.");
+    await page.getByLabel("Prepare", { exact: true }).selectOption("recap");
+    await page.getByLabel("Meeting recap", { exact: true }).fill(recap + "\nExample recap correction.");
+    await page.getByLabel("Prepare", { exact: true }).selectOption("follow-up");
+    assert((await draft.inputValue()).includes("Example manual correction."));
+    await page.getByRole("button", { name: "Copy draft", exact: true }).click();
+    assert((await page.evaluate(() => navigator.clipboard.readText())).includes("Example manual correction."));
+    await page.getByLabel("Prepare", { exact: true }).selectOption("recap");
+    assert((await page.getByLabel("Meeting recap", { exact: true }).inputValue()).includes("Example recap correction."));
+    await page.getByLabel("Prepare", { exact: true }).selectOption("follow-up");
+    const fileEvent = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download draft", exact: true }).click();
+    const downloaded = await fileEvent;
+    assert((await readFile(await downloaded.path(), "utf8")).includes("Example manual correction."));
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      document.querySelector("textarea").scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
+    await page.screenshot({ path: path.join(output, `meeting-follow-up-${name}.png`), fullPage: true });
+    await page.evaluate(() => { Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: () => Promise.reject(new Error("Synthetic denied clipboard")) }); });
+    await page.getByRole("button", { name: "Copy draft", exact: true }).click();
+    await page.getByText("Couldn’t copy. Select the draft text and copy it manually.", { exact: true }).waitFor();
+    assert((await draft.inputValue()).includes("Example manual correction."));
+    assert.equal(await page.getByRole("button", { name: /^Send/ }).count(), 0);
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    assert.equal(errors.length, 0, errors.join("\n"));
+    await context.close();
+    console.log(`${name}: filters, no results/reset, recap evidence, clipboard recovery, edited follow-up and full transcript downloads passed`);
+  }
+} finally { await browser.close(); }

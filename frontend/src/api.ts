@@ -154,6 +154,7 @@ export type TranscriptSummary = {
   status: string;
   source: string;
   transcription_language?: string;
+  sensitivity_label?: "public" | "internal" | "confidential";
   project_id: string | null;
   meeting_date: string | null;
   processed_at: string | null;
@@ -243,10 +244,13 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   decisions: () => request<{ items: Decision[]; total: number }>("/api/decisions"),
-  transcripts: (params: { limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
+  transcripts: (params: { limit?: number; offset?: number; q?: string; status?: string; days?: number } = {}, signal?: AbortSignal) => {
     const search = new URLSearchParams();
     if (params.limit !== undefined) search.set("limit", String(params.limit));
     if (params.offset !== undefined) search.set("offset", String(params.offset));
+    if (params.q) search.set("q", params.q);
+    if (params.status) search.set("status", params.status);
+    if (params.days) search.set("days", String(params.days));
     return request<{ items: TranscriptSummary[]; total: number }>(`/api/transcripts?${search}`, { signal });
   },
   transcript: (id: string, signal?: AbortSignal) =>

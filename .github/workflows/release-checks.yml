@@ -64,6 +64,8 @@ jobs:
         working-directory: frontend
       - run: npm run test:account-motion
         working-directory: frontend
+      - run: npm run test:sso
+        working-directory: frontend
       - run: npm audit --omit=dev --audit-level=moderate
         working-directory: frontend
       - run: node --test extension/tests/*.test.mjs
@@ -160,6 +162,10 @@ jobs:
       - run: npm run test:calls
         working-directory: frontend
       - run: npm run test:simple-ui
+        working-directory: frontend
+        env:
+          AOI_TEST_URL: http://127.0.0.1:5193
+      - run: npm run test:meeting-library
         working-directory: frontend
         env:
           AOI_TEST_URL: http://127.0.0.1:5193

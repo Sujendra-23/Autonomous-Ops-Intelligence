@@ -1,0 +1,27 @@
+.meeting-library-filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; margin: 8px 0 28px; }
+.meeting-library-filters label { display: grid; gap: 8px; font-size: 13px; min-width: 0; }
+.meeting-library-filters label:first-child { flex: 1; min-width: 200px; }
+.meeting-library-filters input, .meeting-library-filters select { margin: 0; min-height: 42px; }
+.meeting-exports { border-block: 1px solid var(--border); margin-block: 24px; }
+.meeting-exports > summary { padding-block: 18px; font-size: 14px; cursor: pointer; font-weight: 600; }
+.meeting-export-body { padding: 0 0 20px; max-width: 75ch; }
+.meeting-export-body > p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.meeting-export-body label { display: grid; gap: 8px; margin: 16px 0; font-size: 14px; }
+.meeting-export-body select { max-width: 280px; }
+.meeting-export-body textarea { min-height: 300px; line-height: 1.6; resize: vertical; font-family: inherit; }
+.meeting-export-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.header-session-action { display: inline-flex; align-items: center; gap: 6px; color: var(--text); background: var(--bg); min-height: 40px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; text-decoration: none; white-space: nowrap; }
+.header-session-action:hover { background: var(--panel); border-color: var(--muted); }
+.header-session-action .ui-icon { width: 15px; height: 15px; }
+.header-session-error { color: var(--crit); padding: 12px 24px; margin: 0; }
+@media (max-width: 620px) {
+  .meeting-library-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .meeting-library-filters label:first-child { grid-column: 1 / -1; }
+  .meeting-library-filters input, .meeting-library-filters select, .meeting-export-body textarea, .meeting-export-body select { font-size: 16px; }
+  .studio-app.simplified-app .topbar-actions { gap: 7px; }
+  .studio-app.simplified-app .workspace-topbar { gap: 10px; }
+  .topbar-location { min-width: 0; }
+  .topbar-location strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-session-action { padding-inline: 9px; }
+  .header-session-action .ui-icon { display: none; }
+}

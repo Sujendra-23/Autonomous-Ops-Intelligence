@@ -311,6 +311,9 @@ export function WorkspaceShell({
               <span>Search</span>
             </button>
             <VoiceAssistant view={view} onNavigate={onNavigate} />
+            {authConfigured ? <button className="header-session-action" onClick={() => void logout()} disabled={loggingOut}>
+              <Icon name="logout" />{loggingOut ? "Logging out…" : "Logout"}
+            </button> : <a className="header-session-action" href="/login"><Icon name="login" />Login</a>}
             <AccountMenu
               workspaceName={companyName}
               onNavigate={navigate}
@@ -320,6 +323,7 @@ export function WorkspaceShell({
             />
           </div>
         </div>
+        {signOutError && <p className="header-session-error" role="alert">{signOutError}</p>}
         <main className="main" id="workspace-main" tabIndex={-1}>
           {children}
         </main>

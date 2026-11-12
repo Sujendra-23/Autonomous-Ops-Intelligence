@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { authConfigured, gatewayAuth, identity } from "../auth";
+import { authConfigured, gatewayAuth, identity, ssoProviderName, ssoConfigurationError } from "../auth";
 import { BrandMark, Icon } from "./Icon";
 import { CompanySignIn } from "./CompanySignIn";
 
@@ -54,13 +54,13 @@ export function SignIn({
         <h2>Login to your workspace.</h2>
         {authConfigured ? (
           <>
-            <p>Continue with your company’s sign-in provider.</p>
+            <p>Use your {ssoProviderName} account. Your password stays with your sign-in provider.</p>
             <button
               className="primary"
-              disabled={busy}
+              disabled={busy || !identity}
               onClick={() => void login()}
             >
-              {busy ? "Opening login…" : "Login"}
+              {busy ? "Opening SSO…" : "Continue with SSO"}
               <Icon name="arrow" />
             </button>
           </>
@@ -68,7 +68,7 @@ export function SignIn({
           <>
             <p>
               This installation is using a local workspace. Account login is not
-              enabled yet.
+              enabled. There is no account session to log out of.
             </p>
             <p>
               Your administrator needs to connect company sign-in before you can
@@ -80,9 +80,9 @@ export function SignIn({
             </a>
           </>
         )}
-        {error && (
+        {(error || ssoConfigurationError) && (
           <p className="load-error" role="alert">
-            {error}
+            {error || ssoConfigurationError}
           </p>
         )}
         <p className="login-help">

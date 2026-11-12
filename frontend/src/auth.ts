@@ -4,13 +4,16 @@ import { setApiKey, setBearerToken, setWorkspace } from "./api";
 const authority = import.meta.env.VITE_AUTH_AUTHORITY as string | undefined;
 const clientId = import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined;
 export const gatewayAuth = import.meta.env.VITE_AUTH_PROVIDER === "gateway";
-export const authConfigured = gatewayAuth || Boolean(authority && clientId);
+export const ssoProviderName = (import.meta.env.VITE_AUTH_PROVIDER_NAME as string | undefined)?.trim() || "company";
+export const authConfigured = gatewayAuth || Boolean(authority || clientId);
+export const ssoConfigurationError = !gatewayAuth && authConfigured && (!authority || !clientId)
+  ? "Company SSO setup is incomplete. Ask your administrator to connect your sign-in provider." : "";
 export const identity = !gatewayAuth && authority && clientId ? new UserManager({
   authority: authority!, client_id: clientId!,
   redirect_uri: `${window.location.origin}/auth/callback`,
   post_logout_redirect_uri: window.location.origin,
-  response_type: "code", scope: "openid profile email",
-  resource: import.meta.env.VITE_AUTH_AUDIENCE as string | undefined,
+  response_type: "code", scope: (import.meta.env.VITE_AUTH_SCOPE as string | undefined) || "openid profile email",
+  disablePKCE: false,
   userStore: new WebStorageStateStore({ store: window.sessionStorage }),
   automaticSilentRenew: false,
   extraQueryParams: import.meta.env.VITE_AUTH_AUDIENCE ? { audience: import.meta.env.VITE_AUTH_AUDIENCE } : undefined,
@@ -24,8 +27,16 @@ function clearWorkspaceSession() {
   setBearerToken(""); setWorkspace(""); setApiKey("");
 }
 
+let oidcRestorePromise: Promise<boolean> | null = null;
 export async function restoreIdentity() {
   if (gatewayAuth) return restoreGateway();
+  if (!identity) return false;
+  // Authorization codes are single-use, including under React StrictMode effects.
+  if (!oidcRestorePromise) oidcRestorePromise = restoreOidc().finally(() => { oidcRestorePromise = null; });
+  return oidcRestorePromise;
+}
+
+async function restoreOidc() {
   if (!identity) return false;
   const user = window.location.pathname === "/auth/callback"
     ? await identity.signinRedirectCallback() : await identity.getUser();
@@ -100,6 +111,13 @@ export function signOut(): Promise<void> {
   logoutPromise = (async () => {
     if (!gatewayAuth) {
       if (!identity) throw new Error("Account login is not configured.");
+      // Some OIDC providers have no end-session endpoint. End AOI's session locally.
+      if (!await identity.metadataService.getEndSessionEndpoint()) {
+        await identity.removeUser();
+        clearWorkspaceSession();
+        window.dispatchEvent(new Event("aoi-signed-out"));
+        return;
+      }
       await identity.signoutRedirect();
       return;
     }

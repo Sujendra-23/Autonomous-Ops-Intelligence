@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import { api, type TranscriptSummary } from "../api";
 import type { Navigate, MeetingView } from "../navigation";
 import { usePollingData } from "../usePollingData";
+import { MeetingExports } from "./MeetingExports";
+import "./meeting-library.css";
 import { MeetingHub } from "./MeetingHub";
 const CallRoom = lazy(() => import("./CallRoom"));
 
@@ -22,12 +24,26 @@ export function Meetings({ meetingId, roomId, meetingView, onNavigate }: { meeti
 
 function MeetingHistory({ onNavigate, meetingView }: { onNavigate: Navigate; meetingView?:MeetingView }) {
   const [offset, setOffset] = useState(0);
-  const load = useCallback((signal: AbortSignal) => api.transcripts({ limit: PAGE_SIZE, offset }, signal), [offset]);
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({ q: "", status: "", days: "" });
+  const load = useCallback((signal: AbortSignal) => api.transcripts({ limit: PAGE_SIZE, offset, q: filters.q, status: filters.status, days: filters.days ? Number(filters.days) : undefined }, signal), [offset, filters]);
   const { data, error, loading, refresh } = usePollingData(load);
+  const filtered = Boolean(filters.q || filters.status || filters.days);
+  function clearFilters() { setQuery(""); setFilters({ q: "", status: "", days: "" }); setOffset(0); }
   return <MeetingHub onNavigate={onNavigate} meetingView={meetingView}>
-    {error && <p className="load-error" role="alert">Couldn’t refresh meetings. Check your backend connection and try Refresh.</p>}
-    {!data && !error && <p className="panel muted" role="status">Loading meetings…</p>}
-    {data && <section className="meeting-section"><div className="section-heading"><h3>Meeting notes <span className="muted">({data.total})</span></h3><button className="text-button" onClick={refresh} disabled={loading}>{loading ? "Updating…" : "Refresh notes"}</button></div>{data.items.length ? <MeetingList meetings={data.items} onOpen={id => onNavigate("meetings", id)} /> : <div className="meeting-empty"><h4>No meeting notes yet.</h4><p>Record a meeting or upload a transcript to find its notes here.</p><button className="ghost" onClick={() => onNavigate("extension")}>Set up recording</button></div>}<div className="meeting-pagination"><span className="muted">{data.total ? `${offset + 1}–${Math.min(offset + data.items.length, data.total)} of ${data.total}` : "0 meetings"}</span><div><button className="ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>Previous</button><button className="ghost" disabled={offset + PAGE_SIZE >= data.total || loading} onClick={() => setOffset(value => value + PAGE_SIZE)}>Next</button></div></div></section>}
+    <form className="meeting-library-filters" aria-label="Find meeting notes" onSubmit={event => {
+      event.preventDefault(); const form = new FormData(event.currentTarget);
+      setFilters({ q: query.trim(), status: String(form.get("status") || ""), days: String(form.get("days") || "") }); setOffset(0);
+    }}>
+      <label htmlFor="meeting-search">Search notes<input id="meeting-search" type="search" maxLength={200} placeholder="Title or transcript text" value={query} onChange={event => setQuery(event.target.value)} /></label>
+      <label htmlFor="meeting-filter-status">Status<select aria-label="Status" id="meeting-filter-status" name="status" defaultValue=""><option value="">Any status</option><option value="completed">Completed</option><option value="live">Live</option><option value="failed">Failed</option></select></label>
+      <label htmlFor="meeting-filter-period">When<select aria-label="When" id="meeting-filter-period" name="days" defaultValue=""><option value="">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></label>
+      <button className="ghost">Search notes</button>
+      {filtered && <button type="button" className="text-button" onClick={event => { event.currentTarget.form?.reset(); clearFilters(); }}>Clear filters</button>}
+    </form>
+    {error && <p className="load-error" role="alert">Couldn’t refresh meeting notes. Check your connection and try Refresh notes.</p>}
+    {!data && !error && <p className="panel muted" role="status">Loading meeting notes…</p>}
+    {data && <section className="meeting-section"><div className="section-heading"><h3>Meeting notes <span className="muted">({data.total})</span></h3><button className="text-button" onClick={refresh} disabled={loading}>{loading ? "Updating…" : "Refresh notes"}</button></div>{data.items.length ? <MeetingList meetings={data.items} onOpen={id => onNavigate("meetings", id)} /> : <div className="meeting-empty"><h4>{filtered ? "No notes match these filters." : "No meeting notes yet."}</h4><p>{filtered ? "Try different words or a wider time period." : "Record a meeting or upload a transcript to find its notes here."}</p>{!filtered && <button className="ghost" onClick={() => onNavigate("extension")}>Set up recording</button>}</div>}<div className="meeting-pagination"><span className="muted">{data.total ? `${offset + 1}–${Math.min(offset + data.items.length, data.total)} of ${data.total}` : "0 meeting notes"}</span><div><button className="ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>Previous</button><button className="ghost" disabled={offset + PAGE_SIZE >= data.total || loading} onClick={() => setOffset(value => value + PAGE_SIZE)}>Next</button></div></div></section>}
     <p className="update-caption">New captures appear automatically. Updates every 10 seconds.</p>
   </MeetingHub>;
 }
@@ -49,6 +65,7 @@ function MeetingDetail({ id, onNavigate }: { id: string; onNavigate: Navigate })
       {data.participants?.length ? <p className="muted">Participants: {data.participants.join(", ")}</p> : null}
       {data.status === "live" && <p className="live-notice" role="status"><span className="live-dot" aria-hidden="true" />Capture is running in {data.source === "desktop" ? "AOI Desktop" : "the extension"}. Notes and transcript update here every 10 seconds.</p>}
       {data.status === "failed" && <p className="load-error" role="alert">Processing failed. Your transcript is saved. Ask your workspace administrator to check processing.</p>}
+      <MeetingExports key={data.id} meeting={data} />
       <div className="meeting-tabs" role="group" aria-label="Meeting content"><button aria-pressed={tab === "notes"} onClick={() => setTab("notes")}>Notes <span>{data.tasks.length + data.decisions.length + data.risks.length + data.blockers.length}</span></button><button aria-pressed={tab === "transcript"} onClick={() => setTab("transcript")}>Transcript</button></div>
       {tab === "transcript" ? <section className="meeting-transcript"><div className="section-heading"><h3>Transcript</h3><button className="ghost" onClick={copyTranscript} disabled={!data.content}>Copy transcript</button></div><p className="muted" role="status">{copyStatus}</p>{data.segments?.some(segment => segment.needs_review) && <details className="transcript-review"><summary>Review uncertain passages ({data.segments.filter(segment => segment.needs_review).length})</summary><p>These passages have low provider confidence. This is a review cue, not a guarantee that other words are correct. Check names, dates and commitments against the audio.</p>{data.segments.filter(segment => segment.needs_review).map((segment,index) => <blockquote key={index} dir="auto">{segment.text}</blockquote>)}</details>}<div className="transcript-content" dir="auto">{data.content || "No transcript text yet. Text will appear as speech is transcribed."}</div></section> : <div className="meeting-notes">
         {!data.tasks.length && !data.decisions.length && !data.risks.length && !data.blockers.length && <p className="meeting-empty">No structured notes yet.{data.status === "live" ? " Keep the recorder running while you talk." : " Check the transcript or return after processing completes."}</p>}

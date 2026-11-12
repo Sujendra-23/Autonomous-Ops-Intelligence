@@ -45,7 +45,9 @@ services:
         VITE_AUTH_PROVIDER: ${AUTH_PROVIDER:-oidc}
         VITE_AUTH_AUTHORITY: ${VITE_AUTH_AUTHORITY:-}
         VITE_AUTH_CLIENT_ID: ${VITE_AUTH_CLIENT_ID:-}
-        VITE_AUTH_AUDIENCE: ${AUTH_AUDIENCE:?Set OIDC API audience}
+        VITE_AUTH_AUDIENCE: ${VITE_AUTH_AUDIENCE-${AUTH_AUDIENCE:-}}
+        VITE_AUTH_PROVIDER_NAME: ${VITE_AUTH_PROVIDER_NAME:-Company SSO}
+        VITE_AUTH_SCOPE: ${VITE_AUTH_SCOPE:-openid profile email}
     ports: ["127.0.0.1:8080:8080"]
     depends_on:
       backend:

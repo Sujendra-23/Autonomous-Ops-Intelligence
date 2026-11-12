@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import tempfile
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
@@ -145,11 +147,28 @@ async def list_transcripts(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     project_id: uuid.UUID | None = None,
+    q: str = Query("", max_length=200),
+    status_filter: Literal["live", "completed", "failed"] | None = Query(None, alias="status"),
+    days: int | None = Query(None, ge=1, le=365),
     session: AsyncSession = Depends(get_session),
 ) -> TranscriptList:
-    stmt = select(Transcript).order_by(Transcript.created_at.desc())
+    stmt = select(Transcript).order_by(Transcript.created_at.desc(), Transcript.id.desc())
     if project_id is not None:
         stmt = stmt.where(Transcript.project_id == project_id)
+    if q.strip():
+        # Treat wildcard characters as literal text, with bound SQL parameters.
+        needle = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        stmt = stmt.where(
+            Transcript.title.ilike(f"%{needle}%", escape="\\")
+            | Transcript.content.ilike(f"%{needle}%", escape="\\")
+        )
+    if status_filter:
+        stmt = stmt.where(Transcript.status == status_filter)
+    if days is not None:
+        stmt = stmt.where(
+            func.coalesce(Transcript.meeting_date, Transcript.created_at)
+            >= datetime.now(UTC) - timedelta(days=days)
+        )
     total = await session.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = (await session.execute(stmt.offset(offset).limit(limit))).scalars().all()
     return TranscriptList(

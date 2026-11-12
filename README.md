@@ -1,6 +1,6 @@
 > **Public SaaS preparation:** Account/workspace isolation and production containers are available. See [production-release.md](docs/production-release.md) for identity configuration, database roles, connector setup and release verification. The development setup below uses development authentication; do not expose it publicly. Nothing is hosted automatically.
 
-Provider sign-in is now available in the dashboard and extension. See [connector OAuth setup](docs/connector-oauth.md) for one-time app registration and the automatic connection flow. Manual credential setup below remains available.
+Connector provider sign-in is available in the dashboard and extension. See [connector OAuth setup](docs/connector-oauth.md) for one-time app registration and the automatic connection flow. Manual credential setup below remains available.
 
 # Autonomous Operational Intelligence Layer
 
@@ -13,7 +13,10 @@ directly in the dashboard; both use the same backend and workspace. See
 Company authentication can also use the [Multi-Tenant Identity Access Gateway](docs/identity-gateway.md).
 Each verified company maps to its own PostgreSQL workspace, with separate meeting
 records, member roles, connector settings, and pgvector search. The existing OIDC
-provider flow remains available. Gateway mode is enabled through explicit configuration.
+provider flow offers **Continue with SSO** using Authorization Code with PKCE. See
+[company SSO setup](docs/sso.md) for provider registration, scopes and logout limits;
+no live provider is activated automatically. Gateway mode remains a separate,
+explicitly configured option.
 
 > An **AI Agent for Work** that converts meetings into **structured tasks and
 > decisions with zero manual tagging** — and mirrors them into Notion,
@@ -543,8 +546,8 @@ is reachable. Tests split into:
   back into the task model would close the loop.
 - **Webhooks.** Replace polling with Linear/Notion/Slack webhooks for
   near-real-time updates.
-- **Auth.** The ingest API supports a static key; swap that for OIDC if you
-  deploy this for a real org.
+- **Identity lifecycle.** OIDC sign-in is available; SCIM provisioning and
+  deprovisioning remain future work requiring company lifecycle requirements.
 
 ---
 
@@ -611,7 +614,9 @@ Transcription now supports per-meeting terminology, final-word flush protections
 uncertain-passage review. [Quality protections and measured limits](docs/transcription-quality.md).
 Apply migration `0011_transcription_quality` before running the updated backend.
 
-Account access is in the top-right **Account** control and sidebar. See
+**Logout** is directly visible in the signed-in header, **Account** and sidebar.
+Local development shows **Login** and **Local workspace** and explains that no account
+session exists. See
 [login, logout and scroll movement](docs/account-access-and-motion.md) for setup
 and the distinction between local workspace mode and company sign-in.
 **Account → Plans & pricing** opens the existing pricing page; **Settings** remains
@@ -621,3 +626,13 @@ Built-in meetings, scheduling, audio huddles and **Meeting notes** are in **Meet
 Home's **All notes** opens Meeting notes directly. See
 [in-app meeting setup](docs/in-app-meetings.md) for LiveKit, local calling,
 calendar invitations and the isolated two-participant transport test.
+
+In **Meetings → Meeting notes**, search titles/transcripts, filter status and the last
+7/30/90 days, and page through workspace notes. Open a note's **Recap & follow-up**
+section for editable plain-text recap and follow-up drafts, copy/download, and a full
+transcript download. Each format retains its own edits while switching; leaving the
+detail view discards them. Outputs use saved tasks, decisions, risks and blockers;
+nothing is sent automatically. The [November market review](docs/market-research-2026-11.md)
+compares official vendor capabilities and records the implementation rationale; it
+does not establish customer demand. From `frontend/`, `npm run test:sso` and
+`npm run test:meeting-library` run the isolated browser checks.

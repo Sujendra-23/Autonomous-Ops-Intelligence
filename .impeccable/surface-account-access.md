@@ -7,7 +7,9 @@ remain the visual authority; this surface introduces no new system tokens.
 
 ## Entry and composition
 
-Place Account at the right end of the sticky workspace header. Its lavender initial
+Keep Logout directly visible in the sticky workspace header for authenticated
+sessions. In local mode, show Login beside the Local workspace control and explain
+that there is no account session. The Account control's lavender initial
 and outlined pill open a paper panel containing the workspace name, session context,
 Workspace settings, Plans & pricing and Logout. Local development substitutes Login
 and states that there is no account session. The sidebar retains Settings and the
@@ -20,7 +22,8 @@ and focus leaving the panel dismiss it.
 The `/login` route pairs a cream editorial introduction with a paper form, stacking
 below (800px). Gateway mode uses labeled company code, work email and password fields,
 followed by a lavender submit action. Busy and actionable error states remain explicit.
-OIDC uses the configured company provider. Local mode explains that account login is
+OIDC offers Continue with SSO, names the configured provider and leaves password
+entry with that provider. Local mode explains that account login is
 not enabled and offers Back to local workspace. Preserve honest setup requirements;
 the interface does not create credentials or enable a provider automatically.
 
@@ -28,10 +31,16 @@ the interface does not create credentials or enable a provider automatically.
 
 Successful gateway logout revokes the server session before clearing in-memory
 credentials, workspace selection and API key, removing the company marker, and
-returning to login. A failed request leaves a visible retry path. Account, sidebar
-and the explicit Talk to AOI logout command use the same sign-out action. Passwords
-require direct entry. Gateway credentials stay out of web storage; the existing
-OIDC session-storage policy is unchanged.
+returning to login. A failed request leaves a visible retry path. Account, sidebar,
+the direct header action and the explicit Talk to AOI logout command use the same
+sign-out action. Passwords require direct entry. Gateway credentials stay out of web
+storage; the existing
+OIDC session-storage policy is unchanged. Authorization Code with PKCE uses the
+existing OIDC library, configurable scopes and one trusted issuer per deployment.
+Serialize callback exchanges so React StrictMode cannot reuse a single-use code.
+Provider logout uses the discovered end-session endpoint, with local AOI logout when
+it is absent; the upstream session may remain active. Gateway password mode remains
+separate. Setup is in docs/sso.md; no live provider was configured or activated.
 
 Meeting-view return links allow only the known `upcoming`, `huddles` and `captured`
 query values during OIDC callback restoration; other return paths retain the strict
@@ -53,3 +62,14 @@ The later UI simplification retained these session and motion behaviors;
 `test:account-motion` passed again and `test:simple-ui` covers Account pricing access.
 Its scoped correction review and Home/navigation evidence are in surface-dashboard.md;
 it did not repeat live identity verification.
+
+The SSO/library extension passed a scoped correction review after preserving separate
+recap/follow-up drafts; no observed regressions remained within that scope. Latest
+account captures are `.impeccable/review/sso-login-{desktop,mobile}.png` and
+`logout-header-{desktop,mobile}.png`. At (1440px) and (390px), `test:sso` used an
+isolated Vite server and synthetic OIDC provider to exercise real PKCE token exchange,
+custom scopes, reload, allowed meeting-tab restoration, direct header Logout,
+provider/local logout and forged-state rejection. Existing `test:browser`,
+`test:account-motion` and `test:simple-ui` also passed. This is not a whole-product
+review or live identity-provider acceptance. The incumbent visual system was compared,
+not regenerated; no new global tokens were introduced.
