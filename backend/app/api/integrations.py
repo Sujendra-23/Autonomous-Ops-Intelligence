@@ -11,6 +11,7 @@ from app.api.deps import require_ingest_key
 from app.config import get_settings
 from app.database import get_session
 from app.integrations.calendar import GoogleCalendar
+from app.integrations.outbox_alert import outbox_health
 from app.models.integration import WebhookDelivery
 
 router = APIRouter(dependencies=[Depends(require_ingest_key)])
@@ -71,6 +72,13 @@ async def webhook_deliveries(
         }
         for r in rows
     ]
+
+
+@router.get("/webhooks/health")
+async def webhook_health(session: AsyncSession = Depends(get_session)) -> dict:
+    """Outbox counts and the alert conditions currently met (same checks the worker alerts on)."""
+    health = await outbox_health(session)
+    return {**health.as_dict(), "problems": health.problems(get_settings())}
 
 
 @router.post("/webhooks/deliveries/{delivery_id}/retry")

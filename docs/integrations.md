@@ -165,6 +165,11 @@ retry with backoff, up to eight attempts; other 4xx failures stop immediately.
 
 The existing worker processes the durable outbox. Keep it running alongside the API.
 
+`GET /api/integrations/webhooks/health` reports pending, failed and overdue counts. The worker
+alerts Slack (and logs `outbox.unhealthy`) when deliveries fail or fall behind, see
+[runbook.md](runbook.md#webhook-outbox). Runnable Python and Node receivers that verify the
+signature are in [examples/webhook-receivers](../examples/webhook-receivers/).
+
 ## Salesforce tasks
 
 Each extracted action item can also be created as a Salesforce **Task** record, in addition to
