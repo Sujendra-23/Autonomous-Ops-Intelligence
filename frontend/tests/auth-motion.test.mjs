@@ -346,6 +346,9 @@ try {
       .getByRole("button", { name: "Dashboard", exact: true })
       .click();
     await localPage.waitForFunction(() => window.scrollY === 0);
+    await localPage
+      .getByRole("button", { name: "Back to top", exact: true })
+      .waitFor({ state: "hidden" });
     assert.equal(
       await localPage
         .getByRole("button", { name: "Back to top", exact: true })

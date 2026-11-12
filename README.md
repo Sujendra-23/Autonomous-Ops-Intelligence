@@ -613,3 +613,7 @@ Apply migration `0011_transcription_quality` before running the updated backend.
 Account access is in the top-right **Account** control and sidebar. See
 [login, logout and scroll movement](docs/account-access-and-motion.md) for setup
 and the distinction between local workspace mode and company sign-in.
+
+Built-in meetings, scheduling and audio huddles are in **Meetings**. See
+[in-app meeting setup](docs/in-app-meetings.md) for LiveKit, local calling,
+calendar invitations and the isolated two-participant transport test.

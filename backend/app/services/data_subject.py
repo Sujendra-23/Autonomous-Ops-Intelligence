@@ -39,6 +39,7 @@ CONFIRMATION_PHRASE = "DELETE MY ACCOUNT AND DATA"
 # Workspace-keyed customer data, children first. Every table with a ``workspace_id`` column that
 # holds customer content must be listed here; the coverage tests fail when one is missing.
 WORKSPACE_DATA_TABLES = (
+    "meeting_rooms",
     "task_import_states",
     "transcript_chunks",
     "task_activities",

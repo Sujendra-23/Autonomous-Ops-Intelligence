@@ -30,10 +30,12 @@ from app.database import Base, get_session
 from app.models import (
     Blocker,
     Decision,
+    MeetingRoom,
     Project,
     Risk,
     Task,
     TaskActivity,
+    TaskImportState,
     Transcript,
     TranscriptChunk,
     WebhookDelivery,
@@ -196,6 +198,10 @@ class World:
                 db.add(task)
                 await db.flush()
                 db.add_all([
+                    TaskImportState(provider="jira", scope=f"scope-{label}"),
+                    MeetingRoom(request_id=uuid.uuid4(), title=f"meeting-{label}", kind="meeting",
+                                starts_at=datetime.now(UTC), ends_at=datetime.now(UTC)+timedelta(hours=1),
+                                time_zone="UTC", description="", attendees=[], invitation_status="not_requested"),
                     TranscriptChunk(transcript_id=transcript.id, index=0, content=f"chunk-{label}",
                                     embedding=[0.25] * 1536),
                     TaskActivity(task_id=task.id, kind=f"activity-{label}"),

@@ -154,7 +154,7 @@ export function performAction(
     throw new Error("That control is not a selector.");
   if (
     action.kind === "fill" &&
-    !["text", "search", "email", "textarea", "date", "number"].includes(
+    !["text", "search", "email", "textarea", "date", "time", "number"].includes(
       element instanceof HTMLInputElement
         ? element.type
         : element instanceof HTMLTextAreaElement

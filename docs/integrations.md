@@ -22,8 +22,9 @@ only needs the backend URL and its ingestion key.
 ## Google Calendar
 
 Enable Google Calendar API in your Google Cloud project and create an OAuth client.
-Authorize the calendar account with offline access and the read-only scope
-`https://www.googleapis.com/auth/calendar.events.readonly`. Exchange the authorization code
+Authorize the calendar account with offline access and scopes
+`https://www.googleapis.com/auth/calendar.readonly` and
+`https://www.googleapis.com/auth/calendar.events` for optional meeting invitations. Exchange the authorization code
 for an offline refresh token using your OAuth client (the redirect URI must match its
 registration). Save the client ID, client secret, and refresh token server-side:
 
@@ -34,7 +35,9 @@ GOOGLE_CALENDAR_REFRESH_TOKEN=your-offline-refresh-token
 GOOGLE_CALENDAR_ID=primary
 ```
 
-The app refreshes an access token when reading the calendar; it never writes calendar events.
+The app refreshes access tokens on the server. The Meetings tab can optionally create
+calendar invitations containing a link to an AOI room; meetings and huddles run inside AOI.
+Reconnect older read-only grants to enable invitations.
 There is no built-in Google sign-in/consent screen in this version. Obtain the initial grant
 using your own OAuth setup. See [Google's offline OAuth flow](https://developers.google.com/identity/protocols/oauth2/web-server#offline)
 and [event listing reference](https://developers.google.com/calendar/api/v3/reference/events/list).

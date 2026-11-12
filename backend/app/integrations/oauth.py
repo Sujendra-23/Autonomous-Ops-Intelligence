@@ -19,7 +19,7 @@ PROVIDERS = {
         "Google Calendar",
         "https://accounts.google.com/o/oauth2/v2/auth",
         "https://oauth2.googleapis.com/token",
-        "https://www.googleapis.com/auth/calendar.readonly",
+        "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events",
     ),
     "slack": (
         "Slack",

@@ -8,9 +8,13 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test:browser": "node tests/roadmaps-voice.test.mjs",
-    "test:account-motion": "node tests/auth-motion.test.mjs"
+    "test:account-motion": "node tests/auth-motion.test.mjs",
+    "test:calls": "node tests/calls-live.test.mjs"
   },
   "dependencies": {
+    "@livekit/components-react": "2.9.25",
+    "@livekit/components-styles": "1.2.0",
+    "livekit-client": "2.23.0",
     "oidc-client-ts": "^3.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

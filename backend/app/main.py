@@ -20,6 +20,7 @@ from app.api import (
     integrations,
     intelligence,
     live,
+    meetings,
     projects,
     roadmaps,
     tasks,
@@ -157,6 +158,7 @@ app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(decisions.router, prefix="/api/decisions", tags=["decisions"])
 app.include_router(intelligence.router, prefix="/api/intelligence", tags=["intelligence"])
 app.include_router(live.router, prefix="/api/live", tags=["live"])
+app.include_router(meetings.router, prefix="/api/meetings", tags=["meetings"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 
 app.include_router(account.router, prefix="/api/account", tags=["account"])

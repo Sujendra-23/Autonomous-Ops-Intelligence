@@ -31,7 +31,7 @@ export async function restoreIdentity() {
     ? await identity.signinRedirectCallback() : await identity.getUser();
   if (window.location.pathname === "/auth/callback") {
     const returnTo = (user?.state as { returnTo?: unknown } | undefined)?.returnTo;
-    const safePath = typeof returnTo === "string" && /^\/(?:meetings(?:\/[a-zA-Z0-9%-]+)?|dashboard|roadmaps|extension|weekly-summary|upload|tasks|decisions|intelligence|settings|pricing)?$/.test(returnTo);
+    const safePath = typeof returnTo === "string" && /^\/(?:meetings(?:\/(?:rooms\/)?[a-zA-Z0-9%-]+)?|dashboard|roadmaps|extension|weekly-summary|upload|tasks|decisions|intelligence|settings|pricing)?$/.test(returnTo);
     window.history.replaceState({}, "", safePath ? returnTo : "/");
   }
   if (!user || user.expired) return false;

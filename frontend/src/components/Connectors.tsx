@@ -12,7 +12,7 @@ type Connector = {
 type Attempt = { provider: string; ticket: string; expiresAt: number };
 type AttemptResult = { status: "pending" | "connected" | "select_destination" | "failed"; message?: string };
 const purposes: Record<string, string> = {
-  google_calendar: "Use meeting titles, attendees, and dates from your calendar.",
+  google_calendar: "Schedule Google Meet calls, invite guests, and use your calendar’s meeting details.",
   slack: "Send meeting summaries and task reminders to your channel.",
   notion: "Publish meeting notes and project pages to your workspace.",
   linear: "Bring existing team issues into Tasks and keep linked statuses in sync.",

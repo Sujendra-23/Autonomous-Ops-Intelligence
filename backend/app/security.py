@@ -1,6 +1,7 @@
 """ASGI security boundary for all API routes (including WebSockets)."""
 
 import json
+import re
 
 from fastapi import HTTPException
 from redis.asyncio import Redis
@@ -89,6 +90,11 @@ class SecurityMiddleware:
             if (
                 principal.role == "viewer"
                 and scope["path"] not in SELF_SERVICE_PATHS
+                and not (
+                    scope["type"] == "http"
+                    and scope["method"] == "POST"
+                    and re.fullmatch(r"/api/meetings/[0-9a-fA-F-]{36}/join", scope["path"])
+                )
                 and (scope["type"] == "websocket" or scope["method"] not in ("GET", "HEAD"))
             ):
                 raise HTTPException(403, "Read-only workspace membership")
@@ -107,8 +113,13 @@ class SecurityMiddleware:
                 and scope["method"] == "POST"
                 and any(
                     scope["path"].startswith(path)
-                    for path in ("/api/transcripts", "/api/live/sessions", "/api/intelligence",
-                                 "/api/projects/roadmap/generate", "/api/assistant/command")
+                    for path in (
+                        "/api/transcripts",
+                        "/api/live/sessions",
+                        "/api/intelligence",
+                        "/api/projects/roadmap/generate",
+                        "/api/assistant/command",
+                    )
                 )
             ):
                 from datetime import UTC, datetime

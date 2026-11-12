@@ -97,6 +97,38 @@ class Settings(BaseSettings):
     jira_api_token: SecretStr = SecretStr("")
     jira_project_key: str = ""
 
+    # In-app calls. Media credentials never enter workspace/frontend configuration.
+    livekit_url: str = ""
+    livekit_api_url: str = ""
+    livekit_api_key: str = ""
+    livekit_api_secret: SecretStr = SecretStr("")
+    app_public_url: str = "http://localhost:5173"
+
+    @model_validator(mode="after")
+    def validate_calls(self) -> Settings:
+        from urllib.parse import urlsplit
+
+        for value, schemes in (
+            (self.livekit_url, {"ws", "wss"}),
+            (self.livekit_api_url, {"http", "https"}),
+            (self.app_public_url if self.livekit_url else "", {"http", "https"}),
+        ):
+            if not value:
+                continue
+            parsed = urlsplit(value)
+            if (
+                parsed.scheme not in schemes
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("Invalid call service or application URL")
+            if self.environment != "development" and parsed.scheme in {"http", "ws"}:
+                raise ValueError("Production calls and application URLs require TLS")
+        return self
+
     # ---- Slack ----
     slack_bot_token: SecretStr = SecretStr("")
     slack_default_channel: str = ""

@@ -1,0 +1,297 @@
+.meetings-page .page-actions {
+  flex-wrap: wrap;
+}
+.meetings-view-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+  margin: 26px 0;
+}
+.meetings-view-tabs button {
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+}
+.meetings-view-tabs button[aria-pressed="true"] {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+.meeting-composer {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px;
+  margin-bottom: 30px;
+}
+.meeting-composer h3,
+.upcoming-meetings h3 {
+  font-family: Figtree, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+.meeting-composer fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.meeting-composer label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 18px 0 8px;
+}
+.meeting-composer input,
+.meeting-composer textarea,
+.meeting-composer select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+}
+.schedule-time-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.schedule-zone-caption,
+.schedule-help {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 9px 0;
+}
+.schedule-options {
+  border-top: 1px solid var(--border);
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.schedule-options summary {
+  cursor: pointer;
+  font-size: 13px;
+  width: fit-content;
+}
+.schedule-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 26px;
+}
+.schedule-submit > span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+.schedule-submit .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+.upcoming-meetings {
+  margin-bottom: 30px;
+}
+.upcoming-meetings > .section-heading {
+  align-items: center;
+}
+.upcoming-meetings > .section-heading p {
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+.calendar-connect {
+  padding: 36px 0;
+  max-width: 520px;
+}
+.calendar-connect > .ui-icon {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 14px;
+}
+.calendar-connect h4 {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.calendar-connect p {
+  line-height: 1.7;
+}
+.scheduled-meeting-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.scheduled-meeting-list > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+}
+.scheduled-meeting-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.scheduled-meeting-info h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.scheduled-meeting-info p {
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.scheduled-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  max-width: 420px;
+}
+.scheduled-actions .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  text-decoration: none;
+}
+.scheduled-actions .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+.scheduled-actions > .muted,
+.scheduled-actions > .load-error {
+  font-size: 12px;
+}
+.scheduled-confirmation {
+  padding: 22px 0 26px;
+  margin-bottom: 28px;
+  border-block: 1px solid var(--border);
+}
+.scheduled-confirmation > p[role="status"] {
+  color: var(--ok);
+  font-size: 13px;
+}
+.scheduled-confirmation h3 {
+  font-size: 17px;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.scheduled-confirmation .scheduled-actions {
+  justify-content: flex-start;
+  max-width: none;
+}
+@media (max-width: 620px) {
+  .meeting-composer {
+    padding: 20px 16px;
+  }
+  .schedule-time-fields {
+    grid-template-columns: 1fr 1fr;
+    gap: 0 14px;
+  }
+  .schedule-time-fields > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .meeting-composer input,
+  .meeting-composer textarea,
+  .meeting-composer select {
+    font-size: 16px;
+  }
+  .schedule-submit,
+  .scheduled-meeting-list > li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .schedule-submit > .primary {
+    width: 100%;
+  }
+  .scheduled-actions {
+    justify-content: flex-start;
+    gap: 14px;
+  }
+  .upcoming-meetings > .section-heading {
+    align-items: flex-start;
+  }
+}
+.schedule-invite-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+.meeting-composer .schedule-invite-toggle input {
+  width: 16px;
+  height: 16px;
+}
+.quick-room-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px 20px;
+  padding: 24px 0;
+  border-block: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.quick-room-form > label {
+  grid-column: 1 / -1;
+  font-size: 13px;
+}
+.quick-room-form > div {
+  display: flex;
+  gap: 10px;
+}
+.quick-room-form .load-error {
+  grid-column: 1 / -1;
+}
+.call-setup-notice {
+  color: var(--muted);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.scheduled-meeting-info h4 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.scheduled-meeting-info h4 > .ui-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.room-presence {
+  color: var(--ok);
+  font-size: 12px;
+}
+.captured-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.captured-upload .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+@media (max-width: 620px) {
+  .quick-room-form {
+    grid-template-columns: 1fr;
+  }
+  .quick-room-form input {
+    font-size: 16px;
+  }
+  .quick-room-form > div {
+    justify-content: flex-end;
+  }
+}

@@ -1,0 +1,184 @@
+.aoi-call-page {
+  max-width: 1400px;
+}
+.aoi-call-page > .back-link .ui-icon {
+  width: 15px;
+  height: 15px;
+  transform: rotate(180deg);
+}
+.call-prejoin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 44px;
+  max-width: 840px;
+  padding: 32px 0;
+  border-block: 1px solid var(--border);
+  margin-top: 32px;
+}
+.call-prejoin > div > .ui-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 20px;
+}
+.call-prejoin h3 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.call-prejoin p {
+  line-height: 1.8;
+  font-size: 14px;
+}
+.call-prejoin form > label:first-child {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.call-prejoin form > input {
+  width: 100%;
+}
+.call-device-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  margin: 20px 0;
+}
+.call-device-toggle input {
+  width: 16px;
+  height: 16px;
+}
+.call-prejoin .primary {
+  width: 100%;
+  margin-top: 8px;
+}
+.call-agenda {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.call-stage {
+  --lk-font-family: Figtree, sans-serif;
+  --lk-accent-bg: #efd5fc;
+  --lk-accent-fg: #1a1a1a;
+  --lk-bg: #1a1a1a;
+  --lk-bg2: #292923;
+  --lk-control-bg: #33332d;
+  --lk-control-hover-bg: #41413b;
+  height: min(760px, calc(100dvh - 180px));
+  min-height: 520px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 24px;
+}
+.call-stage > .lk-room-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.call-stage .lk-video-conference {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.call-room-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 18px;
+  color: #fafaf0;
+  background: #292923;
+  font-size: 13px;
+}
+.call-room-status > details {
+  position: relative;
+}
+.call-room-status summary {
+  cursor: pointer;
+}
+.call-room-status ul {
+  position: absolute;
+  right: 0;
+  top: 26px;
+  background: #292923;
+  padding: 18px 24px;
+  border: 1px solid #62625a;
+  border-radius: 8px;
+  min-width: 180px;
+  margin: 0;
+  z-index: 40;
+  list-style: none;
+}
+.call-room-status li {
+  padding: 5px 0;
+}
+.call-stage .lk-chat-header {
+  font-family: Figtree, sans-serif;
+}
+.call-stage .lk-chat-form input {
+  color: #fafaf0;
+}
+.call-stage .lk-button,
+.call-stage .lk-disconnect-button {
+  font-family: Figtree, sans-serif;
+}
+@media (max-width: 620px) {
+  .call-prejoin {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 24px 0;
+  }
+  .call-prejoin input {
+    font-size: 16px;
+  }
+  .call-stage {
+    height: calc(100dvh - 150px);
+    min-height: 480px;
+    border-radius: 8px;
+  }
+  .aoi-call-page .page-actions {
+    flex-wrap: wrap;
+  }
+}
+/* Keep call controls in view while the media grid uses the remaining space. */
+.aoi-call-page:has(.call-stage) {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 122px);
+  min-height: 0;
+}
+.aoi-call-page:has(.call-stage) > .back-link,
+.aoi-call-page:has(.call-stage) > .page-heading {
+  flex-shrink: 0;
+}
+.aoi-call-page .call-stage {
+  flex: 1;
+  height: auto;
+  min-height: 280px;
+}
+.studio-content:has(.call-stage) > .workspace-footer {
+  display: none;
+}
+.call-stage .lk-video-conference-inner {
+  min-height: 0;
+  min-width: 0;
+}
+.call-stage .lk-control-bar,
+.call-room-status {
+  flex-shrink: 0;
+}
+.call-room-status ul {
+  max-height: min(320px, 40dvh);
+  overflow-y: auto;
+}
+.call-stage input::placeholder {
+  color: #c5c5b8;
+  opacity: 1;
+}
+.call-stage .lk-button[data-lk-source="screen_share"][data-lk-enabled="true"] {
+  color: #1a1a1a;
+}
+@media (max-width: 620px) {
+  .aoi-call-page:has(.call-stage) {
+    height: calc(100dvh - 104px);
+  }
+}

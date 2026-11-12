@@ -40,7 +40,7 @@ not for signing into a connector.
 
 | Provider | Client environment fields | Callback suffix | Required access/configuration |
 | --- | --- | --- | --- |
-| Google Calendar | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` | `/oauth/connectors/google_calendar/callback` | Enable Calendar API; `calendar.readonly`, offline access; configure consent/testing users |
+| Google Calendar | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` | `/oauth/connectors/google_calendar/callback` | Enable Calendar API; `calendar.readonly` + `calendar.events`, offline access; configure consent/testing users |
 | Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` | `/oauth/connectors/slack/callback` | Bot scopes `chat:write`, `incoming-webhook`; enable incoming webhooks; choose a channel |
 | Notion | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | `/oauth/connectors/notion/callback` | Public connection with read, insert, update content capabilities; share a parent page during consent |
 | Linear | `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET` | `/oauth/connectors/linear/callback` | `read`, `write`; PKCE; grant team access |

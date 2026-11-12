@@ -8,6 +8,7 @@ from app.models.blocker import Blocker
 from app.models.data_subject import DataSubjectAudit
 from app.models.decision import Decision
 from app.models.integration import WebhookDelivery
+from app.models.meeting import MeetingRoom
 from app.models.project import Project
 from app.models.risk import Risk
 from app.models.task import Task, TaskActivity, TaskImportState
@@ -18,6 +19,7 @@ __all__ = [
     "DataSubjectAudit",
     "Decision",
     "Project",
+    "MeetingRoom",
     "Risk",
     "Task",
     "TaskActivity",

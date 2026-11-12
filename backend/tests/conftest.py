@@ -17,15 +17,15 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.config import get_settings
-from app.database import Base
 from app import models  # noqa: F401
+from app.database import Base
 
 
 def _database_url() -> str:
-    return os.environ.get(
-        "TEST_DATABASE_URL", get_settings().database_url
-    )
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        raise RuntimeError("Set TEST_DATABASE_URL to an isolated test database")
+    return url
 
 
 async def _database_available(url: str) -> bool:
@@ -35,13 +35,13 @@ async def _database_available(url: str) -> bool:
             await conn.execute(text("SELECT 1"))
         await engine.dispose()
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db_available() -> bool:
-    return await _database_available(_database_url())
+    return bool(os.environ.get("TEST_DATABASE_URL")) and await _database_available(_database_url())
 
 
 @pytest_asyncio.fixture

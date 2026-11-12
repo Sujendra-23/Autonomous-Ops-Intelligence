@@ -115,3 +115,33 @@ desktop/mobile account flows, logout recovery, company-session credential cleanu
 local mode, command-handler logout and motion behavior. They do not establish live
 gateway/OIDC, database isolation, microphone accuracy or scroll smoothness benchmarks.
 See docs/account-access-and-motion.md for setup and verification details.
+
+## In-app meetings and huddles
+
+Meetings contains Upcoming, Huddles and Captured views. Teams can start a video
+meeting, schedule one for later, or create a reusable audio huddle inside AOI.
+Both room types support microphone audio, screen sharing, live chat, participant
+lists and device selection. Huddles exclude camera publication through server-issued
+permissions. Users choose their name and initial media state before Join; devices
+open only after that action. Leave and navigation stop local media and disconnect.
+Live chat is not stored as a workspace transcript, and calls are not recorded
+automatically. The existing extension and desktop recorders remain separate.
+
+Room links require access to the same company workspace; they do not grant anonymous
+guest access. Read-only members may join but cannot create rooms. Room records follow
+workspace isolation, account export and erasure handling. Media credentials are
+short-lived, room-scoped and issued by the backend without administration or recording
+grants; the media API secret stays on the server.
+
+Scheduling saves the AOI room independently of calendar availability, validates local
+times and time zones, and reuses the same request when retrying. Optional Google
+Calendar invitations carry the AOI link. Older read-only calendar connections need
+reconnecting with event-write permission. Failed or unconfirmed invitations retain
+the saved room and expose an explicit retry.
+
+Calls require a configured media service, production HTTPS and reachable media/TURN
+connectivity. Isolated two-browser checks against the real API, PostgreSQL and LiveKit
+verified audio, camera video, generated screen sharing, chat, leaving, presence and
+persisted scheduling. They used synthetic media; physical devices, multiple networks
+and actual Google invitation delivery remain unverified. Setup and limits are in
+docs/in-app-meetings.md.

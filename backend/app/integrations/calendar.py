@@ -1,7 +1,9 @@
-"""Read-only Google Calendar access using a server-side offline OAuth grant."""
+"""Google Calendar meeting access through a workspace-scoped offline OAuth grant."""
 
+import hashlib
+import json
 from datetime import UTC, datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 from fastapi import HTTPException
@@ -12,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models.project import Project
 from app.models.transcript import Transcript
+from app.schemas.meeting import ScheduleMeeting
 from app.services.project_resolver import get_or_create_project
+from app.tenancy import LEGACY_WORKSPACE, principal_context
 
 
 class CalendarEvent(BaseModel):
@@ -23,10 +27,44 @@ class CalendarEvent(BaseModel):
     participants: list[str]
     recurring_event_id: str | None = None
     meeting_url: str | None = None
+    ends_at: str | None = None
+    time_zone: str | None = None
+    calendar_url: str | None = None
+    conference_status: str | None = None
+    attendee_emails: list[str] = []
+    description: str = ""
+
+
+def safe_google_url(value: str | None, *, meet=False) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = urlsplit(value)
+        allowed = {"meet.google.com"} if meet else {"calendar.google.com", "www.google.com"}
+        if (
+            parsed.scheme == "https"
+            and parsed.hostname in allowed
+            and not parsed.username
+            and not parsed.password
+        ):
+            return value
+    except ValueError:
+        pass
+    return None
 
 
 def normalize_event(event: dict) -> CalendarEvent:
     start = event.get("start", {})
+    conference = event.get("conferenceData") or {}
+    video = next(
+        (
+            p.get("uri")
+            for p in conference.get("entryPoints", [])
+            if p.get("entryPointType") == "video"
+        ),
+        None,
+    )
+    meeting_url = safe_google_url(event.get("hangoutLink") or video, meet=True)
     return CalendarEvent(
         id=event["id"],
         title=event.get("summary") or "Untitled meeting",
@@ -38,12 +76,25 @@ def normalize_event(event: dict) -> CalendarEvent:
             if (a.get("displayName") or a.get("email")) and a.get("responseStatus") != "declined"
         ],
         recurring_event_id=event.get("recurringEventId"),
-        meeting_url=event.get("hangoutLink"),
+        meeting_url=meeting_url,
+        ends_at=event.get("end", {}).get("dateTime") or event.get("end", {}).get("date"),
+        time_zone=start.get("timeZone"),
+        calendar_url=safe_google_url(event.get("htmlLink")),
+        conference_status="success"
+        if meeting_url
+        else conference.get("createRequest", {}).get("status", {}).get("statusCode"),
+        attendee_emails=[a["email"] for a in event.get("attendees", []) if a.get("email")],
+        description=event.get("description") or "",
     )
 
 
 class GoogleCalendar:
     async def _get(self, suffix: str = "", params: dict | None = None) -> dict:
+        return await self._request("GET", suffix, params=params)
+
+    async def _request(
+        self, method: str, suffix: str = "", *, params: dict | None = None, body: dict | None = None
+    ) -> dict:
         settings = get_settings()
         if not settings.google_calendar_enabled:
             raise HTTPException(503, "Google Calendar is not configured on the backend")
@@ -60,11 +111,23 @@ class GoogleCalendar:
                 )
                 token.raise_for_status()
                 calendar_id = quote(settings.google_calendar_id, safe="")
-                response = await client.get(
+                response = await client.request(
+                    method,
                     f"https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events{suffix}",
                     headers={"Authorization": f"Bearer {token.json()['access_token']}"},
                     params=params,
+                    **({"json": body} if body is not None else {}),
                 )
+                if response.status_code == 409:
+                    raise HTTPException(409, "Calendar event already exists")
+                if response.status_code == 403:
+                    raise HTTPException(
+                        403,
+                        "Reconnect Google Calendar with scheduling permission. "
+                        "Check that the calendar is writable.",
+                    )
+                if response.status_code == 401:
+                    raise HTTPException(503, "Reconnect Google Calendar to renew access")
                 if response.status_code in (404, 410):
                     raise HTTPException(404, "Calendar event or calendar no longer exists")
                 response.raise_for_status()
@@ -72,8 +135,55 @@ class GoogleCalendar:
         except (httpx.HTTPError, KeyError, ValueError) as exc:
             # Provider bodies and URLs can contain credentials or private event data.
             raise HTTPException(
-                502, "Calendar request failed; check backend OAuth configuration"
+                502,
+                "Calendar request could not be confirmed. "
+                "Refresh upcoming meetings or retry with the same details.",
             ) from exc
+
+    async def schedule(self, payload: ScheduleMeeting, *, aoi_url: str) -> CalendarEvent:
+        principal = principal_context.get()
+        workspace = str(principal.workspace_id if principal else LEGACY_WORKSPACE)
+        event_id = "aoi" + hashlib.sha256(f"{workspace}:{payload.request_id}".encode()).hexdigest()
+        body = {
+            "id": event_id,
+            "summary": payload.title,
+            "description": payload.description,
+            "start": {"dateTime": payload.start().isoformat(), "timeZone": payload.time_zone},
+            "end": {"dateTime": payload.end().isoformat(), "timeZone": payload.time_zone},
+            "attendees": [{"email": email} for email in payload.attendees],
+            "guestsCanModify": False,
+            "reminders": {
+                "useDefault": False,
+                "overrides": []
+                if payload.reminder_minutes is None
+                else [{"method": "popup", "minutes": payload.reminder_minutes}],
+            },
+        }
+        body["location"] = aoi_url
+        body["description"] = payload.description + "\n\nJoin in AOI: " + aoi_url
+        fingerprint = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+        body["extendedProperties"] = {"private": {"aoiScheduleHash": fingerprint}}
+        try:
+            event = await self._request("POST", params={"sendUpdates": "all"}, body=body)
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
+            event = await self._get("/" + event_id)
+            if (
+                event.get("extendedProperties", {}).get("private", {}).get("aoiScheduleHash")
+                != fingerprint
+            ):
+                raise HTTPException(
+                    409,
+                    "This form already created a different meeting. "
+                    "Check your meetings before starting a new one.",
+                ) from exc
+            if event.get("status") == "cancelled":
+                raise HTTPException(
+                    409,
+                    "This meeting was cancelled. Start a new meeting instead.",
+                ) from exc
+        return normalize_event(event)
 
     async def list_events(
         self, start: datetime, end: datetime, page_token: str | None = None

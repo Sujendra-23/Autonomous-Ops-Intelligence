@@ -139,6 +139,15 @@ export type RoadmapInput = {
 };
 export type ProjectRoadmap = { project_id: string; name: string; version: number; roadmap: RoadmapDocument | null; created_task_count?: number };
 
+export type AoiMeeting = {
+  id:string; title:string; kind:"meeting"|"huddle"; starts_at:string; ends_at:string; time_zone:string;
+  description:string; attendees:string[]; participants:number|null; calendar_url:string|null; invitation_status:string; calls_enabled?:boolean;
+};
+export type ScheduleMeetingInput = {
+  request_id: string; title: string; meeting_date: string; start_time: string; time_zone: string;
+  duration_minutes: number; attendees: string[]; description: string; reminder_minutes: number | null;
+};
+
 export type TranscriptSummary = {
   id: string;
   title: string;
@@ -189,6 +198,13 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  callStatus: (signal?:AbortSignal)=>request<{calls_enabled:boolean;calendar_enabled:boolean}>("/api/meetings/status",{signal}),
+  aoiMeetings: (kind:"meeting"|"huddle",offset=0,signal?:AbortSignal)=>request<{items:AoiMeeting[];has_more:boolean;calls_enabled:boolean;calendar_enabled:boolean}>(`/api/meetings?kind=${kind}&offset=${offset}`,{signal}),
+  aoiMeeting: (id:string,signal?:AbortSignal)=>request<AoiMeeting>(`/api/meetings/${encodeURIComponent(id)}`,{signal}),
+  startAoiMeeting: (payload:{request_id:string;title:string;kind:"meeting"|"huddle"})=>request<AoiMeeting>("/api/meetings",{method:"POST",body:JSON.stringify(payload)}),
+  scheduleAoiMeeting: (payload:ScheduleMeetingInput & {invite_on_calendar:boolean})=>request<AoiMeeting>("/api/meetings/schedule",{method:"POST",body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)}),
+  retryMeetingInvitations: (id:string)=>request<AoiMeeting>(`/api/meetings/${encodeURIComponent(id)}/invitations`,{method:"POST",signal:AbortSignal.timeout(45000)}),
+  joinAoiMeeting: (id:string,display_name:string)=>request<{token:string;server_url:string}>(`/api/meetings/${encodeURIComponent(id)}/join`,{method:"POST",body:JSON.stringify({display_name}),signal:AbortSignal.timeout(20000)}),
   waitForExtraction: async (id: string) => {
     for (let attempt = 0; attempt < 120; attempt++) {
       const result = await request<{ status: string }>(`/api/transcripts/${id}/status`);

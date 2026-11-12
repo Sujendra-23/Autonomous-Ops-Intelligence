@@ -1,0 +1,21 @@
+# Local development only: same-machine calls with public development credentials.
+# docker compose -f docker-compose.yml -f compose.calls.yml up -d livekit backend
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.11
+    command: ["--dev", "--bind", "0.0.0.0", "--node-ip", "127.0.0.1"]
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "127.0.0.1:7881:7881"
+      - "127.0.0.1:7882:7882/udp"
+    restart: unless-stopped
+  backend:
+    environment:
+      LIVEKIT_URL: ws://localhost:7880
+      LIVEKIT_API_URL: http://livekit:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+      APP_PUBLIC_URL: http://localhost:5173
+    depends_on:
+      livekit:
+        condition: service_started

@@ -1,7 +1,9 @@
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { api, type TranscriptSummary } from "../api";
 import type { Navigate } from "../navigation";
 import { usePollingData } from "../usePollingData";
+import { MeetingHub } from "./MeetingHub";
+const CallRoom = lazy(() => import("./CallRoom"));
 
 const PAGE_SIZE = 20;
 const statusNames: Record<string, string> = { live: "Live", completed: "Completed", failed: "Failed", pending: "Queued", processing: "Processing", queued: "Queued" };
@@ -13,7 +15,8 @@ export function MeetingList({ meetings, onOpen }: { meetings: TranscriptSummary[
   return <ul className="meeting-list">{meetings.map(meeting => <li key={meeting.id}><button className="meeting-row" onClick={() => onOpen(meeting.id)}><span className="meeting-source" aria-hidden="true"><svg viewBox="0 0 24 24">{(meeting.source === "live" || meeting.source === "desktop") ? <><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></> : <><path d="M14 3H5v18h14V8zm0 0v5h5M8 12h8m-8 4h6"/></>}</svg></span><span className="meeting-copy"><strong>{meeting.title}</strong><span>{new Date(meeting.meeting_date ?? meeting.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}<span aria-hidden="true"> · </span>{meeting.source === "desktop" ? "Desktop recorder" : meeting.source === "live" ? "Browser extension" : "Uploaded transcript"}</span></span><MeetingStatus status={meeting.status} /><span className="row-arrow" aria-hidden="true">→</span></button></li>)}</ul>;
 }
 
-export function Meetings({ meetingId, onNavigate }: { meetingId?: string; onNavigate: Navigate }) {
+export function Meetings({ meetingId, roomId, onNavigate }: { meetingId?: string; roomId?:string; onNavigate: Navigate }) {
+  if(roomId) return <Suspense fallback={<p role="status">Opening meeting…</p>}><CallRoom key={roomId} id={roomId} onNavigate={onNavigate}/></Suspense>;
   return meetingId ? <MeetingDetail key={meetingId} id={meetingId} onNavigate={onNavigate} /> : <MeetingHistory onNavigate={onNavigate} />;
 }
 
@@ -21,12 +24,12 @@ function MeetingHistory({ onNavigate }: { onNavigate: Navigate }) {
   const [offset, setOffset] = useState(0);
   const load = useCallback((signal: AbortSignal) => api.transcripts({ limit: PAGE_SIZE, offset }, signal), [offset]);
   const { data, error, loading, refresh } = usePollingData(load);
-  return <div className="workspace-page"><header className="page-heading"><div><h2>Meetings</h2><p className="muted">Live captures and uploaded transcripts, together in one workspace.</p></div><div className="page-actions"><button className="ghost" onClick={refresh} disabled={loading}>{loading ? "Updating…" : "Refresh"}</button><button className="primary" onClick={() => onNavigate("upload")}>Upload transcript</button></div></header>
+  return <MeetingHub onNavigate={onNavigate}>
     {error && <p className="load-error" role="alert">Couldn’t refresh meetings. Check your backend connection and try Refresh.</p>}
     {!data && !error && <p className="panel muted" role="status">Loading meetings…</p>}
-    {data && <section className="meeting-section"><div className="section-heading"><h3>Meeting history</h3><span className="muted">{data.total} total</span></div>{data.items.length ? <MeetingList meetings={data.items} onOpen={id => onNavigate("meetings", id)} /> : <div className="meeting-empty"><h4>No meetings here yet.</h4><p>Use the extension to capture your next meeting, or upload an existing transcript.</p><button className="ghost" onClick={() => onNavigate("extension")}>Set up the extension</button></div>}<div className="meeting-pagination"><span className="muted">{data.total ? `${offset + 1}–${Math.min(offset + data.items.length, data.total)} of ${data.total}` : "0 meetings"}</span><div><button className="ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>Previous</button><button className="ghost" disabled={offset + PAGE_SIZE >= data.total || loading} onClick={() => setOffset(value => value + PAGE_SIZE)}>Next</button></div></div></section>}
+    {data && <section className="meeting-section"><div className="section-heading"><h3>Meeting history <span className="muted">({data.total})</span></h3><button className="text-button" onClick={refresh} disabled={loading}>{loading ? "Updating…" : "Refresh captured"}</button></div>{data.items.length ? <MeetingList meetings={data.items} onOpen={id => onNavigate("meetings", id)} /> : <div className="meeting-empty"><h4>No meetings here yet.</h4><p>Use the extension to capture your next meeting, or upload an existing transcript.</p><button className="ghost" onClick={() => onNavigate("extension")}>Set up the extension</button></div>}<div className="meeting-pagination"><span className="muted">{data.total ? `${offset + 1}–${Math.min(offset + data.items.length, data.total)} of ${data.total}` : "0 meetings"}</span><div><button className="ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>Previous</button><button className="ghost" disabled={offset + PAGE_SIZE >= data.total || loading} onClick={() => setOffset(value => value + PAGE_SIZE)}>Next</button></div></div></section>}
     <p className="update-caption">New captures appear automatically. Updates every 10 seconds.</p>
-  </div>;
+  </MeetingHub>;
 }
 
 function MeetingDetail({ id, onNavigate }: { id: string; onNavigate: Navigate }) {

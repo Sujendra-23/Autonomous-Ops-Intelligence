@@ -55,9 +55,10 @@ function WorkspaceApp() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
   function navigate(next: View, meetingId?: string) {
-    const path = next === "dashboard" ? "/" : `/${next}${next === "meetings" && meetingId ? `/${encodeURIComponent(meetingId)}` : ""}`;
+    const roomId = next === "meetings" && meetingId?.startsWith("room:") ? meetingId.slice(5) : undefined;
+    const path = roomId ? `/meetings/rooms/${encodeURIComponent(roomId)}` : next === "dashboard" ? "/" : `/${next}${next === "meetings" && meetingId ? `/${encodeURIComponent(meetingId)}` : ""}`;
     if (window.location.pathname !== path) window.history.pushState({}, "", path);
-    setRoute({ view: next, meetingId });
+    setRoute({ view: next, meetingId: roomId ? undefined : meetingId, roomId });
     window.scrollTo(0, 0);
   }
   const liveCount = useLiveMeetings();
@@ -67,7 +68,7 @@ function WorkspaceApp() {
     {view === "pricing" && <Pricing />}
     {view === "roadmaps" && <Roadmaps />}
     {view === "dashboard" && <Dashboard onNavigate={navigate} />}
-    {view === "meetings" && <Meetings meetingId={route.meetingId} onNavigate={navigate} />}
+    {view === "meetings" && <Meetings meetingId={route.meetingId} roomId={route.roomId} onNavigate={navigate} />}
     {view === "extension" && <ExtensionSetup onNavigate={navigate} />}
     {view === "weekly-summary" && <WeeklySummary onNavigate={navigate} />}
     {view === "upload" && <TranscriptUpload onIngested={() => navigate("tasks")} />}
