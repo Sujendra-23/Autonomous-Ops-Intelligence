@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test:browser": "node tests/roadmaps-voice.test.mjs",
     "test:account-motion": "node tests/auth-motion.test.mjs",
+    "test:simple-ui": "node tests/simple-ui.test.mjs",
     "test:calls": "node tests/calls-live.test.mjs"
   },
   "dependencies": {

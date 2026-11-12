@@ -82,6 +82,15 @@ export function AccountMenu({
             <Icon name="settings" />
             Workspace settings
           </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              onNavigate("pricing");
+            }}
+          >
+            <Icon name="book" />
+            Plans & pricing
+          </button>
           {authConfigured ? (
             <button
               onClick={() => {

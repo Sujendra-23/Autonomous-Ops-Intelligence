@@ -228,7 +228,7 @@ try {
     await page.getByRole("button", { name: "Account", exact: true }).waitFor();
     await page.waitForFunction(() =>
       document
-        .querySelector(".workspace-switcher")
+        .querySelector(".workspace-identity")
         ?.textContent.includes("beta workspace"),
     );
     const latest = state.meHeaders.at(-1);
@@ -343,7 +343,7 @@ try {
         .click();
     await localPage
       .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("button", { name: "Dashboard", exact: true })
+      .getByRole("button", { name: "Home", exact: true })
       .click();
     await localPage.waitForFunction(() => window.scrollY === 0);
     await localPage

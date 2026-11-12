@@ -126,7 +126,7 @@ export default function CallRoom({
     <div className="workspace-page aoi-call-page">
       <button
         className="text-button back-link"
-        onClick={() => onNavigate("meetings")}
+        onClick={() => onNavigate("meetings", undefined, data?.kind === "huddle" ? "huddles" : "upcoming")}
       >
         <Icon name="arrow" />
         All meetings

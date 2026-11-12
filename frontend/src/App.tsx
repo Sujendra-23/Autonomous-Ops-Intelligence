@@ -8,7 +8,7 @@ import { Intelligence } from "./components/Intelligence";
 import { WeeklySummary } from "./components/WeeklySummary";
 import { Meetings } from "./components/Meetings";
 import { ExtensionSetup } from "./components/ExtensionSetup";
-import { readRoute, type View } from "./navigation";
+import { readRoute, type View, type MeetingView } from "./navigation";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 
 import { authConfigured, restoreIdentity } from "./auth";
@@ -54,11 +54,12 @@ function WorkspaceApp() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
-  function navigate(next: View, meetingId?: string) {
+  function navigate(next: View, meetingId?: string, meetingView?: MeetingView) {
     const roomId = next === "meetings" && meetingId?.startsWith("room:") ? meetingId.slice(5) : undefined;
-    const path = roomId ? `/meetings/rooms/${encodeURIComponent(roomId)}` : next === "dashboard" ? "/" : `/${next}${next === "meetings" && meetingId ? `/${encodeURIComponent(meetingId)}` : ""}`;
-    if (window.location.pathname !== path) window.history.pushState({}, "", path);
-    setRoute({ view: next, meetingId: roomId ? undefined : meetingId, roomId });
+    const basePath = roomId ? `/meetings/rooms/${encodeURIComponent(roomId)}` : next === "dashboard" ? "/" : `/${next}${next === "meetings" && meetingId ? `/${encodeURIComponent(meetingId)}` : ""}`;
+    const path = basePath + (next === "meetings" && !meetingId && meetingView ? `?tab=${meetingView}` : "");
+    if (window.location.pathname + window.location.search !== path) window.history.pushState({}, "", path);
+    setRoute({ view: next, meetingId: roomId ? undefined : meetingId, roomId, meetingView });
     window.scrollTo(0, 0);
   }
   const liveCount = useLiveMeetings();
@@ -68,7 +69,7 @@ function WorkspaceApp() {
     {view === "pricing" && <Pricing />}
     {view === "roadmaps" && <Roadmaps />}
     {view === "dashboard" && <Dashboard onNavigate={navigate} />}
-    {view === "meetings" && <Meetings meetingId={route.meetingId} roomId={route.roomId} onNavigate={navigate} />}
+    {view === "meetings" && <Meetings meetingId={route.meetingId} roomId={route.roomId} meetingView={route.meetingView} onNavigate={navigate} />}
     {view === "extension" && <ExtensionSetup onNavigate={navigate} />}
     {view === "weekly-summary" && <WeeklySummary onNavigate={navigate} />}
     {view === "upload" && <TranscriptUpload onIngested={() => navigate("tasks")} />}

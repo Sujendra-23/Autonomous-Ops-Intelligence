@@ -155,9 +155,7 @@
   height: auto;
   min-height: 280px;
 }
-.studio-content:has(.call-stage) > .workspace-footer {
-  display: none;
-}
+
 .call-stage .lk-video-conference-inner {
   min-height: 0;
   min-width: 0;

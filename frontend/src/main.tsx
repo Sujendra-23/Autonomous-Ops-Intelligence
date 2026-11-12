@@ -4,6 +4,7 @@ import { App } from "./App";
 import "./styles.css";
 import "./components/workspace.css";
 import "./components/studio.css";
+import "./components/simple-workspace.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

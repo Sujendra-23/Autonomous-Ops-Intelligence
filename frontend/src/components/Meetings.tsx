@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useState } from "react";
 import { api, type TranscriptSummary } from "../api";
-import type { Navigate } from "../navigation";
+import type { Navigate, MeetingView } from "../navigation";
 import { usePollingData } from "../usePollingData";
 import { MeetingHub } from "./MeetingHub";
 const CallRoom = lazy(() => import("./CallRoom"));
@@ -15,19 +15,19 @@ export function MeetingList({ meetings, onOpen }: { meetings: TranscriptSummary[
   return <ul className="meeting-list">{meetings.map(meeting => <li key={meeting.id}><button className="meeting-row" onClick={() => onOpen(meeting.id)}><span className="meeting-source" aria-hidden="true"><svg viewBox="0 0 24 24">{(meeting.source === "live" || meeting.source === "desktop") ? <><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></> : <><path d="M14 3H5v18h14V8zm0 0v5h5M8 12h8m-8 4h6"/></>}</svg></span><span className="meeting-copy"><strong>{meeting.title}</strong><span>{new Date(meeting.meeting_date ?? meeting.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}<span aria-hidden="true"> · </span>{meeting.source === "desktop" ? "Desktop recorder" : meeting.source === "live" ? "Browser extension" : "Uploaded transcript"}</span></span><MeetingStatus status={meeting.status} /><span className="row-arrow" aria-hidden="true">→</span></button></li>)}</ul>;
 }
 
-export function Meetings({ meetingId, roomId, onNavigate }: { meetingId?: string; roomId?:string; onNavigate: Navigate }) {
+export function Meetings({ meetingId, roomId, meetingView, onNavigate }: { meetingId?: string; roomId?:string; meetingView?:MeetingView; onNavigate: Navigate }) {
   if(roomId) return <Suspense fallback={<p role="status">Opening meeting…</p>}><CallRoom key={roomId} id={roomId} onNavigate={onNavigate}/></Suspense>;
-  return meetingId ? <MeetingDetail key={meetingId} id={meetingId} onNavigate={onNavigate} /> : <MeetingHistory onNavigate={onNavigate} />;
+  return meetingId ? <MeetingDetail key={meetingId} id={meetingId} onNavigate={onNavigate} /> : <MeetingHistory meetingView={meetingView} onNavigate={onNavigate} />;
 }
 
-function MeetingHistory({ onNavigate }: { onNavigate: Navigate }) {
+function MeetingHistory({ onNavigate, meetingView }: { onNavigate: Navigate; meetingView?:MeetingView }) {
   const [offset, setOffset] = useState(0);
   const load = useCallback((signal: AbortSignal) => api.transcripts({ limit: PAGE_SIZE, offset }, signal), [offset]);
   const { data, error, loading, refresh } = usePollingData(load);
-  return <MeetingHub onNavigate={onNavigate}>
+  return <MeetingHub onNavigate={onNavigate} meetingView={meetingView}>
     {error && <p className="load-error" role="alert">Couldn’t refresh meetings. Check your backend connection and try Refresh.</p>}
     {!data && !error && <p className="panel muted" role="status">Loading meetings…</p>}
-    {data && <section className="meeting-section"><div className="section-heading"><h3>Meeting history <span className="muted">({data.total})</span></h3><button className="text-button" onClick={refresh} disabled={loading}>{loading ? "Updating…" : "Refresh captured"}</button></div>{data.items.length ? <MeetingList meetings={data.items} onOpen={id => onNavigate("meetings", id)} /> : <div className="meeting-empty"><h4>No meetings here yet.</h4><p>Use the extension to capture your next meeting, or upload an existing transcript.</p><button className="ghost" onClick={() => onNavigate("extension")}>Set up the extension</button></div>}<div className="meeting-pagination"><span className="muted">{data.total ? `${offset + 1}–${Math.min(offset + data.items.length, data.total)} of ${data.total}` : "0 meetings"}</span><div><button className="ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>Previous</button><button className="ghost" disabled={offset + PAGE_SIZE >= data.total || loading} onClick={() => setOffset(value => value + PAGE_SIZE)}>Next</button></div></div></section>}
+    {data && <section className="meeting-section"><div className="section-heading"><h3>Meeting notes <span className="muted">({data.total})</span></h3><button className="text-button" onClick={refresh} disabled={loading}>{loading ? "Updating…" : "Refresh notes"}</button></div>{data.items.length ? <MeetingList meetings={data.items} onOpen={id => onNavigate("meetings", id)} /> : <div className="meeting-empty"><h4>No meeting notes yet.</h4><p>Record a meeting or upload a transcript to find its notes here.</p><button className="ghost" onClick={() => onNavigate("extension")}>Set up recording</button></div>}<div className="meeting-pagination"><span className="muted">{data.total ? `${offset + 1}–${Math.min(offset + data.items.length, data.total)} of ${data.total}` : "0 meetings"}</span><div><button className="ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>Previous</button><button className="ghost" disabled={offset + PAGE_SIZE >= data.total || loading} onClick={() => setOffset(value => value + PAGE_SIZE)}>Next</button></div></div></section>}
     <p className="update-caption">New captures appear automatically. Updates every 10 seconds.</p>
   </MeetingHub>;
 }
@@ -41,7 +41,7 @@ function MeetingDetail({ id, onNavigate }: { id: string; onNavigate: Navigate })
     try { await navigator.clipboard.writeText(data?.content ?? ""); setCopyStatus("Transcript copied."); }
     catch { setCopyStatus("Couldn’t copy. Select the transcript text and copy it manually."); }
   }
-  return <div className="workspace-page meeting-detail"><button className="text-button back-link" onClick={() => onNavigate("meetings")}><span aria-hidden="true">←</span> All meetings</button>
+  return <div className="workspace-page meeting-detail"><button className="text-button back-link" onClick={() => onNavigate("meetings", undefined, "captured")}><span aria-hidden="true">←</span> Meeting notes</button>
     {error && <div className="load-error" role="alert"><p>Couldn’t load this meeting. Check the connection and make sure you have access to this workspace.</p><button className="ghost" onClick={refresh} disabled={loading}>Try again</button></div>}
     {!data && !error && <p className="panel muted" role="status">Loading meeting…</p>}
     {data && <><header className="page-heading"><div><h2>{data.title}</h2><p className="muted">{new Date(data.meeting_date ?? data.created_at).toLocaleString()} · {data.source === "desktop" ? "Captured with AOI Desktop" : data.source === "live" ? "Captured with the extension" : "Uploaded transcript"}</p></div><MeetingStatus status={data.status} /></header>

@@ -9,8 +9,10 @@ remain the visual authority; this surface introduces no new system tokens.
 
 Place Account at the right end of the sticky workspace header. Its lavender initial
 and outlined pill open a paper panel containing the workspace name, session context,
-Workspace settings and Logout. Local development substitutes Login and states that
-there is no account session. The sidebar repeats the session entry. The panel stays
+Workspace settings, Plans & pricing and Logout. Local development substitutes Login
+and states that there is no account session. The sidebar retains Settings and the
+session entry at the bottom; workspace identity is a static label. Pricing remains
+available at its existing route through Account. The panel stays
 within the viewport; below (620px), the trigger retains its accessible Account name
 while showing the avatar alone. Escape restores focus to the trigger; outside clicks
 and focus leaving the panel dismiss it.
@@ -31,6 +33,10 @@ and the explicit Talk to AOI logout command use the same sign-out action. Passwo
 require direct entry. Gateway credentials stay out of web storage; the existing
 OIDC session-storage policy is unchanged.
 
+Meeting-view return links allow only the known `upcoming`, `huddles` and `captured`
+query values during OIDC callback restoration; other return paths retain the strict
+existing route allowlist.
+
 ## Evidence and limits
 
 The fresh final review from `account_motion_finish_reviewer` returned SHIP with no
@@ -42,3 +48,8 @@ cleanup, gateway storage, command-handler logout and honest local mode. The comm
 check invoked the shared handler through typed input. It does not verify microphone
 recognition, a real gateway/OIDC deployment or database isolation. Setup and the
 repeatable test command are documented in docs/account-access-and-motion.md.
+
+The later UI simplification retained these session and motion behaviors;
+`test:account-motion` passed again and `test:simple-ui` covers Account pricing access.
+Its scoped correction review and Home/navigation evidence are in surface-dashboard.md;
+it did not repeat live identity verification.

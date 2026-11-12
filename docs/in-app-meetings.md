@@ -1,9 +1,16 @@
 # Meetings and huddles inside AOI
 
-The Meetings tab has three views: **Upcoming**, **Huddles**, and **Captured**.
+The Meetings tab has three views: **Upcoming**, **Huddles**, and **Meeting notes**.
 Start a meeting now, schedule one for later, or create a reusable audio huddle.
 Join links open an AOI room in the same company workspace. They do not grant
 anonymous guest access; invitees need access to that workspace.
+
+The selected view persists through refresh and browser history with
+`/meetings?tab=upcoming`, `/meetings?tab=huddles` or `/meetings?tab=captured`.
+Meeting notes keeps the existing `captured` route value. Home's **All notes** opens
+Meeting notes; a transcript's back action returns there. **All meetings** from a
+huddle room returns to Huddles, while other rooms return to Upcoming. **Talk to AOI**
+handles “Go to meeting notes”, “Go to transcripts” and “Go to huddles” locally.
 
 Before joining, enter a display name and choose the microphone/camera state.
 Devices are opened only after Join. Meetings support camera video; huddles exclude
@@ -92,6 +99,17 @@ and erasure handling; deleting an account clears its creator reference on shared
 rooms. Removing data from AOI does not delete copies held by calendar providers.
 
 ## Verification
+
+For the UI navigation checks, start Vite in `frontend/` with `npm run dev`, then run
+`npm run test:simple-ui` in another terminal. It uses `http://127.0.0.1:5173` by default;
+set `AOI_TEST_URL` for another local Vite origin. The release-checks calls job runs
+this suite against its existing Vite server. Mocked API and speech-recognition
+responses cover desktop/mobile navigation, Reports, Account pricing, notes-first Home
+order, tab refresh/history, transcript return, huddle prejoin/back and spoken tab
+navigation. Checks assert no page errors or horizontal overflow, make no real
+workspace writes and open no media devices. This UI suite passed alongside the build,
+`test:browser` and `test:account-motion`; the live call/backend checks below remain
+separate and were not rerun for this UI-only change.
 
 `frontend/tests/calls-live.test.mjs` runs against an isolated API/PostgreSQL/LiveKit
 stack. Chromium uses fake microphone/camera sources and a generated canvas for

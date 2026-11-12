@@ -148,6 +148,11 @@ export function VoiceAssistant({
         .toLowerCase()
         .replace(/[.!?]+$/g, "")
         .match(/^(?:please )?(?:go to|open|show|take me to) (?:the )?(.+)$/);
+      if (match && ["huddles", "meeting notes", "transcripts"].includes(match[1])) {
+        onNavigate("meetings", undefined, match[1] === "huddles" ? "huddles" : "captured");
+        reply(`Opened ${match[1]}.`);
+        return;
+      }
       if (match && routes[match[1]]) {
         onNavigate(routes[match[1]]);
         reply(`Opened ${match[1]}.`);

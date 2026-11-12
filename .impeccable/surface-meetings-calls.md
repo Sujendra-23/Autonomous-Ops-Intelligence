@@ -8,11 +8,17 @@ audio huddle with teammates. This extends the incumbent workspace. DESIGN.md and
 
 Use the existing cream shell, editorial EB Garamond page heading and Figtree controls.
 The Meetings heading pairs a quiet Schedule action with the primary Start meeting
-action. Underlined Upcoming, Huddles and Captured controls keep scheduled rooms,
+action. Underlined Upcoming, Huddles and Meeting notes controls keep scheduled rooms,
 drop-in conversations and captured transcripts easy to find. Huddles changes the
 primary action to Start huddle. Divided room rows show the title, time or drop-in
 guidance, known participant presence, Join and Copy link. Empty views explain the next
-action; Captured retains the existing history and transcript-upload path.
+action; Meeting notes retains the existing history and transcript-upload path.
+
+The view persists at `/meetings?tab=upcoming|huddles|captured`; `captured` is the
+unchanged route value behind Meeting notes. Home's All notes and transcript-detail
+back action open Meeting notes. A huddle room's All meetings returns to Huddles;
+other rooms return to Upcoming. Local Talk to AOI navigation understands meeting
+notes, transcripts and huddles. These entrypoint refinements preserve existing paths.
 
 ## Scheduling
 
@@ -45,8 +51,8 @@ Leaving returns to prejoin with a rejoin notice; navigation disconnects the room
 Below (620px), scheduling places date and time side by side, duration across the next
 row, and submission across the width. Room rows and prejoin content stack; editable
 fields use (16px) text. The active call uses the remaining viewport height, with its
-status and control bars outside the flexible media area. The ordinary workspace footer
-is hidden during a call, and long participant lists scroll within their popover.
+status and control bars outside the flexible media area. Long participant lists scroll
+within their popover.
 
 ## States and constraints
 
@@ -76,4 +82,12 @@ room privacy. Existing account/motion and roadmap/voice checks also passed.
 These checks do not establish physical-device behavior, cross-network/TURN behavior,
 load capacity or actual Google invitation delivery. The finished components and local
 styles preserve the incumbent palette, typography, flat surfaces and readable controls;
-no material global design-system drift was identified in this comparison.
+no material global design-system drift was identified in that comparison.
+
+The later UI-only refinement passed `test:simple-ui` at desktop/mobile widths with
+mocked API and speech recognition, covering tab persistence, notes/detail return and
+huddle/prejoin return without opening devices. Its captures are
+`.impeccable/review/simple-meeting-notes-{desktop,mobile}.png` and
+`simple-huddles-{desktop,mobile}.png`. The scoped final correction review returned
+SHIP for Home's notes/totals order; it did not re-review call media behavior. The
+real API/PostgreSQL/LiveKit evidence above was not rerun for this UI refinement.

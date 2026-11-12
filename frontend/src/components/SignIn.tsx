@@ -23,7 +23,7 @@ export function SignIn({
           returnTo:
             window.location.pathname === "/login"
               ? "/"
-              : window.location.pathname,
+              : window.location.pathname + window.location.search,
         },
       });
     } catch {

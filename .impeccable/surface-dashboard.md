@@ -1,27 +1,49 @@
-# Dashboard direction
+# Home and workspace direction
 
-Mode: Operate. Confirmed scope: “Restyle the existing app.” The user's Wispr Flow reference supersedes the earlier forest/citrus direction. Implement in the established React app, preserving routes, data flows, authentication, workspace isolation, and extension handoff.
+Mode: Operate. Scope: “make UI simple to use” within the user's established Wispr
+Flow-inspired restyle. Preserve routes, features, authentication, workspace isolation
+and recorder handoff. This code-led refinement introduces no new global tokens or
+visual world. DESIGN.md and .impeccable/design.json remain unchanged visual authorities.
 
-Use a cream canvas, charcoal sidebar, lavender selection and prominent upload actions, locally hosted Figtree, and regular/italic EB Garamond. The dashboard centers its large two-line welcome and supporting actions above a compact black capture strip with a cream waveform capsule. Divided counters lead into a paper meeting ledger and lavender attention rail. Keep ordinary primary buttons black and pill-shaped.
+## Composition and navigation
 
-Show real workspace counters and records when connected. Offline and empty states retain actionable setup and connection retry. Optional example records appear only after choosing the explicitly labeled preview and never trigger writes. Product capabilities and pricing remain as recorded in PRODUCT.md.
+Keep the cream canvas, charcoal sidebar, lavender selection, locally hosted Figtree
+controls and EB Garamond headings. Home uses a compact left-aligned introduction
+(52px desktop, 40px below 620px), with primary Open meetings and secondary Upload
+transcript. This local variant in `simple-workspace.css` intentionally supersedes the
+older centered welcome, capture strip and waveform composition recorded for the
+dashboard in DESIGN.md and its sidecar.
 
-Signature interaction: a finite 27-bar waveform (1400ms, three iterations), disabled under reduced motion. Meeting filters, example previews, retry, upload, task controls, and navigation retain keyboard and pointer behavior. Mobile uses the existing focus-managed drawer and a single reading column; capture content wraps with a full-width extension action.
+Recent meeting notes lead the work area. A supporting rail appears only for nonzero
+attention items or open tasks. Workspace totals follow the notes in DOM and visual
+order and are omitted when all counts are zero. Mobile stacks notes, the optional
+rail, then totals. Preserve filtering, source evidence, honest loading/offline states,
+retry and an explicit opt-in example preview that never writes workspace records.
+The empty ledger offers recording setup; the primary Recording apps entry retains
+the full setup path. Remove repeated capture promotion, connector promotion and
+footer framing so work is easier to reach; connector configuration remains in Settings.
 
-Scroll flow extends this composition with a slim plum line beneath the sticky header
-and a bounded, once-per-view unfolding of newly reached work sections (480ms).
-Content remains visible by default; sections loaded later join the same flow. Passive
-scroll sampling schedules at most one animation frame, and view changes clean up
-listeners, observers and active animations. Reduced motion hides the progress line
-and cancels section movement. Back to top appears after (500px), restores main-content
-focus, and returns immediately under reduced motion. Its visibility initializes
-again on every view change.
+The five primary entries are Home, Meetings, Tasks, Roadmaps and Recording apps.
+Expandable Reports contains Decisions, Search & insights and Weekly summary and opens
+for an active report. Settings and Login/Logout remain at the bottom. Account adds
+Plans & pricing. Workspace identity is static rather than a misleading settings
+switcher. The sticky header keeps current location, Search, Talk to AOI and Account.
+The existing focus-managed mobile drawer, visible focus, scroll flow and reduced-motion
+behavior are retained. Account details remain in surface-account-access.md.
 
-Implementation is code-led. The current visual system is documented in DESIGN.md and .impeccable/design.json. Review covered reference, desktop/mobile dashboard, upload, tasks, and labeled example screenshots in .impeccable/review; final reviewer disposition was SHIP with no material findings. Frontend build passed; ten routes at six widths had no horizontal page overflow, and keyboard focus interactions were checked.
+## Evidence and limits
 
-Account and scroll-flow additions received a fresh SHIP review from
-`account_motion_finish_reviewer`, with no material fixes. Final scroll evidence is
-in `.impeccable/review/scroll-flow-desktop.png` and `scroll-flow-mobile.png`.
-Mocked Chromium checks cover animation invocation, progress updates and reduced
-motion at desktop/mobile widths; they are not a scroll smoothness benchmark.
-Account composition and session limits are recorded in surface-account-access.md.
+Final review first requested only that notes precede totals. After correcting DOM and
+visual order, the scoped correction review returned SHIP: the sole fix was resolved,
+with no introduced regression visible in that scope. This is not a broad re-review
+of all features.
+
+Desktop/mobile captures are `.impeccable/review/simple-home-empty-{desktop,mobile}.png`,
+`simple-home-populated-{desktop,mobile}.png` and `simple-navigation-mobile.png`.
+The frontend build, `test:browser`, `test:account-motion` and `test:simple-ui` passed;
+the lazy media chunk warning remains expected. The new UI suite uses mocked API and
+speech-recognition responses at desktop/mobile widths, covering notes-first order,
+navigation/report/pricing access, meeting-tab refresh/back, huddle prejoin/back and
+local spoken navigation, with no page errors or horizontal overflow. It performs no
+real workspace writes or media capture. Existing call/backend evidence was not rerun
+for this UI refinement; meeting routes and test setup are in docs/in-app-meetings.md.

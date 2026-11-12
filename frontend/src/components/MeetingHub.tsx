@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, type AoiMeeting } from "../api";
-import type { Navigate } from "../navigation";
+import type { Navigate, MeetingView } from "../navigation";
 import { usePollingData } from "../usePollingData";
 import { Icon } from "./Icon";
 import {
@@ -156,13 +156,13 @@ function Rooms({
 export function MeetingHub({
   onNavigate,
   children,
+  meetingView,
 }: {
+  meetingView?: MeetingView;
   onNavigate: Navigate;
   children: ReactNode;
 }) {
-  const [tab, setTab] = useState<"upcoming" | "huddles" | "captured">(
-    "upcoming",
-  );
+  const tab = meetingView || "upcoming";
   const [composer, setComposer] = useState<
     "schedule" | "meeting" | "huddle" | null
   >(null);
@@ -198,7 +198,11 @@ export function MeetingHub({
     setError("");
     setCreated(null);
     setComposer(value);
-    setTab(value === "huddle" ? "huddles" : "upcoming");
+    onNavigate(
+      "meetings",
+      undefined,
+      value === "huddle" ? "huddles" : "upcoming",
+    );
   }
   async function start(form: HTMLFormElement) {
     if (submitting.current || !composer || composer === "schedule") return;
@@ -254,11 +258,13 @@ export function MeetingHub({
             aria-pressed={tab === value}
             disabled={busy}
             onClick={() => {
-              setTab(value);
+              onNavigate("meetings", undefined, value);
               setComposer(null);
             }}
           >
-            {value.charAt(0).toUpperCase() + value.slice(1)}
+            {value === "captured"
+              ? "Meeting notes"
+              : value.charAt(0).toUpperCase() + value.slice(1)}
           </button>
         ))}
       </div>

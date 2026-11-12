@@ -24,6 +24,22 @@ The user requested a Wispr Flow-inspired visual direction and confirmed “Resty
 ## Pricing
 User-confirmed: Pro costs $50 per company per month for 10–20 members. Team is for larger companies with custom monthly pricing based on company size, arranged through a conversation. Checkout, final feature entitlements, and usage allowances are not implemented or confirmed. A sales contact has not yet been supplied.
 
+## Workspace navigation and Home
+
+Home, Meetings, Tasks, Roadmaps and Recording apps are the primary workspace entries.
+Reports groups Decisions, Search & insights and Weekly summary; Settings and the
+session entry remain at the bottom of navigation. Account includes Plans & pricing.
+The header keeps the current location, Search, Talk to AOI and Account. Workspace
+identity is a label; settings remain an explicitly named action. Existing route paths
+and features are retained.
+
+Home starts with Open meetings and Upload transcript, then recent meeting notes.
+Attention and next tasks appear only when relevant; workspace totals follow the
+notes and disappear when every count is zero. Recording setup is available in the
+empty notes state and Recording apps; connector setup remains in Settings. Removing
+repeated setup, capture promotion and summary framing keeps the next action clear.
+Connection retry, source evidence and opt-in labeled example data remain available.
+
 ## Evidence on Hand
 Product facts and existing workflows are documented in README.md and docs/extension-dashboard.md. Manrope is already bundled with the extension under the SIL Open Font License.
 Desktop setup and capture limits are documented in docs/desktop-capture.md. Transcription review, provider behavior and the bounded evaluation result are documented in docs/transcription-quality.md and docs/transcription-evaluation.json.
@@ -94,8 +110,9 @@ or noisy-room accuracy benchmark.
 
 ## Account access and scroll flow
 
-Account in the workspace header opens Workspace settings and Logout for authenticated
-sessions, or Login for local development. The sidebar provides the same session entry.
+Account in the workspace header opens Workspace settings, Plans & pricing and Logout
+for authenticated sessions, or Login for local development. The sidebar provides
+Settings and the same session entry.
 The `/login` route uses the configured gateway or OIDC provider. Without configured
 authentication it explains that account login is unavailable and offers a return to
 the local workspace; it does not accept pretend credentials. Configuration remains
@@ -118,7 +135,12 @@ See docs/account-access-and-motion.md for setup and verification details.
 
 ## In-app meetings and huddles
 
-Meetings contains Upcoming, Huddles and Captured views. Teams can start a video
+Meetings contains Upcoming, Huddles and Meeting notes views. The selected view survives
+refresh and browser history through `/meetings?tab=upcoming|huddles|captured`;
+`captured` remains the route value for Meeting notes. Home's All notes and transcript
+detail return to Meeting notes, while a huddle room's All meetings returns to Huddles.
+Talk to AOI understands navigation to meeting notes, transcripts and huddles locally.
+Teams can start a video
 meeting, schedule one for later, or create a reusable audio huddle inside AOI.
 Both room types support microphone audio, screen sharing, live chat, participant
 lists and device selection. Huddles exclude camera publication through server-issued

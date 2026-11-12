@@ -90,7 +90,7 @@ team's behalf between meetings.
 | 🧠 Task dedup + status updates          | ✅       | Re-stated tasks merge; "X is done" closes the existing task    |
 | 🧠 Decision supersession                | ✅       | A reversing decision flags the prior one as superseded         |
 | 🎙 Live note-taker (browser extension)  | ✅       | Streams tab audio → STT → notes appear *during* the meeting     |
-| 🖥 Agent console (React + Vite)         | ✅       | Dashboard, task review, drift scans, semantic search           |
+| 🖥 Agent console (React + Vite)         | ✅       | Home, task review, drift scans, semantic search                |
 | Tests                                   | ✅ Pytest | Pure unit + integration (auto-skip without Postgres)           |
 
 Every integration is **off by default** and turns on automatically the moment
@@ -193,7 +193,8 @@ Or do it via curl:
 make seed
 ```
 
-Then visit the **Tasks**, **Decisions**, and **Intelligence** tabs in the UI.
+Then visit **Tasks**, **Reports → Decisions**, and **Reports → Search & insights**
+in the UI.
 
 ---
 
@@ -208,9 +209,9 @@ demonstrates correctness. To verify end-to-end after a code change:
 3. `curl http://localhost:8000/health` → `{"status":"ok"}`.
 4. `make seed` — ingests the sample transcript synchronously and prints the
    extracted JSON.
-5. Open `http://localhost:5173` and check that the **Dashboard** shows
+5. Open `http://localhost:5173` and check that **Home** shows
    non-zero counts and **Tasks** lists the extracted items.
-6. Click **Intelligence → Run drift scan** to verify the monitor.
+6. Click **Reports → Search & insights → Run drift scan** to verify the monitor.
 7. `make test` — runs the pytest suite inside the backend container against
    the live Postgres.
 
@@ -613,7 +614,10 @@ Apply migration `0011_transcription_quality` before running the updated backend.
 Account access is in the top-right **Account** control and sidebar. See
 [login, logout and scroll movement](docs/account-access-and-motion.md) for setup
 and the distinction between local workspace mode and company sign-in.
+**Account → Plans & pricing** opens the existing pricing page; **Settings** remains
+at the bottom of navigation. **Recording apps** contains desktop and extension setup.
 
-Built-in meetings, scheduling and audio huddles are in **Meetings**. See
+Built-in meetings, scheduling, audio huddles and **Meeting notes** are in **Meetings**.
+Home's **All notes** opens Meeting notes directly. See
 [in-app meeting setup](docs/in-app-meetings.md) for LiveKit, local calling,
 calendar invitations and the isolated two-participant transport test.

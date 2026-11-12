@@ -159,3 +159,7 @@ jobs:
           PY
       - run: npm run test:calls
         working-directory: frontend
+      - run: npm run test:simple-ui
+        working-directory: frontend
+        env:
+          AOI_TEST_URL: http://127.0.0.1:5193
